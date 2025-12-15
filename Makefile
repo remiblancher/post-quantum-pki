@@ -1,4 +1,4 @@
-.PHONY: build test test-race lint clean all help
+.PHONY: build test test-race lint clean all help install build-all smoke-test
 
 # Build variables
 BINARY_NAME=pki
@@ -14,22 +14,19 @@ help: ## Show this help
 build: ## Build the binary
 	go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/pki
 
+install: ## Install to GOPATH/bin
+	go install $(GOFLAGS) -ldflags "$(LDFLAGS)" ./cmd/pki
+
 test: ## Run tests
 	go test -v ./...
 
 test-race: ## Run tests with race detector
 	go test -v -race ./...
 
-test-cover: ## Run tests with coverage
+coverage: ## Run tests with coverage
 	go test -v -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
-
-test-openssl: ## Run OpenSSL validation tests
-	./test/openssl/run_all.sh
-
-test-bc: ## Run Bouncy Castle validation tests
-	cd test/bouncycastle && mvn -q package
-	./test/bouncycastle/run.sh
+	@echo "Coverage report: coverage.html"
 
 lint: ## Run linter
 	golangci-lint run
@@ -48,6 +45,24 @@ clean: ## Clean build artifacts
 deps: ## Download dependencies
 	go mod download
 	go mod tidy
+
+build-all: ## Build for all platforms
+	GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ./cmd/pki
+	GOOS=linux GOARCH=arm64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 ./cmd/pki
+	GOOS=darwin GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 ./cmd/pki
+	GOOS=darwin GOARCH=arm64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 ./cmd/pki
+	GOOS=windows GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./cmd/pki
+
+smoke-test: build ## Run smoke test
+	@mkdir -p /tmp/pki-test
+	./$(BUILD_DIR)/$(BINARY_NAME) init-ca --name "Test CA" --dir /tmp/pki-test/ca
+	./$(BUILD_DIR)/$(BINARY_NAME) issue --ca-dir /tmp/pki-test/ca --profile tls-server \
+		--cn test.local --dns test.local \
+		--out /tmp/pki-test/server.crt --key-out /tmp/pki-test/server.key
+	./$(BUILD_DIR)/$(BINARY_NAME) list --ca-dir /tmp/pki-test/ca
+	openssl verify -CAfile /tmp/pki-test/ca/ca.crt /tmp/pki-test/server.crt
+	@rm -rf /tmp/pki-test
+	@echo "Smoke test passed!"
 
 all: lint test-race build ## Run all checks and build
 
