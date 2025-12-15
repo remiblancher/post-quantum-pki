@@ -219,8 +219,9 @@ make build
 | X.509 certificate issuance | ✅ Production |
 | Certificate profiles | ✅ Production |
 | CRL generation | ✅ Production |
-| Hybrid PQC extension | 🧪 Experimental |
-| HSM via PKCS#11 | 📝 Interface ready |
+| PQC algorithms (ML-DSA, ML-KEM) | 🧪 Experimental |
+| Hybrid PQC certificates | 🧪 Experimental |
+| HSM via PKCS#11 | 🚧 Not implemented |
 
 ## License
 
