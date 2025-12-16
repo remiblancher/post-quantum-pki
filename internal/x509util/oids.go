@@ -86,20 +86,54 @@ var (
 	OIDMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
 )
 
+// Catalyst Extensions OIDs (ITU-T X.509 Section 9.8).
+// These are the standard OIDs for hybrid certificates with alternative keys/signatures.
+var (
+	// OIDAltSubjectPublicKeyInfo carries the alternative (PQC) public key.
+	// ITU-T X.509 (2019) Section 9.8
+	OIDAltSubjectPublicKeyInfo = asn1.ObjectIdentifier{2, 5, 29, 72}
+
+	// OIDAltSignatureAlgorithm identifies the algorithm used for the alternative signature.
+	// ITU-T X.509 (2019) Section 9.8
+	OIDAltSignatureAlgorithm = asn1.ObjectIdentifier{2, 5, 29, 73}
+
+	// OIDAltSignatureValue contains the alternative signature value.
+	// ITU-T X.509 (2019) Section 9.8
+	OIDAltSignatureValue = asn1.ObjectIdentifier{2, 5, 29, 74}
+)
+
 // Hybrid Extension OIDs (experimental arc 2.999.x).
 // These are used for the custom hybrid public key extension.
+// DEPRECATED: Use Catalyst extensions (OIDAltSubjectPublicKeyInfo, etc.) instead.
 var (
 	// OIDHybridPublicKeyExtension is the OID for our hybrid public key X.509 extension.
 	// This extension carries PQC public key material alongside the classical certificate.
 	// Arc: 2.999.1 (experimental)
+	// DEPRECATED: Use OIDAltSubjectPublicKeyInfo instead.
 	OIDHybridPublicKeyExtension = asn1.ObjectIdentifier{2, 999, 1, 1}
 
 	// OIDHybridSignature is for hybrid signature algorithms.
+	// DEPRECATED: Use Catalyst extensions instead.
 	OIDHybridSignatureP256MLDSA44 = asn1.ObjectIdentifier{2, 999, 1, 2, 1}
 	OIDHybridSignatureP384MLDSA65 = asn1.ObjectIdentifier{2, 999, 1, 2, 2}
 
 	// OIDHybridKEM is for hybrid KEM algorithms.
+	// DEPRECATED: Use Catalyst extensions instead.
 	OIDHybridKEMX25519MLKEM768 = asn1.ObjectIdentifier{2, 999, 1, 3, 1}
+)
+
+// RelatedCertificate OID (draft-ietf-lamps-cert-binding-for-multi-auth).
+// This extension links related certificates for multi-algorithm authentication.
+var (
+	// OIDRelatedCertificate is the OID for the RelatedCertificate extension.
+	// From draft-ietf-lamps-cert-binding-for-multi-auth-06.
+	// Arc: id-pe 101 (1.3.6.1.5.5.7.1.101)
+	OIDRelatedCertificate = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 101}
+
+	// OIDRelatedCertRequest is the attribute OID for CSR relatedCertRequest.
+	// From draft-ietf-lamps-cert-binding-for-multi-auth-06.
+	// Arc: id-aa 102 (1.2.840.113549.1.9.16.2.102)
+	OIDRelatedCertRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 102}
 )
 
 // OIDEqual compares two OIDs for equality.

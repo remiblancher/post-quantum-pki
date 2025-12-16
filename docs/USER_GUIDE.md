@@ -358,6 +358,140 @@ pki list --ca-dir ./myca --status valid
 pki list --ca-dir ./myca --status revoked
 ```
 
+### 2.8 gamme
+
+Manage certificate policy templates (gammes).
+
+```bash
+pki gamme <subcommand> [flags]
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `list` | List available gammes |
+| `info <name>` | Show details of a gamme |
+| `validate <file>` | Validate a gamme YAML file |
+| `install` | Install default gammes to CA |
+
+**Flags:**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--dir` | `-d` | ./ca | CA directory |
+| `--overwrite` | | false | Overwrite existing gammes (install) |
+
+**Examples:**
+
+```bash
+# Install default gammes
+pki gamme install --dir ./ca
+
+# List available gammes
+pki gamme list --dir ./ca
+
+# View gamme details
+pki gamme info hybrid-catalyst --dir ./ca
+
+# Validate custom gamme
+pki gamme validate my-gamme.yaml
+```
+
+### 2.9 enroll
+
+Enroll a new certificate bundle using a gamme.
+
+```bash
+pki enroll [flags]
+```
+
+**Flags:**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--subject` | `-s` | required | Certificate subject (e.g., "CN=Alice,O=Acme") |
+| `--gamme` | `-g` | classic | Gamme to use |
+| `--ca-dir` | `-c` | ./ca | CA directory |
+| `--out` | `-o` | . | Output directory |
+| `--passphrase` | `-p` | "" | Passphrase for private keys |
+| `--dns` | | | DNS SANs (repeatable) |
+| `--email` | | | Email SANs (repeatable) |
+| `--sig-profile` | | user | Profile for signature certificates |
+| `--enc-profile` | | user | Profile for encryption certificates |
+
+**Examples:**
+
+```bash
+# Basic enrollment
+pki enroll --subject "CN=Alice,O=Acme" --gamme classic --ca-dir ./ca
+
+# Hybrid Catalyst enrollment
+pki enroll --subject "CN=Alice,O=Acme" --gamme hybrid-catalyst --ca-dir ./ca
+
+# Full hybrid with encryption
+pki enroll --subject "CN=Alice,O=Acme" --gamme hybrid-full --out ./alice
+
+# With DNS SANs
+pki enroll --subject "CN=server.example.com" --gamme pqc-basic \
+    --dns server.example.com --dns www.example.com
+
+# With passphrase protection
+pki enroll --subject "CN=Alice" --gamme hybrid-catalyst \
+    --passphrase "secret" --out ./alice
+```
+
+### 2.10 bundle
+
+Manage certificate bundles.
+
+```bash
+pki bundle <subcommand> [flags]
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `list` | List all bundles |
+| `info <bundle-id>` | Show bundle details |
+| `renew <bundle-id>` | Renew all certificates in bundle |
+| `revoke <bundle-id>` | Revoke all certificates in bundle |
+| `export <bundle-id>` | Export bundle certificates to PEM |
+
+**Flags:**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--ca-dir` | `-c` | ./ca | CA directory |
+| `--passphrase` | `-p` | "" | Passphrase for private keys |
+| `--reason` | `-r` | unspecified | Revocation reason |
+| `--out` | `-o` | stdout | Output file (export) |
+| `--keys` | | false | Include private keys (export) |
+
+**Examples:**
+
+```bash
+# List bundles
+pki bundle list --ca-dir ./ca
+
+# View bundle details
+pki bundle info alice-20250115-abc123 --ca-dir ./ca
+
+# Renew a bundle
+pki bundle renew alice-20250115-abc123 --ca-dir ./ca
+
+# Revoke a bundle
+pki bundle revoke alice-20250115-abc123 --ca-dir ./ca --reason keyCompromise
+
+# Export certificates
+pki bundle export alice-20250115-abc123 --ca-dir ./ca --out alice.pem
+
+# Export with private keys
+pki bundle export alice-20250115-abc123 --ca-dir ./ca \
+    --keys --passphrase "secret" --out alice-full.pem
+```
+
 ## 3. Common Workflows
 
 ### 3.1 Set Up a Two-Tier PKI

@@ -133,45 +133,73 @@ Hybrid certificates provide:
 - **Forward security** via PQC material
 - **Gradual migration** path
 
-### 4.2 Hybrid Certificate Structure
+### 4.2 Hybrid Modes
+
+This PKI supports three hybrid approaches:
+
+| Mode | Standard | Certificates | Description |
+|------|----------|--------------|-------------|
+| **Catalyst (Combined)** | ITU-T X.509 9.8 | 1 | Dual keys in single cert |
+| **Separate (Linked)** | draft-ietf-lamps-cert-binding | 2 | Two linked certificates |
+| **Legacy Extension** | Proprietary | 1 | PQC in custom extension |
+
+**Catalyst** is the recommended approach for new deployments.
+
+### 4.3 Catalyst Certificates (ITU-T X.509 Section 9.8)
+
+Catalyst certificates embed **two public keys and two signatures** in a single X.509 certificate using standard extensions:
 
 ```
-┌─────────────────────────────────────────────────┐
-│                X.509 Certificate                 │
-├─────────────────────────────────────────────────┤
-│  Subject: CN=example.com                        │
-│  Issuer: CN=CA                                  │
-│  Public Key: ECDSA P-384                        │ ← Classical
-│  Signature Algorithm: ECDSA-SHA384              │ ← Classical
-│                                                  │
-│  Extensions:                                     │
-│    - Key Usage: Digital Signature               │
-│    - Extended Key Usage: TLS Server Auth        │
-│    - Subject Alt Name: DNS:example.com          │
-│    - Hybrid PQC Extension (2.999.1.1):          │ ← PQC
-│        - Algorithm: ML-DSA-65                   │
-│        - Public Key: <ML-DSA public key>        │
-│        - Signature: <ML-DSA signature>          │
-└─────────────────────────────────────────────────┘
+Certificate:
+  Data:
+    Subject Public Key Info:
+      Algorithm: ECDSA P-256           ← Classical (primary)
+      Public Key: [EC public key]
+    Extensions:
+      AltSubjectPublicKeyInfo (2.5.29.72):
+        Algorithm: ML-DSA-65           ← PQC (alternative)
+        Public Key: [ML-DSA public key]
+      AltSignatureAlgorithm (2.5.29.73):
+        Algorithm: ML-DSA-65
+      AltSignatureValue (2.5.29.74):
+        [ML-DSA signature]
+  Signature Algorithm: SHA256WithECDSA ← Classical signature
+  Signature: [ECDSA signature]
 ```
 
-### 4.3 Hybrid Extension Format
+See [CATALYST.md](CATALYST.md) for detailed information.
 
-```asn1
-HybridPQCExtension ::= SEQUENCE {
-    version        INTEGER (1),
-    algorithm      OBJECT IDENTIFIER,  -- ML-DSA-65 OID
-    publicKey      BIT STRING,         -- PQC public key
-    signature      BIT STRING OPTIONAL -- PQC signature over TBSCertificate
-}
+### 4.4 Separate Linked Certificates
+
+Two certificates linked via the `RelatedCertificate` extension:
+
+```
+Certificate 1 (Classical):
+  Public Key: ECDSA P-256
+  Extensions:
+    RelatedCertificate: [hash of Cert 2]
+
+Certificate 2 (PQC):
+  Public Key: ML-DSA-65
+  Extensions:
+    RelatedCertificate: [hash of Cert 1]
 ```
 
-**Extension Properties:**
-- OID: `2.999.1.1` (private/experimental)
-- Critical: `FALSE` (ignored by non-aware parsers)
+### 4.5 Creating Hybrid Certificates
 
-### 4.4 Creating Hybrid Certificates
+Using gammes (recommended):
+```bash
+# Install default gammes
+pki gamme install --dir ./ca
 
+# Enroll with Catalyst gamme
+pki enroll --subject "CN=Alice" --gamme hybrid-catalyst --ca-dir ./ca
+
+# Enroll with separate certificates
+pki enroll --subject "CN=Alice" --gamme hybrid-separate --ca-dir ./ca
+```
+
+Using direct issuance:
 ```bash
 # Create hybrid CA
 pki init-ca --name "Hybrid CA" \
@@ -187,25 +215,24 @@ pki issue --ca-dir ./hybrid-ca \
   --out hybrid.crt --key-out hybrid.key
 ```
 
-### 4.5 Parsing Hybrid Extensions
+### 4.6 Parsing Hybrid Extensions
 
 ```go
 import "github.com/remiblancher/pki/internal/x509util"
 
 cert, _ := x509.ParseCertificate(certDER)
 
-hybrid, err := x509util.ParseHybridExtension(cert)
-if err != nil {
-    // No hybrid extension or parse error
+// Parse Catalyst extensions
+catalyst, err := x509util.ParseCatalystExtensions(cert.Extensions)
+if err == nil && catalyst != nil {
+    fmt.Printf("Alternative Algorithm: %s\n", catalyst.AltAlgorithm)
+    fmt.Printf("Alternative Public Key: %x\n", catalyst.AltPublicKey)
 }
 
-fmt.Printf("PQC Algorithm: %s\n", hybrid.Algorithm)
-fmt.Printf("PQC Public Key: %x\n", hybrid.PublicKey)
-
-// Verify PQC signature
-if hybrid.Signature != nil {
-    valid := x509util.VerifyHybridSignature(cert, hybrid)
-    fmt.Printf("PQC Signature Valid: %v\n", valid)
+// Parse legacy hybrid extension
+hybrid, err := x509util.ParseHybridExtension(cert)
+if err == nil && hybrid != nil {
+    fmt.Printf("PQC Algorithm: %s\n", hybrid.Algorithm)
 }
 ```
 

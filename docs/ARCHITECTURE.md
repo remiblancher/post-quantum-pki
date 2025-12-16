@@ -5,59 +5,62 @@ This document describes the technical design, component structure, and data flow
 ## 1. Component Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                           CLI Layer                              │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │
-│  │ init-ca  │ │  issue   │ │  revoke  │ │  gen-crl │ │  info  │ │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └───┬────┘ │
-│       │            │            │            │           │      │
-└───────┼────────────┼────────────┼────────────┼───────────┼──────┘
-        │            │            │            │           │
-        v            v            v            v           v
-┌─────────────────────────────────────────────────────────────────┐
-│                          CA Layer                                │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                         CA                               │    │
-│  │  • Initialize()     • IssueTLSServer()                  │    │
-│  │  • Load()           • IssueTLSClient()                  │    │
-│  │  • Revoke()         • IssueIssuingCA()                  │    │
-│  │  • GenerateCRL()    • Certificate()                     │    │
-│  └──────────────────────────┬──────────────────────────────┘    │
-│                             │                                    │
-│  ┌──────────────────────────┴──────────────────────────────┐    │
-│  │                       Store                              │    │
-│  │  • SaveCertificate()  • NextSerial()                    │    │
-│  │  • LoadCertificate()  • ReadIndex()                     │    │
-│  │  • MarkRevoked()      • SaveCRL()                       │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-        │                                          │
-        v                                          v
-┌───────────────────────┐              ┌───────────────────────────┐
-│    Profiles Layer     │              │      Crypto Layer         │
-│  ┌─────────────────┐  │              │  ┌─────────────────────┐  │
-│  │   RootCA        │  │              │  │  Signer Interface   │  │
-│  │   IssuingCA     │  │              │  │  • Sign()           │  │
-│  │   TLSServer     │  │              │  │  • Public()         │  │
-│  │   TLSClient     │  │              │  │  • Algorithm()      │  │
-│  └─────────────────┘  │              │  └─────────┬───────────┘  │
-└───────────────────────┘              │            │              │
-                                       │  ┌─────────┴───────────┐  │
-                                       │  │ SoftwareSigner      │  │
-                                       │  │ PKCS11Signer        │  │
-                                       │  │ HybridSigner        │  │
-                                       │  └─────────────────────┘  │
-                                       └───────────────────────────┘
-        │                                          │
-        v                                          v
-┌───────────────────────────────────────────────────────────────┐
-│                        X509Util Layer                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐ │
-│  │    Builder      │  │   Extensions    │  │     OIDs       │ │
-│  │  • Build()      │  │  • Hybrid PQC   │  │  • ML-DSA      │ │
-│  │  • SetProfile() │  │  • SKI/AKI      │  │  • ML-KEM      │ │
-│  └─────────────────┘  └─────────────────┘  └────────────────┘ │
-└───────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                CLI Layer                                     │
+│  ┌────────┐ ┌───────┐ ┌────────┐ ┌────────┐ ┌──────┐ ┌───────┐ ┌─────────┐ │
+│  │init-ca │ │ issue │ │ revoke │ │gen-crl │ │ info │ │ gamme │ │ enroll  │ │
+│  └───┬────┘ └───┬───┘ └───┬────┘ └───┬────┘ └──┬───┘ └───┬───┘ └────┬────┘ │
+│      │          │         │          │         │         │          │       │
+│  ┌───┴──────────┴─────────┴──────────┴─────────┴─────────┘          │       │
+│  │                                                      ┌───────────┴─────┐ │
+│  │                                                      │     bundle      │ │
+│  │                                                      │ list/info/renew │ │
+│  │                                                      └────────┬────────┘ │
+└──┼───────────────────────────────────────────────────────────────┼──────────┘
+   │                                                               │
+   v                                                               v
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                               CA Layer                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                              CA                                      │    │
+│  │  • Initialize()      • Issue()           • Enroll()                 │    │
+│  │  • IssueCatalyst()   • IssueLinked()     • RenewBundle()           │    │
+│  │  • Revoke()          • RevokeBundle()    • GenerateCRL()           │    │
+│  └────────────────────────────────┬────────────────────────────────────┘    │
+│                                   │                                          │
+│  ┌────────────────────────────────┴────────────────────────────────────┐    │
+│  │                            Store                                     │    │
+│  │  • SaveCertificate()   • NextSerial()   • ReadIndex()               │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+        │                    │                              │
+        v                    v                              v
+┌─────────────────┐  ┌─────────────────┐          ┌─────────────────────────┐
+│  Profiles Layer │  │   Policy Layer  │          │      Crypto Layer       │
+│  ┌───────────┐  │  │  ┌───────────┐  │          │  ┌─────────────────┐    │
+│  │ RootCA    │  │  │  │   Gamme   │  │          │  │ Signer Interface│    │
+│  │ IssuingCA │  │  │  │   Store   │  │          │  │ • Sign()        │    │
+│  │ TLSServer │  │  │  │   Loader  │  │          │  │ • SignHybrid()  │    │
+│  │ TLSClient │  │  │  │   Defaults│  │          │  └────────┬────────┘    │
+│  └───────────┘  │  │  └───────────┘  │          │           │             │
+└─────────────────┘  └─────────────────┘          │  ┌────────┴────────┐    │
+                                                  │  │ SoftwareSigner  │    │
+        │                    │                    │  │ HybridSigner    │    │
+        v                    v                    │  │ PKCS11Signer    │    │
+┌─────────────────────────────────────────────┐  │  └─────────────────┘    │
+│              Bundle Layer                    │  └─────────────────────────┘
+│  ┌─────────────────────────────────────┐    │
+│  │            Bundle                    │    │            │
+│  │  • Create()   • Revoke()            │    │            v
+│  │  • Renew()    • Status              │    │  ┌─────────────────────────┐
+│  └─────────────────┬───────────────────┘    │  │     X509Util Layer      │
+│  ┌─────────────────┴───────────────────┐    │  │  ┌─────────────────┐    │
+│  │           FileStore                  │    │  │  │   Extensions    │    │
+│  │  • Save()    • Load()   • List()    │    │  │  │  • Catalyst     │    │
+│  │  • PEM encoding/decoding            │    │  │  │  • Related      │    │
+│  └─────────────────────────────────────┘    │  │  │  • SKI/AKI      │    │
+└─────────────────────────────────────────────┘  │  └─────────────────┘    │
+                                                  └─────────────────────────┘
 ```
 
 ## 2. Package Structure
@@ -72,13 +75,17 @@ pki/
 │       ├── revoke.go           # revoke, gen-crl commands
 │       ├── genkey.go           # genkey command
 │       ├── info.go             # info command
-│       └── list.go             # list command
+│       ├── list.go             # list command
+│       ├── gamme.go            # gamme command (list, info, validate, install)
+│       ├── enroll.go           # enroll command
+│       └── bundle.go           # bundle command (list, info, renew, revoke, export)
 │
 ├── internal/
 │   ├── ca/                     # CA operations
 │   │   ├── ca.go               # CA type and core operations
 │   │   ├── store.go            # File-based storage
 │   │   ├── revocation.go       # Revocation and CRL
+│   │   ├── enrollment.go       # Bundle enrollment and renewal
 │   │   └── *_test.go           # Tests
 │   │
 │   ├── crypto/                 # Cryptographic primitives
@@ -87,7 +94,7 @@ pki/
 │   │   ├── signer.go           # Signer interface
 │   │   ├── software.go         # Software signer implementation
 │   │   ├── pkcs11.go           # PKCS#11 signer (placeholder)
-│   │   ├── hybrid.go           # Hybrid signer
+│   │   ├── hybrid.go           # Hybrid signer (Catalyst support)
 │   │   ├── pem.go              # PEM encoding/decoding
 │   │   └── *_test.go           # Tests
 │   │
@@ -98,13 +105,40 @@ pki/
 │   │   ├── tls_client.go       # TLS client profile
 │   │   └── *_test.go           # Tests
 │   │
+│   ├── policy/                 # Policy templates (Gammes)
+│   │   ├── gamme.go            # Gamme structure and validation
+│   │   ├── loader.go           # YAML loading and GammeStore
+│   │   ├── defaults.go         # Embedded default gammes
+│   │   ├── defaults/           # YAML gamme files
+│   │   │   ├── classic.yaml
+│   │   │   ├── pqc-basic.yaml
+│   │   │   ├── pqc-full.yaml
+│   │   │   ├── hybrid-catalyst.yaml
+│   │   │   ├── hybrid-separate.yaml
+│   │   │   └── hybrid-full.yaml
+│   │   └── *_test.go           # Tests
+│   │
+│   ├── bundle/                 # Certificate bundles
+│   │   ├── bundle.go           # Bundle structure and lifecycle
+│   │   ├── pem.go              # PEM encoding/decoding for bundles
+│   │   ├── store.go            # FileStore for bundle persistence
+│   │   └── *_test.go           # Tests
+│   │
 │   └── x509util/               # X.509 utilities
 │       ├── builder.go          # Certificate builder
-│       ├── extensions.go       # Custom extensions
+│       ├── extensions.go       # Custom extensions (Catalyst, Related)
 │       ├── oids.go             # OID definitions
+│       ├── csr.go              # CSR utilities (dual-signature)
 │       └── *_test.go           # Tests
 │
 ├── docs/                       # Documentation
+│   ├── ARCHITECTURE.md         # This file
+│   ├── USER_GUIDE.md           # CLI usage guide
+│   ├── PQC.md                  # Post-quantum cryptography
+│   ├── GAMMES.md               # Gamme documentation
+│   ├── BUNDLES.md              # Bundle documentation
+│   └── CATALYST.md             # Catalyst certificate documentation
+│
 └── test/                       # Integration tests
 ```
 

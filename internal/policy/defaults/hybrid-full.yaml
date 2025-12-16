@@ -1,0 +1,20 @@
+# Hybrid Full gamme: Catalyst signature + PQC encryption
+# Complete post-quantum ready profile with backward compatibility
+
+name: hybrid-full
+description: "Catalyst signature (ECDSA + ML-DSA) + PQC encryption (ML-KEM)"
+
+signature:
+  required: true
+  mode: hybrid-combined
+  algorithms:
+    primary: ecdsa-p256
+    alternative: ml-dsa-65
+
+encryption:
+  required: true
+  mode: simple
+  algorithms:
+    primary: ml-kem-768
+
+validity: 365d

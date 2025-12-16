@@ -9,8 +9,11 @@ A minimalist, quantum-safe Public Key Infrastructure (PKI) implementation in Go.
 ## Features
 
 - **State-of-the-art X.509 certificates** (RFC 5280 compliant)
-- **Post-Quantum Cryptography (PQC)** support via ML-DSA and ML-KEM
-- **Hybrid certificates** (classical signature + PQC via X.509 extensions)
+- **Post-Quantum Cryptography (PQC)** support via ML-DSA, SLH-DSA and ML-KEM
+- **Catalyst certificates** (ITU-T X.509 Section 9.8) - dual keys in single cert
+- **Hybrid certificates** (classical + PQC via combined or separate modes)
+- **Gammes** (policy templates) - define enrollment policies in YAML
+- **Bundles** - group certificates with coupled lifecycle
 - **HSM support** via PKCS#11 (interface ready)
 - **CLI-only** - simple, scriptable, no database required
 - **Pure Go** - no CGO dependencies, uses cloudflare/circl
@@ -242,10 +245,27 @@ pki gen-crl --ca-dir ./myca --days 30
 
 ## Hybrid PQC Certificates
 
-The PKI supports hybrid certificates that combine classical signatures with post-quantum material. This approach:
+The PKI supports hybrid certificates that combine classical signatures with post-quantum material.
 
-1. Uses classical algorithm (ECDSA/RSA) for the X.509 signature (compatibility)
-2. Embeds PQC public key in a non-critical extension (future-proofing)
+### Catalyst Certificates (Recommended)
+
+Catalyst certificates follow ITU-T X.509 Section 9.8, embedding dual keys and signatures in a single certificate:
+
+```bash
+# Enroll with Catalyst gamme
+pki enroll --subject "CN=Alice,O=Acme" --gamme hybrid-catalyst --ca-dir ./ca
+```
+
+### Separate Linked Certificates
+
+Two certificates linked via the RelatedCertificate extension:
+
+```bash
+# Enroll with separate certificates
+pki enroll --subject "CN=Alice,O=Acme" --gamme hybrid-separate --ca-dir ./ca
+```
+
+### Direct Issuance
 
 ```bash
 # Create CA with hybrid support
@@ -258,6 +278,54 @@ pki issue --ca-dir ./hybrid-ca --profile tls-server \
   --hybrid ml-dsa-65 \
   --out hybrid-server.crt
 ```
+
+## Gammes (Policy Templates)
+
+Gammes define certificate enrollment policies in YAML:
+
+```bash
+# Install default gammes
+pki gamme install --dir ./ca
+
+# List available gammes
+pki gamme list --dir ./ca
+
+# View gamme details
+pki gamme info hybrid-catalyst --dir ./ca
+```
+
+**Default Gammes:**
+
+| Name | Signature | Encryption | Certificates |
+|------|-----------|------------|--------------|
+| `classic` | ECDSA P-256 | None | 1 |
+| `pqc-basic` | ML-DSA-65 | None | 1 |
+| `pqc-full` | ML-DSA-65 | ML-KEM-768 | 2 |
+| `hybrid-catalyst` | ECDSA + ML-DSA (Catalyst) | None | 1 |
+| `hybrid-separate` | ECDSA + ML-DSA (linked) | None | 2 |
+| `hybrid-full` | ECDSA + ML-DSA (Catalyst) | ML-KEM-768 | 2 |
+
+See [docs/GAMMES.md](docs/GAMMES.md) for details.
+
+## Bundles
+
+Bundles group related certificates with coupled lifecycle:
+
+```bash
+# Enroll creates a bundle
+pki enroll --subject "CN=Alice,O=Acme" --gamme hybrid-full --out ./alice
+
+# List bundles
+pki bundle list --ca-dir ./ca
+
+# Renew all certificates in a bundle
+pki bundle renew alice-20250115-abc123 --ca-dir ./ca
+
+# Revoke all certificates in a bundle
+pki bundle revoke alice-20250115-abc123 --reason keyCompromise --ca-dir ./ca
+```
+
+See [docs/BUNDLES.md](docs/BUNDLES.md) for details.
 
 ## CA Directory Structure
 
@@ -273,6 +341,15 @@ ca/
 ├── crl/
 │   ├── ca.crl       # Current CRL (PEM)
 │   └── ca.crl.der   # Current CRL (DER)
+├── gammes/          # Certificate policy templates
+│   ├── classic.yaml
+│   ├── hybrid-catalyst.yaml
+│   └── ...
+├── bundles/         # Certificate bundles
+│   └── <bundle-id>/
+│       ├── bundle.json
+│       ├── certificates.pem
+│       └── private-keys.pem
 ├── index.txt        # Certificate database
 ├── serial           # Next serial number
 └── crlnumber        # Next CRL number
@@ -303,7 +380,10 @@ make build
 | Certificate profiles | ✅ Production |
 | CRL generation | ✅ Production |
 | PQC algorithms (ML-DSA, SLH-DSA, ML-KEM) | 🧪 Experimental |
+| Catalyst certificates (ITU-T X.509 9.8) | 🧪 Experimental |
 | Hybrid PQC certificates | 🧪 Experimental |
+| Gammes (policy templates) | 🧪 Experimental |
+| Bundles (certificate groups) | 🧪 Experimental |
 | Audit logging | ✅ Production |
 | HSM via PKCS#11 | 🚧 Not implemented |
 
