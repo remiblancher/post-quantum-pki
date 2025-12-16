@@ -351,7 +351,7 @@ func generateBundleID(commonName string) string {
 
 	// Generate a short random suffix
 	b := make([]byte, 4)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 
 	// Clean common name for use in ID
 	cleanName := ""
