@@ -18,26 +18,20 @@ A minimalist, quantum-safe Public Key Infrastructure (PKI) implementation in Go.
 ## Supported Algorithms
 
 ### Classical (Production)
-| Algorithm | Usage |
-|-----------|-------|
-| ECDSA P-256 | Default, maximum compatibility |
-| ECDSA P-384 | High security |
-| ECDSA P-521 | Ultra security |
-| Ed25519 | Modern, fast |
-| RSA-2048/4096 | Legacy support |
+| Algorithm | Security | Notes |
+|-----------|----------|-------|
+| ECDSA P-256 | ~128-bit | Default, wide compatibility |
+| ECDSA P-384 | ~192-bit | Recommended for new deployments |
+| ECDSA P-521 | ~256-bit | Maximum classical security |
+| Ed25519 | ~128-bit | Fast, constant-time |
+| RSA-2048/4096 | ~112/140-bit | Legacy compatibility |
 
 ### Post-Quantum (Experimental)
-| Algorithm | Standard | Security Level | Type |
-|-----------|----------|----------------|------|
-| ML-DSA-44 | FIPS 204 | NIST Level 1 | Signature |
-| ML-DSA-65 | FIPS 204 | NIST Level 3 | Signature |
-| ML-DSA-87 | FIPS 204 | NIST Level 5 | Signature |
-| SLH-DSA-128s/f | FIPS 205 | NIST Level 1 | Signature (hash-based) |
-| SLH-DSA-192s/f | FIPS 205 | NIST Level 3 | Signature (hash-based) |
-| SLH-DSA-256s/f | FIPS 205 | NIST Level 5 | Signature (hash-based) |
-| ML-KEM-512 | FIPS 203 | NIST Level 1 | Key encapsulation |
-| ML-KEM-768 | FIPS 203 | NIST Level 3 | Key encapsulation |
-| ML-KEM-1024 | FIPS 203 | NIST Level 5 | Key encapsulation |
+| Algorithm | Security | Notes |
+|-----------|----------|-------|
+| ML-DSA-44/65/87 | NIST Level 1/3/5 | FIPS 204, lattice-based |
+| SLH-DSA-128/192/256 | NIST Level 1/3/5 | FIPS 205, hash-based |
+| ML-KEM-512/768/1024 | NIST Level 1/3/5 | FIPS 203, key encapsulation |
 
 ## Installation
 

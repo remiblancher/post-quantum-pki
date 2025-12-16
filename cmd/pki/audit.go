@@ -59,10 +59,10 @@ var (
 
 func init() {
 	auditVerifyCmd.Flags().StringVar(&auditLogFile, "log", "", "Path to audit log file (required)")
-	auditVerifyCmd.MarkFlagRequired("log")
+	_ = auditVerifyCmd.MarkFlagRequired("log")
 
 	auditTailCmd.Flags().StringVar(&auditLogFile, "log", "", "Path to audit log file (required)")
-	auditTailCmd.MarkFlagRequired("log")
+	_ = auditTailCmd.MarkFlagRequired("log")
 	auditTailCmd.Flags().IntVarP(&auditTailNum, "num", "n", 10, "Number of events to show")
 	auditTailCmd.Flags().BoolVar(&auditShowJSON, "json", false, "Output as JSON")
 

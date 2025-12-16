@@ -161,8 +161,8 @@ func (w *FileWriter) Path() string {
 // calculateHash computes SHA256(data || prevHash).
 func calculateHash(data []byte, prevHash string) string {
 	h := sha256.New()
-	h.Write(data)
-	h.Write([]byte(prevHash))
+	_, _ = h.Write(data)
+	_, _ = h.Write([]byte(prevHash))
 	return HashPrefix + hex.EncodeToString(h.Sum(nil))
 }
 
