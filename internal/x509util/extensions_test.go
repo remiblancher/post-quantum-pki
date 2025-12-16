@@ -19,7 +19,7 @@ import (
 
 func TestEncodeHybridExtension_Valid(t *testing.T) {
 	pubKey := make([]byte, 1952) // ML-DSA-65 public key size
-	rand.Read(pubKey)
+	_, _ = rand.Read(pubKey)
 
 	ext, err := EncodeHybridExtension(crypto.AlgMLDSA65, pubKey, HybridPolicyInformational)
 	if err != nil {
@@ -45,7 +45,7 @@ func TestEncodeHybridExtension_NonPQCAlgorithm(t *testing.T) {
 
 func TestDecodeHybridExtension(t *testing.T) {
 	originalPubKey := make([]byte, 1952)
-	rand.Read(originalPubKey)
+	_, _ = rand.Read(originalPubKey)
 	originalPolicy := HybridPolicyMustVerifyBoth
 
 	ext, err := EncodeHybridExtension(crypto.AlgMLDSA65, originalPubKey, originalPolicy)
