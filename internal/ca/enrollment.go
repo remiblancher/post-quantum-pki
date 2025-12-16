@@ -424,7 +424,7 @@ func (ca *CA) RevokeBundle(bundleID string, reason RevocationReason, bundleStore
 	}
 
 	// Update bundle status
-	if err := bundleStore.UpdateStatus(bundleID, bundle.StatusRevoked, string(reason)); err != nil {
+	if err := bundleStore.UpdateStatus(bundleID, bundle.StatusRevoked, reason.String()); err != nil {
 		return fmt.Errorf("failed to update bundle status: %w", err)
 	}
 

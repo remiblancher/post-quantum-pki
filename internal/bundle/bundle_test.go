@@ -504,9 +504,9 @@ func TestFileStore_List(t *testing.T) {
 	b2 := NewBundle("bundle-bob", Subject{CommonName: "Bob"}, "classic")
 	b3 := NewBundle("bundle-alice2", Subject{CommonName: "Alice Smith"}, "classic")
 
-	store.Save(b1, nil, nil, nil)
-	store.Save(b2, nil, nil, nil)
-	store.Save(b3, nil, nil, nil)
+	_ = store.Save(b1, nil, nil, nil)
+	_ = store.Save(b2, nil, nil, nil)
+	_ = store.Save(b3, nil, nil, nil)
 
 	// List with filter
 	ids, err := store.List("Alice")
@@ -758,17 +758,6 @@ func generateTestCertificate(t *testing.T) *x509.Certificate {
 	}
 
 	return cert
-}
-
-func generateTestSigner(t *testing.T) *crypto.SoftwareSigner {
-	t.Helper()
-
-	signer, err := crypto.GenerateSoftwareSigner(crypto.AlgECDSAP256)
-	if err != nil {
-		t.Fatalf("failed to generate signer: %v", err)
-	}
-
-	return signer
 }
 
 func contains(s, substr string) bool {

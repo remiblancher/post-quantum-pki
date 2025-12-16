@@ -480,7 +480,7 @@ func TestLoadHybridSignerBundle_OnlyOneKey(t *testing.T) {
 	// Create a file with only one key
 	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	keyPath := filepath.Join(tmpDir, "single.key.pem")
-	signer.SavePrivateKey(keyPath, nil)
+	_ = signer.SavePrivateKey(keyPath, nil)
 
 	_, err := LoadHybridSignerBundle(keyPath, nil)
 	if err == nil {
@@ -559,7 +559,7 @@ func TestHybridSigner_LargeMessage(t *testing.T) {
 
 	// 1MB message
 	largeMessage := make([]byte, 1024*1024)
-	rand.Read(largeMessage)
+	_, _ = rand.Read(largeMessage)
 
 	classicalSig, pqcSig, err := hybrid.SignHybrid(rand.Reader, largeMessage)
 	if err != nil {

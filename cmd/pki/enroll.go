@@ -66,7 +66,7 @@ func init() {
 	enrollCmd.Flags().StringVar(&enrollSigProfile, "sig-profile", "user", "Profile for signature certificates")
 	enrollCmd.Flags().StringVar(&enrollEncProfile, "enc-profile", "user", "Profile for encryption certificates")
 
-	enrollCmd.MarkFlagRequired("subject")
+	_ = enrollCmd.MarkFlagRequired("subject")
 }
 
 func runEnroll(cmd *cobra.Command, args []string) error {
