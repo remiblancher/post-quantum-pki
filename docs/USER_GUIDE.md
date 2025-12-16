@@ -49,6 +49,8 @@ pki init-ca [flags]
 | `--validity` | `-v` | 10 | Validity in years |
 | `--pathlen` | | 1 | Path length constraint |
 | `--passphrase` | | "" | Key passphrase |
+| `--parent` | | "" | Parent CA directory (creates subordinate CA) |
+| `--parent-passphrase` | | "" | Parent CA key passphrase |
 
 **Examples:**
 
@@ -66,6 +68,10 @@ pki init-ca --name "Hybrid CA" --algorithm ecdsa-p384 \
 # CA with passphrase-protected key
 pki init-ca --name "Secure CA" --passphrase "$(read -s -p 'Passphrase: ' p && echo $p)" \
   --dir ./secure-ca
+
+# Subordinate CA signed by parent
+pki init-ca --name "Issuing CA" --org "My Company" \
+  --dir ./issuing-ca --parent ./rootca
 ```
 
 ### 2.2 issue
@@ -317,24 +323,26 @@ pki init-ca --name "Root CA" --org "My Company" \
   --algorithm ecdsa-p384 --validity 20 --pathlen 1 \
   --dir ./root-ca
 
-# 2. Create issuing CA
-pki issue --ca-dir ./root-ca --profile issuing-ca \
-  --cn "Issuing CA" \
-  --validity 3650 \
-  --out ./issuing-ca/ca.crt --key-out ./issuing-ca/private/ca.key
-
-# Initialize issuing CA store
-mkdir -p ./issuing-ca/{certs,crl,private}
-echo "01" > ./issuing-ca/serial
-echo "01" > ./issuing-ca/crlnumber
-touch ./issuing-ca/index.txt
+# 2. Create issuing CA (signed by root, with full CA structure)
+pki init-ca --name "Issuing CA" --org "My Company" \
+  --dir ./issuing-ca --parent ./root-ca
 
 # 3. Issue server certificates from issuing CA
 pki issue --ca-dir ./issuing-ca --profile tls-server \
   --cn www.example.com \
   --dns www.example.com,example.com \
   --out www.crt --key-out www.key
+
+# 4. Verify the chain
+openssl verify -CAfile ./root-ca/ca.crt ./issuing-ca/ca.crt
+openssl verify -CAfile ./root-ca/ca.crt -untrusted ./issuing-ca/ca.crt www.crt
 ```
+
+The `--parent` flag automatically:
+- Generates a new key for the subordinate CA
+- Issues a CA certificate signed by the parent
+- Creates the full CA directory structure
+- Generates `chain.crt` with the certificate chain
 
 ### 3.2 Set Up mTLS
 
@@ -404,7 +412,11 @@ Solution: Check the serial number with `pki list --ca-dir ./myca`.
 ### 4.2 Verifying Certificates with OpenSSL
 
 ```bash
-# Verify certificate chain
+# Verify certificate chain (using chain.crt from subordinate CA)
+openssl verify -CAfile root-ca/ca.crt -untrusted issuing-ca/chain.crt server.crt
+
+# Or verify step by step
+openssl verify -CAfile root-ca/ca.crt issuing-ca/ca.crt
 openssl verify -CAfile root-ca/ca.crt -untrusted issuing-ca/ca.crt server.crt
 
 # View certificate details
