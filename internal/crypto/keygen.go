@@ -259,6 +259,91 @@ func GenerateHybridKeyPairWithRand(random io.Reader, alg AlgorithmID) (*HybridKe
 	}, nil
 }
 
+// ParsePublicKey parses raw public key bytes into a crypto.PublicKey.
+// This is the inverse of KeyPair.PublicKeyBytes().
+func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
+	switch alg {
+	case AlgMLDSA44:
+		var pub mode2.PublicKey
+		if err := pub.UnmarshalBinary(data); err != nil {
+			return nil, fmt.Errorf("failed to parse ML-DSA-44 public key: %w", err)
+		}
+		return &pub, nil
+
+	case AlgMLDSA65:
+		var pub mode3.PublicKey
+		if err := pub.UnmarshalBinary(data); err != nil {
+			return nil, fmt.Errorf("failed to parse ML-DSA-65 public key: %w", err)
+		}
+		return &pub, nil
+
+	case AlgMLDSA87:
+		var pub mode5.PublicKey
+		if err := pub.UnmarshalBinary(data); err != nil {
+			return nil, fmt.Errorf("failed to parse ML-DSA-87 public key: %w", err)
+		}
+		return &pub, nil
+
+	case AlgSLHDSA128s, AlgSLHDSA128f, AlgSLHDSA192s, AlgSLHDSA192f, AlgSLHDSA256s, AlgSLHDSA256f:
+		var pub slhdsa.PublicKey
+		pub.ID = algorithmToSLHDSAID(alg)
+		if err := pub.UnmarshalBinary(data); err != nil {
+			return nil, fmt.Errorf("failed to parse %s public key: %w", alg, err)
+		}
+		return &pub, nil
+
+	case AlgECDSAP256:
+		x, y := elliptic.Unmarshal(elliptic.P256(), data)
+		if x == nil {
+			return nil, fmt.Errorf("failed to parse P-256 public key")
+		}
+		return &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}, nil
+
+	case AlgECDSAP384:
+		x, y := elliptic.Unmarshal(elliptic.P384(), data)
+		if x == nil {
+			return nil, fmt.Errorf("failed to parse P-384 public key")
+		}
+		return &ecdsa.PublicKey{Curve: elliptic.P384(), X: x, Y: y}, nil
+
+	case AlgECDSAP521:
+		x, y := elliptic.Unmarshal(elliptic.P521(), data)
+		if x == nil {
+			return nil, fmt.Errorf("failed to parse P-521 public key")
+		}
+		return &ecdsa.PublicKey{Curve: elliptic.P521(), X: x, Y: y}, nil
+
+	case AlgEd25519:
+		if len(data) != ed25519.PublicKeySize {
+			return nil, fmt.Errorf("invalid Ed25519 public key size: %d", len(data))
+		}
+		return ed25519.PublicKey(data), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported algorithm for public key parsing: %s", alg)
+	}
+}
+
+// algorithmToSLHDSAID maps AlgorithmID to slhdsa.ID.
+func algorithmToSLHDSAID(alg AlgorithmID) slhdsa.ID {
+	switch alg {
+	case AlgSLHDSA128s:
+		return slhdsa.SHA2_128s
+	case AlgSLHDSA128f:
+		return slhdsa.SHA2_128f
+	case AlgSLHDSA192s:
+		return slhdsa.SHA2_192s
+	case AlgSLHDSA192f:
+		return slhdsa.SHA2_192f
+	case AlgSLHDSA256s:
+		return slhdsa.SHA2_256s
+	case AlgSLHDSA256f:
+		return slhdsa.SHA2_256f
+	default:
+		return 0
+	}
+}
+
 // PublicKeyBytes returns the public key encoded as bytes.
 // The encoding depends on the algorithm type.
 func (kp *KeyPair) PublicKeyBytes() ([]byte, error) {
