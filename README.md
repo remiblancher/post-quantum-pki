@@ -118,15 +118,32 @@ CIRCL is tested against official NIST test vectors and is used in production at 
 
 ```bash
 # Create a CA with ECDSA P-256 (default)
-pki init-ca --name "My Root CA" --org "My Organization" --dir ./myca
+pki init-ca --name "My Root CA" --org "My Organization" --dir ./root-ca
 
 # Create a CA with P-384 (higher security)
-pki init-ca --name "My Root CA" --algorithm ecdsa-p384 --dir ./myca
+pki init-ca --name "My Root CA" --algorithm ecdsa-p384 --dir ./root-ca
 
 # Create a hybrid CA (ECDSA + ML-DSA)
 pki init-ca --name "Hybrid Root CA" --algorithm ecdsa-p384 \
   --hybrid-algorithm ml-dsa-65 --dir ./hybrid-ca
 ```
+
+### Create a Subordinate CA
+
+```bash
+# Create a subordinate/issuing CA signed by the root
+pki init-ca --name "Issuing CA" --org "My Organization" \
+  --dir ./issuing-ca --parent ./root-ca
+
+# The subordinate CA can then issue end-entity certificates
+pki issue --ca-dir ./issuing-ca --profile tls-server \
+  --cn server.example.com --out server.crt --key-out server.key
+```
+
+This creates a complete CA structure with:
+- `ca.crt` - Subordinate CA certificate
+- `chain.crt` - Full certificate chain (sub CA + root)
+- `private/ca.key` - Subordinate CA private key
 
 ### Issue Certificates
 
@@ -223,6 +240,7 @@ pki issue --ca-dir ./hybrid-ca --profile tls-server \
 ```
 ca/
 ├── ca.crt           # CA certificate (PEM)
+├── chain.crt        # Certificate chain (subordinate CA only)
 ├── private/
 │   └── ca.key       # CA private key (PEM, optionally encrypted)
 ├── certs/           # Issued certificates by serial
