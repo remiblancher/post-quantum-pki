@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/remiblancher/pki/internal/crypto"
 )
 
 // =============================================================================
