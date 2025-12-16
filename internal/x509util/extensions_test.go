@@ -176,7 +176,7 @@ func TestEncodeAltSubjectPublicKeyInfo_NoOID(t *testing.T) {
 
 func TestDecodeAltSubjectPublicKeyInfo(t *testing.T) {
 	originalPubKey := make([]byte, 1952)
-	rand.Read(originalPubKey)
+	_, _ = rand.Read(originalPubKey)
 
 	ext, _ := EncodeAltSubjectPublicKeyInfo(crypto.AlgMLDSA65, originalPubKey)
 
@@ -246,7 +246,7 @@ func TestDecodeAltSignatureAlgorithm_WrongOID(t *testing.T) {
 
 func TestEncodeAltSignatureValue(t *testing.T) {
 	signature := make([]byte, 3293) // ML-DSA-65 signature size
-	rand.Read(signature)
+	_, _ = rand.Read(signature)
 
 	ext, err := EncodeAltSignatureValue(signature)
 	if err != nil {
@@ -263,7 +263,7 @@ func TestEncodeAltSignatureValue(t *testing.T) {
 
 func TestDecodeAltSignatureValue(t *testing.T) {
 	originalSig := make([]byte, 3293)
-	rand.Read(originalSig)
+	_, _ = rand.Read(originalSig)
 
 	ext, _ := EncodeAltSignatureValue(originalSig)
 
