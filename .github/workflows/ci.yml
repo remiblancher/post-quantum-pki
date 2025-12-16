@@ -62,11 +62,22 @@ jobs:
           ./pki info /tmp/test.crt
           ./pki list --ca-dir /tmp/test-ca
 
+      - name: Smoke test subordinate CA
+        run: |
+          ./pki init-ca --name "Issuing CA" --dir /tmp/issuing-ca --parent /tmp/test-ca
+          ./pki issue --ca-dir /tmp/issuing-ca --profile tls-server \
+            --cn sub.test.local --dns sub.test.local \
+            --out /tmp/sub-test.crt --key-out /tmp/sub-test.key
+          ./pki list --ca-dir /tmp/issuing-ca
+
       - name: OpenSSL verification
         run: |
           openssl x509 -in /tmp/test-ca/ca.crt -text -noout
           openssl x509 -in /tmp/test.crt -text -noout
           openssl verify -CAfile /tmp/test-ca/ca.crt /tmp/test.crt
+          # Verify subordinate CA chain
+          openssl verify -CAfile /tmp/test-ca/ca.crt /tmp/issuing-ca/ca.crt
+          openssl verify -CAfile /tmp/test-ca/ca.crt -untrusted /tmp/issuing-ca/ca.crt /tmp/sub-test.crt
 
   build-matrix:
     runs-on: ubuntu-latest
