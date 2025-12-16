@@ -80,4 +80,9 @@ func init() {
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(auditCmd)
+
+	// Gamme and bundle management
+	rootCmd.AddCommand(gammeCmd)
+	rootCmd.AddCommand(enrollCmd)
+	rootCmd.AddCommand(bundleCmd)
 }

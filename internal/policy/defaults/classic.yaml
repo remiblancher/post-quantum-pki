@@ -1,0 +1,18 @@
+# Classic gamme: Classical signature only (ECDSA P-256)
+# Compatible with all existing PKI infrastructure
+
+name: classic
+description: "Classical signature only (ECDSA P-256)"
+
+signature:
+  required: true
+  mode: simple
+  algorithms:
+    primary: ecdsa-p256
+
+encryption:
+  required: false
+  mode: none
+  algorithms: {}
+
+validity: 365d

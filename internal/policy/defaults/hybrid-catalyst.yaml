@@ -1,0 +1,20 @@
+# Hybrid Catalyst gamme: Combined classical + PQC signature in one certificate
+# Uses ITU-T X.509 Section 9.8 Catalyst extensions
+# Backward compatible: classical clients can verify, PQC-aware clients verify both
+
+name: hybrid-catalyst
+description: "Hybrid signature (ECDSA P-256 + ML-DSA-65) in single Catalyst certificate"
+
+signature:
+  required: true
+  mode: hybrid-combined
+  algorithms:
+    primary: ecdsa-p256
+    alternative: ml-dsa-65
+
+encryption:
+  required: false
+  mode: none
+  algorithms: {}
+
+validity: 365d
