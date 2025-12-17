@@ -35,9 +35,9 @@ description: "Root CA SLH-DSA-256f (hash-based, NIST security level 5)"
 #
 subject:
   fixed:
-    cn: "ACME Root CA SLH-DSA"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Root CA SLH-DSA"
 
 # -----------------------------------------------------------------------------
 # Algorithme de signature

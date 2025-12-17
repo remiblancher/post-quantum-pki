@@ -42,9 +42,9 @@ description: "Root CA hybrid composite ECDSA P-384 + ML-DSA-87 (IETF format)"
 #
 subject:
   fixed:
-    cn: "ACME Root CA Composite"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Root CA Composite"
 
 # -----------------------------------------------------------------------------
 # Algorithmes de signature hybrides

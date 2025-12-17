@@ -31,9 +31,9 @@ description: "Email (S/MIME) certificate RSA 2048 (legacy compatibility)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Utilisateurs"
-    c: "FR"
   required:
     - cn
   optional:

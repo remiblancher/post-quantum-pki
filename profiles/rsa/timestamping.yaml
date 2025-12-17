@@ -30,9 +30,9 @@ description: "Timestamping certificate RSA 2048 (RFC 3161 TSA)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "PKI Services"
-    c: "FR"
   required:
     - cn
   optional: []

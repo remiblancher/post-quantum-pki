@@ -30,9 +30,9 @@ description: "Code signing certificate ML-DSA-65 (post-quantum)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "DevOps"
-    c: "FR"
   required:
     - cn
   optional:

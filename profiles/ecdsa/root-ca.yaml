@@ -39,9 +39,9 @@ description: "Root CA ECDSA P-384 - offline trust anchor"
 #
 subject:
   fixed:
-    cn: "ACME Root CA"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Root CA"
 
 # -----------------------------------------------------------------------------
 # Algorithme de signature

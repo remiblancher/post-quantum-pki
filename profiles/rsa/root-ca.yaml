@@ -30,9 +30,9 @@ description: "Root CA RSA 4096-bit (legacy compatibility)"
 #
 subject:
   fixed:
-    cn: "ACME Root CA RSA"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Root CA RSA"
 
 # -----------------------------------------------------------------------------
 # Algorithme de signature

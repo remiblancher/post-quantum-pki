@@ -29,9 +29,9 @@ description: "TLS server ML-DSA-65 + ML-KEM-768 (full post-quantum)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Serveurs"
-    c: "FR"
   required:
     - cn
   optional: []

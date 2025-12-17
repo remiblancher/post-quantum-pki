@@ -33,9 +33,9 @@ description: "Issuing CA SLH-DSA-192f (hash-based, NIST security level 3)"
 #
 subject:
   fixed:
-    cn: "ACME Issuing CA SLH-DSA"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Issuing CA SLH-DSA"
 
 # -----------------------------------------------------------------------------
 # Algorithme de signature

@@ -28,9 +28,9 @@ description: "TLS server ECDSA P-256 (modern classical)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"                   # Pays
     o: "ACME Industrie"       # Organisation
     ou: "Serveurs"            # Unité organisationnelle
-    c: "FR"                   # Pays
   required:
     - cn                      # FQDN principal du serveur
   optional: []

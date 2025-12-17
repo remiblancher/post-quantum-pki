@@ -32,9 +32,9 @@ description: "Email (S/MIME) certificate ECDSA P-256"
 #
 subject:
   fixed:
+    c: "FR"                   # Pays
     o: "ACME Industrie"       # Organisation (doit correspondre à l'AC)
     ou: "Utilisateurs"        # Unité organisationnelle
-    c: "FR"                   # Pays
   required:
     - cn                      # Nom complet de la personne (obligatoire)
   optional:

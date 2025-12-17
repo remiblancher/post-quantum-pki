@@ -25,9 +25,9 @@ description: "TLS client hybrid ECDSA P-256 + ML-DSA-65 (PQC transition)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Utilisateurs"
-    c: "FR"
   required:
     - cn
   optional:

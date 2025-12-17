@@ -33,9 +33,9 @@ description: "Issuing CA ML-DSA-65 (post-quantum, NIST security level 3)"
 #
 subject:
   fixed:
-    cn: "ACME Issuing CA PQC"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Issuing CA PQC"
 
 # -----------------------------------------------------------------------------
 # Algorithme de signature

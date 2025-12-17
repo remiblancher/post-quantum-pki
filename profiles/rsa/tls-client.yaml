@@ -28,9 +28,9 @@ description: "TLS client RSA 2048-bit (legacy compatibility)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Utilisateurs"
-    c: "FR"
   required:
     - cn
   optional:

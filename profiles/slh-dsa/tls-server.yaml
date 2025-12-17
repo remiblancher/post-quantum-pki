@@ -39,9 +39,9 @@ description: "TLS server SLH-DSA-128f (hash-based, conservative PQC)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Serveurs"
-    c: "FR"
   required:
     - cn
   optional: []
