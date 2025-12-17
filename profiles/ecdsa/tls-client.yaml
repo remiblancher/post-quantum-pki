@@ -34,9 +34,9 @@ description: "TLS client ECDSA P-256 (mutual TLS authentication)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"                   # Pays
     o: "ACME Industrie"       # Organisation
     ou: "Utilisateurs"        # Unité organisationnelle
-    c: "FR"                   # Pays
   required:
     - cn                      # Nom de la personne ou de la machine
   optional:

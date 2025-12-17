@@ -31,9 +31,9 @@ description: "Code signing certificate RSA 2048 (legacy compatibility)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Engineering"
-    c: "FR"
   required:
     - cn
   optional: []

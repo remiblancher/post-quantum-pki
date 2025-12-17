@@ -34,9 +34,9 @@ description: "Timestamping certificate ECDSA P-256 (RFC 3161 TSA)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"                   # Pays
     o: "ACME Industrie"       # Organisation
     ou: "PKI Services"        # Unité responsable du TSA
-    c: "FR"                   # Pays
   required:
     - cn                      # Nom du service TSA
   optional: []

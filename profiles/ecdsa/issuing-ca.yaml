@@ -40,9 +40,9 @@ description: "Issuing CA ECDSA P-256 - online certificate authority"
 #
 subject:
   fixed:
-    cn: "ACME Issuing CA"
-    o: "ACME Industrie"
     c: "FR"
+    o: "ACME Industrie"
+    cn: "ACME Issuing CA"
 
 # -----------------------------------------------------------------------------
 # Algorithme de signature

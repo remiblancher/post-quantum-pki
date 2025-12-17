@@ -36,9 +36,9 @@ description: "Code signing certificate ECDSA P-256"
 #
 subject:
   fixed:
+    c: "FR"                   # Pays
     o: "ACME Industrie"       # Organisation (important pour la confiance)
     ou: "Engineering"         # Unité responsable de la signature
-    c: "FR"                   # Pays
   required:
     - cn                      # Nom du service de signature
   optional: []
