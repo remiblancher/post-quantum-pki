@@ -30,9 +30,9 @@ description: "TLS client hybrid composite ECDSA P-256 + ML-DSA-65 (IETF format)"
 # -----------------------------------------------------------------------------
 subject:
   fixed:
+    c: "FR"
     o: "ACME Industrie"
     ou: "Utilisateurs"
-    c: "FR"
   required:
     - cn
   optional:
