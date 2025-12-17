@@ -26,23 +26,28 @@ The certificate can be issued from:
   2. A public key file
   3. Auto-generated key pair
 
-Profiles available:
-  tls-server  - TLS server authentication
-  tls-client  - TLS client authentication
-  root-ca     - Root CA certificate
-  issuing-ca  - Subordinate/Issuing CA
+Profiles are organized by category:
+  rsa/         - RSA profiles (legacy compatibility)
+  ecdsa/       - ECDSA profiles (modern classical)
+  hybrid/catalyst/  - Catalyst hybrid (combined signatures)
+  hybrid/composite/ - IETF composite hybrid
+  pqc/         - Full post-quantum profiles
+
+Examples: ecdsa/tls-server, hybrid/catalyst/tls-client, pqc/issuing-ca
+
+Use 'pki profile list' to see all available profiles.
 
 Examples:
   # Issue a TLS server certificate with auto-generated key
-  pki issue --profile tls-server --cn server.example.com \
+  pki issue --profile ecdsa/tls-server --cn server.example.com \
     --dns server.example.com,www.example.com \
     --out server.crt --key-out server.key
 
-  # Issue from a CSR
-  pki issue --profile tls-server --csr request.csr --out server.crt
+  # Issue from a CSR with hybrid profile
+  pki issue --profile hybrid/catalyst/tls-server --csr request.csr --out server.crt
 
   # Issue a subordinate CA
-  pki issue --profile issuing-ca --cn "Issuing CA" --out issuing-ca.crt`,
+  pki issue --profile ecdsa/issuing-ca --cn "Issuing CA" --out issuing-ca.crt`,
 	RunE: runIssue,
 }
 
@@ -66,7 +71,8 @@ var (
 func init() {
 	flags := issueCmd.Flags()
 	flags.StringVarP(&issueCADir, "ca-dir", "d", "./ca", "CA directory")
-	flags.StringVarP(&issueProfile, "profile", "P", "tls-server", "Certificate profile")
+	flags.StringVarP(&issueProfile, "profile", "P", "", "Certificate profile (required, e.g., ecdsa/tls-server)")
+	_ = issueCmd.MarkFlagRequired("profile")
 	flags.StringVar(&issueCommonName, "cn", "", "Subject common name")
 	flags.StringSliceVar(&issueDNSNames, "dns", nil, "DNS Subject Alternative Names")
 	flags.StringSliceVar(&issueIPAddrs, "ip", nil, "IP Subject Alternative Names")
