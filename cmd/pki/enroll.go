@@ -26,19 +26,21 @@ The enrollment process:
   4. Creates a bundle with coupled lifecycle
   5. Saves the bundle to the output directory
 
+Use 'pki profile list' to see all available profiles.
+
 Examples:
-  # Basic enrollment with default profile
-  pki enroll --subject "CN=Alice,O=Acme" --profile classic
+  # ECDSA enrollment
+  pki enroll --subject "CN=Alice,O=Acme" --profile ecdsa/tls-client
 
-  # Full hybrid enrollment
-  pki enroll --subject "CN=Alice,O=Acme" --profile hybrid-full --out ./alice
+  # Hybrid Catalyst enrollment
+  pki enroll --subject "CN=Alice,O=Acme" --profile hybrid/catalyst/tls-client --out ./alice
 
-  # With SANs
-  pki enroll --subject "CN=web.example.com" --profile pqc-basic \
+  # PQC enrollment with SANs
+  pki enroll --subject "CN=web.example.com" --profile pqc/tls-server \
       --dns web.example.com --dns www.example.com
 
   # With passphrase for private keys
-  pki enroll --subject "CN=Alice" --profile hybrid-catalyst --passphrase mySecret`,
+  pki enroll --subject "CN=Alice" --profile hybrid/catalyst/tls-client --passphrase mySecret`,
 	RunE: runEnroll,
 }
 
@@ -54,7 +56,7 @@ var (
 
 func init() {
 	enrollCmd.Flags().StringVarP(&enrollSubject, "subject", "s", "", "Certificate subject (required)")
-	enrollCmd.Flags().StringVarP(&enrollProfile, "profile", "P", "classic", "Profile to use")
+	enrollCmd.Flags().StringVarP(&enrollProfile, "profile", "P", "", "Profile to use (required, e.g., ecdsa/tls-client)")
 	enrollCmd.Flags().StringVarP(&enrollCADir, "ca-dir", "c", "./ca", "CA directory")
 	enrollCmd.Flags().StringVarP(&enrollOutDir, "out", "o", "", "Output directory (default: current dir)")
 	enrollCmd.Flags().StringVarP(&enrollPassphrase, "passphrase", "p", "", "Passphrase for private keys")
@@ -62,6 +64,7 @@ func init() {
 	enrollCmd.Flags().StringSliceVar(&enrollEmails, "email", nil, "Email SANs")
 
 	_ = enrollCmd.MarkFlagRequired("subject")
+	_ = enrollCmd.MarkFlagRequired("profile")
 }
 
 func runEnroll(cmd *cobra.Command, args []string) error {

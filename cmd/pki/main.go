@@ -43,7 +43,10 @@ Examples:
   pki init-ca --name "My Root CA" --algorithm ecdsa-p256
 
   # Issue a TLS server certificate
-  pki issue --profile tls-server --cn server.example.com --dns server.example.com
+  pki issue --profile ecdsa/tls-server --cn server.example.com --dns server.example.com
+
+  # Enroll a bundle with hybrid profile
+  pki enroll --subject "CN=Alice,O=Acme" --profile hybrid/catalyst/tls-client
 
   # Generate a key pair
   pki genkey --algorithm ml-dsa-65 --out ml-dsa-key.pem`,
