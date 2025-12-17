@@ -268,13 +268,31 @@ func NewProfileStore(caPath string) *ProfileStore {
 	}
 }
 
-// Load loads all profiles from the CA's profiles directory.
+// Load loads all profiles from builtin profiles and CA's profiles directory.
+// Custom profiles from the CA directory override builtin profiles with the same name.
 func (ps *ProfileStore) Load() error {
-	profiles, err := LoadProfilesFromDirectory(ps.basePath)
+	// Start with builtin profiles
+	builtins, err := BuiltinProfiles()
+	if err != nil {
+		return fmt.Errorf("failed to load builtin profiles: %w", err)
+	}
+
+	// Copy builtins to profiles map
+	for name, p := range builtins {
+		ps.profiles[name] = p
+	}
+
+	// Load custom profiles (overrides builtins with same name)
+	customProfiles, err := LoadProfilesFromDirectory(ps.basePath)
 	if err != nil {
 		return err
 	}
-	ps.profiles = profiles
+
+	// Custom profiles override builtins
+	for name, p := range customProfiles {
+		ps.profiles[name] = p
+	}
+
 	return nil
 }
 
