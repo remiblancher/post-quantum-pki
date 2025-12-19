@@ -371,6 +371,26 @@ make lint
 make build
 ```
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICKSTART.md](docs/QUICKSTART.md) | Get started in 5 minutes |
+| [USER_GUIDE.md](docs/USER_GUIDE.md) | Complete user guide with CLI reference |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and design |
+| [SPECIFICATION.md](docs/SPECIFICATION.md) | Formal requirements and OID registry |
+| [PROFILES.md](docs/PROFILES.md) | Certificate profile configuration |
+| [BUNDLES.md](docs/BUNDLES.md) | Certificate bundle management |
+| [OCSP.md](docs/OCSP.md) | OCSP responder (RFC 6960) |
+| [TSA.md](docs/TSA.md) | Timestamping authority (RFC 3161) |
+| [CATALYST.md](docs/CATALYST.md) | Catalyst hybrid certificates |
+| [PQC.md](docs/PQC.md) | Post-quantum cryptography |
+| [HSM.md](docs/HSM.md) | HSM/PKCS#11 integration |
+| [AUDIT.md](docs/AUDIT.md) | Audit logging configuration |
+| [TEST_STRATEGY.md](docs/TEST_STRATEGY.md) | Testing strategy |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to contribute |
+| [ROADMAP.md](docs/ROADMAP.md) | Future improvements |
+
 ## Project Status
 
 | Component | Status |
@@ -379,6 +399,9 @@ make build
 | X.509 certificate issuance | ✅ Production |
 | Certificate profiles | ✅ Production |
 | CRL generation | ✅ Production |
+| OCSP Responder (RFC 6960) | ✅ Production |
+| TSA Timestamping (RFC 3161) | ✅ Production |
+| CMS Signed Data (RFC 5652) | ✅ Production |
 | PQC algorithms (ML-DSA, SLH-DSA, ML-KEM) | 🧪 Experimental |
 | Catalyst certificates (ITU-T X.509 9.8) | 🧪 Experimental |
 | Hybrid PQC certificates | 🧪 Experimental |
