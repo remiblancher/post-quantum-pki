@@ -5,12 +5,16 @@ Get your PKI running in 5 minutes.
 ## 1. Create a Root CA
 
 ```bash
+# Using a profile (recommended)
+pki init-ca --name "My Root CA" --profile ec/root-ca --dir ./ca
+
+# Or with manual configuration
 pki init-ca --name "My Root CA" --org "My Organization" --dir ./ca
 ```
 
 This creates a CA directory with:
 - `ca.crt` - CA certificate
-- `private/ca.key` - CA private key (encrypted)
+- `private/ca.key` - CA private key
 - `index.txt` - Certificate database
 
 ## 2. Issue a TLS Server Certificate
@@ -58,6 +62,16 @@ pki gen-crl --ca-dir ./ca
 
 ## Common Profiles
 
+**CA Profiles:**
+
+| Profile | Use Case |
+|---------|----------|
+| `ec/root-ca` | Root CA (EC P-384, 20 years) |
+| `ec/issuing-ca` | Issuing CA (EC P-256, 10 years) |
+| `hybrid/catalyst/root-ca` | Hybrid root CA (EC + ML-DSA) |
+
+**Certificate Profiles:**
+
 | Profile | Use Case |
 |---------|----------|
 | `ec/tls-server` | HTTPS servers |
@@ -69,9 +83,8 @@ pki gen-crl --ca-dir ./ca
 ## Post-Quantum (Experimental)
 
 ```bash
-# Create hybrid CA (ECDSA + ML-DSA)
-pki init-ca --name "Hybrid CA" --algorithm ecdsa-p384 \
-  --hybrid-algorithm ml-dsa-65 --dir ./hybrid-ca
+# Create hybrid CA using profile
+pki init-ca --name "Hybrid CA" --profile hybrid/catalyst/root-ca --dir ./hybrid-ca
 
 # Issue hybrid certificate
 pki issue --ca-dir ./hybrid-ca --profile hybrid/catalyst/tls-server \
