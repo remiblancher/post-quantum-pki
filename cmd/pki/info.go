@@ -94,8 +94,8 @@ func showCertificate(der []byte) error {
 	fmt.Printf("  Not Before:     %s\n", cert.NotBefore.Format("2006-01-02 15:04:05 UTC"))
 	fmt.Printf("  Not After:      %s\n", cert.NotAfter.Format("2006-01-02 15:04:05 UTC"))
 
-	fmt.Printf("  Signature Alg:  %s\n", cert.SignatureAlgorithm.String())
-	fmt.Printf("  Public Key Alg: %s\n", cert.PublicKeyAlgorithm.String())
+	fmt.Printf("  Signature Alg:  %s\n", formatSignatureAlgorithm(cert))
+	fmt.Printf("  Public Key Alg: %s\n", formatPublicKeyAlgorithm(cert))
 
 	if cert.IsCA {
 		fmt.Printf("  CA:             true (path len: %d)\n", cert.MaxPathLen)
@@ -155,8 +155,8 @@ func showCSR(der []byte) error {
 
 	fmt.Println("Certificate Signing Request:")
 	fmt.Printf("  Subject:        %s\n", csr.Subject.String())
-	fmt.Printf("  Signature Alg:  %s\n", csr.SignatureAlgorithm.String())
-	fmt.Printf("  Public Key Alg: %s\n", csr.PublicKeyAlgorithm.String())
+	fmt.Printf("  Signature Alg:  %s\n", formatCSRSignatureAlgorithm(csr))
+	fmt.Printf("  Public Key Alg: %s\n", formatCSRPublicKeyAlgorithm(csr))
 
 	if len(csr.DNSNames) > 0 {
 		fmt.Printf("  DNS Names:      %s\n", strings.Join(csr.DNSNames, ", "))
@@ -255,6 +255,72 @@ func formatExtKeyUsage(usages []x509.ExtKeyUsage) string {
 	return strings.Join(names, ", ")
 }
 
+// formatSignatureAlgorithm returns a human-readable signature algorithm name.
+// Falls back to parsing the raw certificate for PQC algorithms not recognized by Go's x509.
+func formatSignatureAlgorithm(cert *x509.Certificate) string {
+	// Go's x509 returns UnknownSignatureAlgorithm (0) for PQC algorithms
+	if cert.SignatureAlgorithm != x509.UnknownSignatureAlgorithm {
+		return cert.SignatureAlgorithm.String()
+	}
+	// Extract the OID from raw certificate bytes
+	oid, err := x509util.ExtractSignatureAlgorithmOID(cert.Raw)
+	if err != nil {
+		return "Unknown"
+	}
+	return x509util.AlgorithmName(oid)
+}
+
+// formatPublicKeyAlgorithm returns a human-readable public key algorithm name.
+// Falls back to parsing the raw certificate for PQC algorithms not recognized by Go's x509.
+func formatPublicKeyAlgorithm(cert *x509.Certificate) string {
+	// Go's x509 returns UnknownPublicKeyAlgorithm (0) for PQC algorithms
+	if cert.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
+		return cert.PublicKeyAlgorithm.String()
+	}
+	// Extract the OID from raw certificate bytes
+	oid, err := x509util.ExtractPublicKeyAlgorithmOID(cert.Raw)
+	if err != nil {
+		return "Unknown"
+	}
+	return x509util.AlgorithmName(oid)
+}
+
+// formatCSRSignatureAlgorithm returns a human-readable signature algorithm name for CSR.
+func formatCSRSignatureAlgorithm(csr *x509.CertificateRequest) string {
+	if csr.SignatureAlgorithm != x509.UnknownSignatureAlgorithm {
+		return csr.SignatureAlgorithm.String()
+	}
+	oid, err := x509util.ExtractCSRSignatureAlgorithmOID(csr.Raw)
+	if err != nil {
+		return "Unknown"
+	}
+	return x509util.AlgorithmName(oid)
+}
+
+// formatCSRPublicKeyAlgorithm returns a human-readable public key algorithm name for CSR.
+func formatCSRPublicKeyAlgorithm(csr *x509.CertificateRequest) string {
+	if csr.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
+		return csr.PublicKeyAlgorithm.String()
+	}
+	oid, err := x509util.ExtractCSRPublicKeyAlgorithmOID(csr.Raw)
+	if err != nil {
+		return "Unknown"
+	}
+	return x509util.AlgorithmName(oid)
+}
+
+// formatCRLSignatureAlgorithm returns a human-readable signature algorithm name for CRL.
+func formatCRLSignatureAlgorithm(crl *x509.RevocationList) string {
+	if crl.SignatureAlgorithm != x509.UnknownSignatureAlgorithm {
+		return crl.SignatureAlgorithm.String()
+	}
+	oid, err := x509util.ExtractCRLSignatureAlgorithmOID(crl.Raw)
+	if err != nil {
+		return "Unknown"
+	}
+	return x509util.AlgorithmName(oid)
+}
+
 func showCRL(der []byte) error {
 	crl, err := x509.ParseRevocationList(der)
 	if err != nil {
@@ -265,7 +331,7 @@ func showCRL(der []byte) error {
 	fmt.Printf("  Issuer:         %s\n", crl.Issuer.String())
 	fmt.Printf("  This Update:    %s\n", crl.ThisUpdate.Format("2006-01-02 15:04:05 UTC"))
 	fmt.Printf("  Next Update:    %s\n", crl.NextUpdate.Format("2006-01-02 15:04:05 UTC"))
-	fmt.Printf("  Signature Alg:  %s\n", crl.SignatureAlgorithm.String())
+	fmt.Printf("  Signature Alg:  %s\n", formatCRLSignatureAlgorithm(crl))
 
 	if crl.Number != nil {
 		fmt.Printf("  CRL Number:     %s\n", crl.Number.String())

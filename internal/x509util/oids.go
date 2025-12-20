@@ -162,6 +162,65 @@ func OIDToString(oid asn1.ObjectIdentifier) string {
 	return oid.String()
 }
 
+// AlgorithmName returns a human-readable name for an algorithm OID.
+// Returns the OID string representation if unknown.
+func AlgorithmName(oid asn1.ObjectIdentifier) string {
+	switch {
+	// ML-DSA (FIPS 204)
+	case OIDEqual(oid, OIDMLDSA44):
+		return "ML-DSA-44"
+	case OIDEqual(oid, OIDMLDSA65):
+		return "ML-DSA-65"
+	case OIDEqual(oid, OIDMLDSA87):
+		return "ML-DSA-87"
+
+	// SLH-DSA (FIPS 205)
+	case OIDEqual(oid, OIDSLHDSA128s):
+		return "SLH-DSA-128s"
+	case OIDEqual(oid, OIDSLHDSA128f):
+		return "SLH-DSA-128f"
+	case OIDEqual(oid, OIDSLHDSA192s):
+		return "SLH-DSA-192s"
+	case OIDEqual(oid, OIDSLHDSA192f):
+		return "SLH-DSA-192f"
+	case OIDEqual(oid, OIDSLHDSA256s):
+		return "SLH-DSA-256s"
+	case OIDEqual(oid, OIDSLHDSA256f):
+		return "SLH-DSA-256f"
+
+	// ML-KEM (FIPS 203)
+	case OIDEqual(oid, OIDMLKEM512):
+		return "ML-KEM-512"
+	case OIDEqual(oid, OIDMLKEM768):
+		return "ML-KEM-768"
+	case OIDEqual(oid, OIDMLKEM1024):
+		return "ML-KEM-1024"
+
+	// ECDSA
+	case OIDEqual(oid, OIDSignatureECDSAWithSHA256):
+		return "ECDSA-SHA256"
+	case OIDEqual(oid, OIDSignatureECDSAWithSHA384):
+		return "ECDSA-SHA384"
+	case OIDEqual(oid, OIDSignatureECDSAWithSHA512):
+		return "ECDSA-SHA512"
+
+	// Ed25519
+	case OIDEqual(oid, OIDSignatureEd25519):
+		return "Ed25519"
+
+	// RSA
+	case OIDEqual(oid, OIDSignatureRSAWithSHA256):
+		return "RSA-SHA256"
+	case OIDEqual(oid, OIDSignatureRSAWithSHA384):
+		return "RSA-SHA384"
+	case OIDEqual(oid, OIDSignatureRSAWithSHA512):
+		return "RSA-SHA512"
+
+	default:
+		return oid.String()
+	}
+}
+
 // IsPQCSignatureAlgorithmOID checks if a raw TBS certificate uses a PQC signature algorithm.
 // It parses the TBS to extract the signatureAlgorithm OID and checks against known PQC OIDs.
 func IsPQCSignatureAlgorithmOID(rawTBS []byte) bool {
@@ -194,4 +253,139 @@ func IsPQCSignatureAlgorithmOID(rawTBS []byte) bool {
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA192f) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256s) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256f)
+}
+
+// ExtractSignatureAlgorithmOID extracts the signature algorithm OID from certificate raw bytes.
+// This is useful when Go's x509 package doesn't recognize the algorithm (returns 0).
+func ExtractSignatureAlgorithmOID(rawCert []byte) (asn1.ObjectIdentifier, error) {
+	// Certificate ::= SEQUENCE {
+	//   tbsCertificate       TBSCertificate,
+	//   signatureAlgorithm   AlgorithmIdentifier,
+	//   signatureValue       BIT STRING
+	// }
+	var cert struct {
+		TBS    asn1.RawValue
+		SigAlg struct {
+			Algorithm asn1.ObjectIdentifier
+		}
+	}
+	_, err := asn1.Unmarshal(rawCert, &cert)
+	if err != nil {
+		return nil, err
+	}
+	return cert.SigAlg.Algorithm, nil
+}
+
+// ExtractPublicKeyAlgorithmOID extracts the public key algorithm OID from certificate raw bytes.
+// This is useful when Go's x509 package doesn't recognize the algorithm (returns 0).
+func ExtractPublicKeyAlgorithmOID(rawCert []byte) (asn1.ObjectIdentifier, error) {
+	// Certificate ::= SEQUENCE {
+	//   tbsCertificate       TBSCertificate,
+	//   ...
+	// }
+	// TBSCertificate ::= SEQUENCE {
+	//   version         [0] EXPLICIT Version DEFAULT v1,
+	//   serialNumber    CertificateSerialNumber,
+	//   signature       AlgorithmIdentifier,
+	//   issuer          Name,
+	//   validity        Validity,
+	//   subject         Name,
+	//   subjectPublicKeyInfo SubjectPublicKeyInfo,
+	//   ...
+	// }
+	// SubjectPublicKeyInfo ::= SEQUENCE {
+	//   algorithm        AlgorithmIdentifier,
+	//   subjectPublicKey BIT STRING
+	// }
+	var cert struct {
+		TBS struct {
+			Raw          asn1.RawContent
+			Version      int `asn1:"optional,explicit,default:0,tag:0"`
+			SerialNumber asn1.RawValue
+			SigAlg       asn1.RawValue
+			Issuer       asn1.RawValue
+			Validity     asn1.RawValue
+			Subject      asn1.RawValue
+			SPKI         struct {
+				Algorithm struct {
+					Algorithm asn1.ObjectIdentifier
+				}
+			}
+		}
+	}
+	_, err := asn1.Unmarshal(rawCert, &cert)
+	if err != nil {
+		return nil, err
+	}
+	return cert.TBS.SPKI.Algorithm.Algorithm, nil
+}
+
+// ExtractCSRSignatureAlgorithmOID extracts the signature algorithm OID from CSR raw bytes.
+func ExtractCSRSignatureAlgorithmOID(rawCSR []byte) (asn1.ObjectIdentifier, error) {
+	// CertificationRequest ::= SEQUENCE {
+	//   certificationRequestInfo CertificationRequestInfo,
+	//   signatureAlgorithm       AlgorithmIdentifier,
+	//   signature                BIT STRING
+	// }
+	var csr struct {
+		RequestInfo asn1.RawValue
+		SigAlg      struct {
+			Algorithm asn1.ObjectIdentifier
+		}
+	}
+	_, err := asn1.Unmarshal(rawCSR, &csr)
+	if err != nil {
+		return nil, err
+	}
+	return csr.SigAlg.Algorithm, nil
+}
+
+// ExtractCSRPublicKeyAlgorithmOID extracts the public key algorithm OID from CSR raw bytes.
+func ExtractCSRPublicKeyAlgorithmOID(rawCSR []byte) (asn1.ObjectIdentifier, error) {
+	// CertificationRequest ::= SEQUENCE {
+	//   certificationRequestInfo CertificationRequestInfo,
+	//   ...
+	// }
+	// CertificationRequestInfo ::= SEQUENCE {
+	//   version       INTEGER,
+	//   subject       Name,
+	//   subjectPKInfo SubjectPublicKeyInfo,
+	//   attributes    [0] Attributes
+	// }
+	var csr struct {
+		RequestInfo struct {
+			Version int
+			Subject asn1.RawValue
+			SPKI    struct {
+				Algorithm struct {
+					Algorithm asn1.ObjectIdentifier
+				}
+			}
+		}
+	}
+	_, err := asn1.Unmarshal(rawCSR, &csr)
+	if err != nil {
+		return nil, err
+	}
+	return csr.RequestInfo.SPKI.Algorithm.Algorithm, nil
+}
+
+// ExtractCRLSignatureAlgorithmOID extracts the signature algorithm OID from CRL raw bytes.
+func ExtractCRLSignatureAlgorithmOID(rawCRL []byte) (asn1.ObjectIdentifier, error) {
+	// CertificateList ::= SEQUENCE {
+	//   tbsCertList        TBSCertList,
+	//   signatureAlgorithm AlgorithmIdentifier,
+	//   signatureValue     BIT STRING
+	// }
+	var crl struct {
+		TBSCertList asn1.RawValue
+		SigAlg      struct {
+			Algorithm asn1.ObjectIdentifier
+		}
+	}
+	_, err := asn1.Unmarshal(rawCRL, &crl)
+	if err != nil {
+		return nil, err
+	}
+	return crl.SigAlg.Algorithm, nil
 }
