@@ -368,10 +368,6 @@ func VerifyPQCCertificate(cert, issuer *x509.Certificate) (bool, error) {
 		return false, err
 	}
 
-	// Get issuer's public key
-	// For self-signed, issuer == cert
-	issuerPubKey := issuer.PublicKey
-
 	// For PQC certificates, the public key in the certificate is raw bytes
 	// We need to extract it from the SubjectPublicKeyInfo
 	pubBytes, err := extractPQCPublicKey(issuer)
@@ -380,7 +376,7 @@ func VerifyPQCCertificate(cert, issuer *x509.Certificate) (bool, error) {
 	}
 
 	// Parse the public key
-	issuerPubKey, err = pkicrypto.ParsePublicKey(alg, pubBytes)
+	issuerPubKey, err := pkicrypto.ParsePublicKey(alg, pubBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse issuer public key: %w", err)
 	}
