@@ -88,36 +88,57 @@ pki init-ca [flags]
 | `--name` | `-n` | required | CA common name |
 | `--org` | `-o` | "" | Organization name |
 | `--country` | `-c` | "" | Country code (2 letters) |
-| `--algorithm` | `-a` | ecdsa-p256 | Key algorithm |
+| `--profile` | `-P` | "" | CA profile (e.g., ec/root-ca, hybrid/catalyst/root-ca) |
+| `--algorithm` | `-a` | ecdsa-p256 | Key algorithm (ignored if --profile is set) |
 | `--hybrid-algorithm` | | "" | PQC algorithm for hybrid mode |
 | `--dir` | `-d` | ./ca | CA directory |
-| `--validity` | `-v` | 10 | Validity in years |
-| `--pathlen` | | 1 | Path length constraint |
-| `--passphrase` | | "" | Key passphrase |
+| `--validity` | | 10 | Validity in years (ignored if --profile is set) |
+| `--path-len` | | 1 | Path length constraint (ignored if --profile is set) |
+| `--passphrase` | `-p` | "" | Key passphrase |
 | `--parent` | | "" | Parent CA directory (creates subordinate CA) |
 | `--parent-passphrase` | | "" | Parent CA key passphrase |
 
 **Examples:**
 
 ```bash
-# Basic CA with ECDSA P-256
+# Using a profile (recommended)
+pki init-ca --name "My Root CA" --profile ec/root-ca --dir ./myca
+
+# Hybrid CA using a profile
+pki init-ca --name "Hybrid Root CA" --profile hybrid/catalyst/root-ca --dir ./hybrid-ca
+
+# Subordinate CA using a profile
+pki init-ca --name "Issuing CA" --profile ec/issuing-ca \
+  --dir ./issuing-ca --parent ./rootca
+
+# Manual configuration (without profile)
 pki init-ca --name "My Root CA" --org "My Company" --dir ./myca
 
 # High-security CA with P-384
 pki init-ca --name "Root CA" --algorithm ecdsa-p384 --validity 20 --dir ./rootca
 
-# Hybrid CA with ML-DSA
+# Hybrid CA with ML-DSA (manual)
 pki init-ca --name "Hybrid CA" --algorithm ecdsa-p384 \
   --hybrid-algorithm ml-dsa-65 --dir ./hybrid-ca
 
 # CA with passphrase-protected key
-pki init-ca --name "Secure CA" --passphrase "$(read -s -p 'Passphrase: ' p && echo $p)" \
-  --dir ./secure-ca
+pki init-ca --name "Secure CA" --passphrase "mysecret" --dir ./secure-ca
 
-# Subordinate CA signed by parent
+# Subordinate CA signed by parent (manual)
 pki init-ca --name "Issuing CA" --org "My Company" \
   --dir ./issuing-ca --parent ./rootca
 ```
+
+**Available CA profiles:**
+
+| Profile | Algorithm | Validity | Description |
+|---------|-----------|----------|-------------|
+| `ec/root-ca` | EC P-384 | 20 years | Root CA with pathLen=1 |
+| `ec/issuing-ca` | EC P-256 | 10 years | Issuing CA with pathLen=0 |
+| `hybrid/catalyst/root-ca` | EC P-384 + ML-DSA-87 | 20 years | Hybrid root CA |
+| `hybrid/catalyst/issuing-ca` | EC P-384 + ML-DSA-65 | 10 years | Hybrid issuing CA |
+| `rsa/root-ca` | RSA 4096 | 20 years | RSA root CA |
+| `ml-dsa-kem/root-ca` | ML-DSA-87 | 20 years | Pure PQC root CA |
 
 ### 2.2 issue
 
