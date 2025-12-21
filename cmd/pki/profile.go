@@ -210,9 +210,9 @@ func runProfileInfo(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Fall back to default
+	// Fall back to builtin or file path
 	if prof == nil {
-		p, err := profile.GetBuiltinProfile(name)
+		p, err := profile.LoadProfile(name)
 		if err != nil {
 			return fmt.Errorf("profile not found: %s", name)
 		}
@@ -309,7 +309,7 @@ func runProfileShow(cmd *cobra.Command, args []string) error {
 	name := args[0]
 
 	// Get the profile
-	prof, err := profile.GetBuiltinProfile(name)
+	prof, err := profile.LoadProfile(name)
 	if err != nil {
 		return fmt.Errorf("profile not found: %s", name)
 	}
@@ -341,7 +341,7 @@ func runProfileExport(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	destPath := args[1]
 
-	prof, err := profile.GetBuiltinProfile(name)
+	prof, err := profile.LoadProfile(name)
 	if err != nil {
 		return fmt.Errorf("profile not found: %s", name)
 	}

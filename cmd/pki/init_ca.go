@@ -107,7 +107,7 @@ func runInitCA(cmd *cobra.Command, args []string) error {
 
 	// Load profile if specified
 	if caProfile != "" {
-		prof, err := profile.GetBuiltinProfile(caProfile)
+		prof, err := profile.LoadProfile(caProfile)
 		if err != nil {
 			return fmt.Errorf("failed to load profile %s: %w", caProfile, err)
 		}
@@ -273,7 +273,7 @@ func runInitSubordinateCA(cmd *cobra.Command, args []string) error {
 
 	// Load profile if specified
 	if caProfile != "" {
-		prof, err := profile.GetBuiltinProfile(caProfile)
+		prof, err := profile.LoadProfile(caProfile)
 		if err != nil {
 			return fmt.Errorf("failed to load profile %s: %w", caProfile, err)
 		}

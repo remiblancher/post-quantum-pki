@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/remiblancher/pki/profiles"
 )
@@ -174,4 +175,22 @@ func GetBuiltinProfile(name string) (*Profile, error) {
 	}
 
 	return profile, nil
+}
+
+// LoadProfile loads a profile by name or file path.
+// File paths are detected by:
+//   - Starting with "/" (absolute path)
+//   - Starting with "." (relative path like ./profile.yaml)
+//   - Ending with ".yaml" or ".yml"
+//
+// Otherwise, it's treated as a builtin profile name (e.g., "ec/root-ca").
+func LoadProfile(nameOrPath string) (*Profile, error) {
+	// Detect if this is a file path
+	if strings.HasPrefix(nameOrPath, "/") ||
+		strings.HasPrefix(nameOrPath, ".") ||
+		strings.HasSuffix(nameOrPath, ".yaml") ||
+		strings.HasSuffix(nameOrPath, ".yml") {
+		return LoadProfileFromFile(nameOrPath)
+	}
+	return GetBuiltinProfile(nameOrPath)
 }
