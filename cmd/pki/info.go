@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
@@ -273,6 +275,28 @@ func formatSignatureAlgorithm(cert *x509.Certificate) string {
 // formatPublicKeyAlgorithm returns a human-readable public key algorithm name.
 // Falls back to parsing the raw certificate for PQC algorithms not recognized by Go's x509.
 func formatPublicKeyAlgorithm(cert *x509.Certificate) string {
+	// Handle ECDSA with curve info
+	if ecdsaPub, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
+		curveName := ""
+		switch ecdsaPub.Curve.Params().BitSize {
+		case 256:
+			curveName = "P-256"
+		case 384:
+			curveName = "P-384"
+		case 521:
+			curveName = "P-521"
+		}
+		if curveName != "" {
+			return fmt.Sprintf("ECDSA %s", curveName)
+		}
+		return "ECDSA"
+	}
+
+	// Handle RSA with key size
+	if rsaPub, ok := cert.PublicKey.(*rsa.PublicKey); ok {
+		return fmt.Sprintf("RSA %d", rsaPub.N.BitLen())
+	}
+
 	// Go's x509 returns UnknownPublicKeyAlgorithm (0) for PQC algorithms
 	if cert.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
 		return cert.PublicKeyAlgorithm.String()
@@ -299,6 +323,29 @@ func formatCSRSignatureAlgorithm(csr *x509.CertificateRequest) string {
 
 // formatCSRPublicKeyAlgorithm returns a human-readable public key algorithm name for CSR.
 func formatCSRPublicKeyAlgorithm(csr *x509.CertificateRequest) string {
+	// Handle ECDSA with curve info
+	if ecdsaPub, ok := csr.PublicKey.(*ecdsa.PublicKey); ok {
+		curveName := ""
+		switch ecdsaPub.Curve.Params().BitSize {
+		case 256:
+			curveName = "P-256"
+		case 384:
+			curveName = "P-384"
+		case 521:
+			curveName = "P-521"
+		}
+		if curveName != "" {
+			return fmt.Sprintf("ECDSA %s", curveName)
+		}
+		return "ECDSA"
+	}
+
+	// Handle RSA with key size
+	if rsaPub, ok := csr.PublicKey.(*rsa.PublicKey); ok {
+		return fmt.Sprintf("RSA %d", rsaPub.N.BitLen())
+	}
+
+	// PQC algorithms
 	if csr.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
 		return csr.PublicKeyAlgorithm.String()
 	}
