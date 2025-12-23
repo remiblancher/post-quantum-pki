@@ -127,6 +127,15 @@ func Verify(alg AlgorithmID, pub crypto.PublicKey, message, signature []byte) bo
 	return VerifyWithOpts(alg, pub, message, signature, nil)
 }
 
+// VerifySignature verifies a signature and returns an error if verification fails.
+// This is a convenience wrapper around Verify that returns an error instead of bool.
+func VerifySignature(pub crypto.PublicKey, alg AlgorithmID, message, signature []byte) error {
+	if !Verify(alg, pub, message, signature) {
+		return fmt.Errorf("signature verification failed for algorithm %s", alg)
+	}
+	return nil
+}
+
 // VerifyWithOpts verifies a signature with explicit options.
 // If opts is nil, defaults are used based on the algorithm.
 func VerifyWithOpts(alg AlgorithmID, pub crypto.PublicKey, message, signature []byte, opts *SignerOptsConfig) bool {

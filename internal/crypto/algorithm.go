@@ -390,3 +390,17 @@ func PQCAlgorithms() []AlgorithmID {
 	}
 	return result
 }
+
+// AlgUnknown represents an unknown or unsupported algorithm.
+const AlgUnknown AlgorithmID = ""
+
+// AlgorithmFromOID returns the AlgorithmID for a given OID.
+// Returns AlgUnknown if the OID is not recognized.
+func AlgorithmFromOID(oid asn1.ObjectIdentifier) AlgorithmID {
+	for alg, info := range algorithms {
+		if oid.Equal(info.OID) {
+			return alg
+		}
+	}
+	return AlgUnknown
+}
