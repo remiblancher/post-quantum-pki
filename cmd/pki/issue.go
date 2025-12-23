@@ -1,9 +1,12 @@
 package main
 
 import (
+	gocrypto "crypto"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -65,6 +68,7 @@ var (
 	issueValidityDays int
 	issueCAPassphrase string
 	issueHybridAlg    string
+	issueAttestCert   string
 )
 
 func init() {
@@ -84,6 +88,7 @@ func init() {
 	flags.IntVar(&issueValidityDays, "days", 0, "Validity period in days (overrides profile default)")
 	flags.StringVar(&issueCAPassphrase, "ca-passphrase", "", "CA private key passphrase (or env:VAR_NAME)")
 	flags.StringVar(&issueHybridAlg, "hybrid", "", "PQC algorithm for hybrid extension")
+	flags.StringVar(&issueAttestCert, "attest-cert", "", "Attestation certificate for ML-KEM CSR verification (RFC 9883)")
 }
 
 func runIssue(cmd *cobra.Command, args []string) error {
@@ -136,20 +141,72 @@ func runIssue(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("invalid CSR file")
 		}
 
-		csr, err := x509.ParseCertificateRequest(block.Bytes)
-		if err != nil {
-			return fmt.Errorf("failed to parse CSR: %w", err)
-		}
+		// Try standard Go x509 parsing first (classical algorithms)
+		csr, classicalErr := x509.ParseCertificateRequest(block.Bytes)
+		if classicalErr == nil {
+			// Classical CSR - verify signature
+			if err := csr.CheckSignature(); err != nil {
+				return fmt.Errorf("invalid CSR signature: %w", err)
+			}
+			subjectPubKey = csr.PublicKey
+			template = &x509.Certificate{
+				Subject:     csr.Subject,
+				DNSNames:    csr.DNSNames,
+				IPAddresses: csr.IPAddresses,
+			}
+		} else {
+			// Fallback to PQC CSR parsing (ML-DSA, SLH-DSA, ML-KEM)
+			pqcInfo, pqcErr := x509util.ParsePQCCSR(block.Bytes)
+			if pqcErr != nil {
+				return fmt.Errorf("failed to parse CSR (classical: %v, PQC: %v)", classicalErr, pqcErr)
+			}
 
-		if err := csr.CheckSignature(); err != nil {
-			return fmt.Errorf("invalid CSR signature: %w", err)
-		}
+			// Verify PQC CSR signature
+			var attestPubKey gocrypto.PublicKey
+			if pqcInfo.HasPossessionStatement() {
+				// ML-KEM CSR - need attestation cert for verification
+				if issueAttestCert == "" {
+					return fmt.Errorf("ML-KEM CSR with RFC 9883 attestation requires --attest-cert for verification")
+				}
+				attestCert, err := loadCertificate(issueAttestCert)
+				if err != nil {
+					return fmt.Errorf("failed to load attestation cert: %w", err)
+				}
+				// Validate RFC 9883 statement
+				if err := x509util.ValidateRFC9883Statement(pqcInfo, attestCert); err != nil {
+					return fmt.Errorf("RFC 9883 validation failed: %w", err)
+				}
+				attestPubKey = attestCert.PublicKey
+			}
 
-		subjectPubKey = csr.PublicKey
-		template = &x509.Certificate{
-			Subject:     csr.Subject,
-			DNSNames:    csr.DNSNames,
-			IPAddresses: csr.IPAddresses,
+			if err := x509util.VerifyPQCCSRSignature(pqcInfo, attestPubKey); err != nil {
+				return fmt.Errorf("invalid PQC CSR signature: %w", err)
+			}
+
+			// Reconstruct public key from CSR
+			pubKeyAlg := crypto.AlgorithmFromOID(pqcInfo.PublicKeyAlgorithm)
+			if pubKeyAlg == crypto.AlgUnknown {
+				return fmt.Errorf("unknown public key algorithm OID: %v", pqcInfo.PublicKeyAlgorithm)
+			}
+			parsedPubKey, err := crypto.ParsePublicKey(pubKeyAlg, pqcInfo.PublicKeyBytes)
+			if err != nil {
+				return fmt.Errorf("failed to parse public key from CSR: %w", err)
+			}
+			subjectPubKey = parsedPubKey
+
+			// Build template from PQC CSR info
+			template = &x509.Certificate{
+				Subject: pkix.Name{
+					CommonName:         pqcInfo.Subject.CommonName,
+					Organization:       pqcInfo.Subject.Organization,
+					OrganizationalUnit: pqcInfo.Subject.OrganizationalUnit,
+					Country:            pqcInfo.Subject.Country,
+					Province:           pqcInfo.Subject.Province,
+					Locality:           pqcInfo.Subject.Locality,
+				},
+				DNSNames:    pqcInfo.DNSNames,
+				IPAddresses: parseIPStrings(pqcInfo.IPAddresses),
+			}
 		}
 
 	case issueKeyFile != "":
@@ -385,4 +442,15 @@ func runIssue(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Stored at:   %s\n", store.CertPath(cert.SerialNumber.Bytes()))
 
 	return nil
+}
+
+// parseIPStrings parses a slice of IP address strings into net.IP values.
+func parseIPStrings(ipStrs []string) []net.IP {
+	var ips []net.IP
+	for _, s := range ipStrs {
+		if ip := net.ParseIP(s); ip != nil {
+			ips = append(ips, ip)
+		}
+	}
+	return ips
 }

@@ -7,8 +7,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/cloudflare/circl/kem"
 	"github.com/cloudflare/circl/kem/mlkem/mlkem1024"
@@ -383,6 +386,36 @@ func (kp *KeyPair) PublicKeyBytes() ([]byte, error) {
 	}
 }
 
+// PublicKeyBytes returns the raw bytes of a public key.
+// This is a standalone function that works with any supported public key type.
+func PublicKeyBytes(pub crypto.PublicKey) ([]byte, error) {
+	switch p := pub.(type) {
+	case *ecdsa.PublicKey:
+		//nolint:staticcheck // elliptic.Marshal is deprecated but still needed for X.509
+		return elliptic.Marshal(p.Curve, p.X, p.Y), nil
+	case ed25519.PublicKey:
+		return p, nil
+	case *rsa.PublicKey:
+		return nil, fmt.Errorf("RSA public key bytes not implemented")
+	case *mode2.PublicKey:
+		return p.Bytes(), nil
+	case *mode3.PublicKey:
+		return p.Bytes(), nil
+	case *mode5.PublicKey:
+		return p.Bytes(), nil
+	case *slhdsa.PublicKey:
+		return p.MarshalBinary()
+	case *mlkem512.PublicKey:
+		return p.MarshalBinary()
+	case *mlkem768.PublicKey:
+		return p.MarshalBinary()
+	case *mlkem1024.PublicKey:
+		return p.MarshalBinary()
+	default:
+		return nil, fmt.Errorf("unknown public key type: %T", pub)
+	}
+}
+
 // ML-KEM key types for type assertion.
 type (
 	MLKEM512PublicKey   = mlkem512.PublicKey
@@ -505,4 +538,39 @@ func MLKEMPrivateKeyBytes(priv crypto.PrivateKey) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", priv)
 	}
+}
+
+// SavePrivateKey saves the KEM private key to a PEM file.
+// If passphrase is provided, the key is encrypted.
+func (kp *KEMKeyPair) SavePrivateKey(path string, passphrase []byte) error {
+	privBytes, err := MLKEMPrivateKeyBytes(kp.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("failed to get private key bytes: %w", err)
+	}
+
+	pemType := fmt.Sprintf("%s PRIVATE KEY", kp.Algorithm.String())
+	pemBlock := &pem.Block{
+		Type:  pemType,
+		Bytes: privBytes,
+	}
+
+	// Encrypt if passphrase provided
+	if len(passphrase) > 0 {
+		pemBlock, err = x509.EncryptPEMBlock(rand.Reader, pemBlock.Type, pemBlock.Bytes, passphrase, x509.PEMCipherAES256) //nolint:staticcheck // Deprecated but still used
+		if err != nil {
+			return fmt.Errorf("failed to encrypt private key: %w", err)
+		}
+	}
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to create key file: %w", err)
+	}
+	defer f.Close()
+
+	if err := pem.Encode(f, pemBlock); err != nil {
+		return fmt.Errorf("failed to write PEM: %w", err)
+	}
+
+	return nil
 }

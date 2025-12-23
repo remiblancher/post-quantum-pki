@@ -163,6 +163,7 @@ pki issue [flags]
 | `--csr` | | "" | CSR file (instead of generating key) |
 | `--algorithm` | `-a` | ecdsa-p256 | Key algorithm |
 | `--hybrid` | | "" | PQC algorithm for hybrid cert |
+| `--attest-cert` | | "" | Attestation cert for ML-KEM CSR (RFC 9883) |
 | `--validity` | `-v` | 365 | Validity in days |
 | `--ca-passphrase` | | "" | CA key passphrase |
 | `--passphrase` | | "" | Output key passphrase |
@@ -213,6 +214,17 @@ pki issue --ca-dir ./hybrid-ca --profile ecdsa/tls-server \
 pki issue --ca-dir ./myca --profile ecdsa/tls-server \
   --csr server.csr \
   --out server.crt
+
+# From PQC CSR (ML-DSA signature)
+pki issue --ca-dir ./myca --profile slh-dsa/tls-client \
+  --csr mldsa.csr \
+  --out mldsa.crt
+
+# From ML-KEM CSR with RFC 9883 attestation
+pki issue --ca-dir ./myca --profile ml-dsa-kem/tls-client \
+  --csr kem.csr \
+  --attest-cert sign.crt \
+  --out kem.crt
 ```
 
 ### 2.3 genkey
@@ -261,7 +273,81 @@ pki genkey --algorithm ml-dsa-65 --out pqc.key
 pki genkey --algorithm ecdsa-p384 --out secure.key --passphrase "secret"
 ```
 
-### 2.4 revoke
+### 2.4 csr
+
+Generate a Certificate Signing Request (CSR) for submission to a CA.
+
+```bash
+pki csr [flags]
+```
+
+**Flags:**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--algorithm` | `-a` | "" | Key algorithm for new key |
+| `--keyout` | | "" | Output file for new private key |
+| `--key` | | "" | Existing private key file |
+| `--passphrase` | | "" | Passphrase for existing key |
+| `--key-passphrase` | | "" | Passphrase for new key |
+| `--out` | `-o` | required | Output CSR file |
+| `--cn` | | required | Common Name |
+| `--org` | `-O` | "" | Organization |
+| `--country` | `-C` | "" | Country (2-letter code) |
+| `--dns` | | [] | DNS SANs |
+| `--email` | | [] | Email SANs |
+| `--ip` | | [] | IP SANs |
+| `--hybrid` | | "" | PQC algorithm for hybrid CSR |
+| `--hybrid-keyout` | | "" | Output file for hybrid PQC key |
+| `--attest-cert` | | "" | Attestation certificate (RFC 9883) |
+| `--attest-key` | | "" | Attestation private key (RFC 9883) |
+
+**Modes:**
+
+| Mode | Description | Command |
+|------|-------------|---------|
+| Classical | RSA, ECDSA, Ed25519 via Go x509 | `--algorithm ecdsa-p256` |
+| PQC Signature | ML-DSA, SLH-DSA (custom PKCS#10) | `--algorithm ml-dsa-65` |
+| PQC KEM | ML-KEM with RFC 9883 attestation | `--algorithm ml-kem-768 --attest-cert ...` |
+| Hybrid | Classical + PQC dual signatures | `--algorithm ecdsa-p256 --hybrid ml-dsa-65` |
+
+**Examples:**
+
+```bash
+# Classical ECDSA CSR
+pki csr --algorithm ecdsa-p256 --keyout server.key \
+    --cn server.example.com --dns server.example.com -o server.csr
+
+# PQC ML-DSA CSR (direct signature)
+pki csr --algorithm ml-dsa-65 --keyout mldsa.key \
+    --cn alice@example.com -o mldsa.csr
+
+# PQC ML-KEM CSR with RFC 9883 attestation
+# (requires an existing signature certificate for attestation)
+pki csr --algorithm ml-kem-768 --keyout kem.key \
+    --cn alice@example.com \
+    --attest-cert sign.crt --attest-key sign.key \
+    -o kem.csr
+
+# Hybrid CSR (ECDSA + ML-DSA dual signatures)
+pki csr --algorithm ecdsa-p256 --keyout classical.key \
+    --hybrid ml-dsa-65 --hybrid-keyout pqc.key \
+    --cn example.com -o hybrid.csr
+
+# CSR with existing key
+pki csr --key existing.key --cn server.example.com -o server.csr
+```
+
+**RFC 9883 (ML-KEM Attestation):**
+
+ML-KEM keys cannot sign (they're Key Encapsulation Mechanisms). To prove possession of an ML-KEM private key, RFC 9883 defines the `privateKeyPossessionStatement` attribute. This requires:
+
+1. An existing signature certificate (`--attest-cert`)
+2. The corresponding private key (`--attest-key`)
+
+The CSR is signed by the attestation key, and includes a reference to the attestation certificate. The CA verifies the attestation chain before issuing the ML-KEM certificate.
+
+### 2.5 revoke
 
 Revoke a certificate.
 
@@ -304,7 +390,7 @@ pki revoke 02 --ca-dir ./myca --reason keyCompromise --gen-crl
 pki revoke 02 --ca-dir ./myca --gen-crl --crl-days 30
 ```
 
-### 2.5 gen-crl
+### 2.6 gen-crl
 
 Generate a Certificate Revocation List.
 
@@ -330,7 +416,7 @@ pki gen-crl --ca-dir ./myca
 pki gen-crl --ca-dir ./myca --days 30
 ```
 
-### 2.6 info
+### 2.7 info
 
 Display information about certificates or keys.
 
@@ -351,7 +437,7 @@ pki info private.key
 pki info ./myca/ca.crt
 ```
 
-### 2.7 list
+### 2.8 list
 
 List certificates in a CA.
 
