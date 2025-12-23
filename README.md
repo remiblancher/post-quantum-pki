@@ -10,6 +10,7 @@ A minimalist, quantum-safe Public Key Infrastructure (PKI) implementation in Go.
 
 - **State-of-the-art X.509 certificates** (RFC 5280 compliant)
 - **Post-Quantum Cryptography (PQC)** support via ML-DSA, SLH-DSA and ML-KEM
+- **CSR generation** for all algorithms including RFC 9883 ML-KEM attestation
 - **Catalyst certificates** (ITU-T X.509 Section 9.8) - dual keys in single cert
 - **Hybrid certificates** (classical + PQC via combined or separate modes)
 - **Profiles** (policy templates) - define enrollment policies in YAML
@@ -205,6 +206,28 @@ pki genkey --algorithm slh-dsa-128f --out slh-dsa-key.pem
 pki genkey --algorithm ecdsa-p384 --out key.pem --passphrase mysecret
 ```
 
+### Generate Certificate Signing Requests
+
+```bash
+# Classical CSR (ECDSA)
+pki csr --algorithm ecdsa-p256 --keyout server.key --cn server.example.com -o server.csr
+
+# PQC CSR (ML-DSA - direct signature)
+pki csr --algorithm ml-dsa-65 --keyout mldsa.key --cn alice@example.com -o mldsa.csr
+
+# ML-KEM CSR with RFC 9883 attestation
+# (requires existing signature certificate to attest KEM key possession)
+pki csr --algorithm ml-kem-768 --keyout kem.key --cn alice@example.com \
+    --attest-cert sign.crt --attest-key sign.key -o kem.csr
+
+# Hybrid CSR (ECDSA + ML-DSA dual signatures)
+pki csr --algorithm ecdsa-p256 --keyout classical.key \
+    --hybrid ml-dsa-65 --hybrid-keyout pqc.key --cn example.com -o hybrid.csr
+
+# CSR with existing key
+pki csr --key existing.key --cn server.example.com -o server.csr
+```
+
 ### Inspect Certificates
 
 ```bash
@@ -397,6 +420,7 @@ make build
 |-----------|--------|
 | Classical CA (ECDSA/RSA/Ed25519) | ✅ Production |
 | X.509 certificate issuance | ✅ Production |
+| CSR generation (all algorithms, RFC 9883) | ✅ Production |
 | Certificate profiles | ✅ Production |
 | CRL generation | ✅ Production |
 | OCSP Responder (RFC 6960) | ✅ Production |

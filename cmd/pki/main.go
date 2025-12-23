@@ -80,6 +80,7 @@ func init() {
 	rootCmd.AddCommand(initCACmd)
 	rootCmd.AddCommand(issueCmd)
 	rootCmd.AddCommand(genkeyCmd)
+	rootCmd.AddCommand(csrCmd)
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(auditCmd)
