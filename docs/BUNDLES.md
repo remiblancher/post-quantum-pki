@@ -96,6 +96,19 @@ pki bundle enroll --profile hybrid/catalyst/tls-client \
     --subject "CN=Alice" --id alice-prod --ca-dir ./ca
 ```
 
+**Important:** For ML-KEM (encryption) profiles, a signature profile must be
+listed first. This is required by RFC 9883 for proof of possession:
+
+```bash
+# ✅ Correct: signature profile before KEM profile
+pki bundle enroll --profile ec/client --profile ml-kem/client \
+    --subject "CN=Alice" --ca-dir ./ca
+
+# ❌ Error: KEM profile requires a signature profile first
+pki bundle enroll --profile ml-kem/client --subject "CN=Alice" --ca-dir ./ca
+# Error: KEM profile "ml-kem/client" requires a signature profile first (RFC 9883)
+```
+
 ### List Bundles
 
 ```bash
