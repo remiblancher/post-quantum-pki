@@ -11,8 +11,8 @@ validity: 3650d
 
 subject:
   fixed:
-    c: "FR"
-    o: "ACME Industrie"
+    c: "US"
+    o: "ACME Corp"
     cn: "ACME Issuing CA PQC"
 
 extensions:
@@ -31,13 +31,13 @@ extensions:
     critical: false
     policies:
       - oid: "1.3.6.1.4.1.99999.1.0.2"
-        cps: "https://pki.acme-industrie.fr/cps"
-        userNotice: "ACME Industrie Issuing CA Certificate Policy (PQC)"
+        cps: "https://pki.acme.example.com/cps"
+        userNotice: "ACME Corp Issuing CA Certificate Policy (PQC)"
 
   crlDistributionPoints:
     urls:
-      - "http://crl.acme-industrie.fr/root-ca-pqc.crl"
+      - "http://crl.acme.example.com/root-ca-pqc.crl"
 
   authorityInfoAccess:
     caIssuers:
-      - "http://pki.acme-industrie.fr/certs/root-ca-pqc.crt"
+      - "http://pki.acme.example.com/certs/root-ca-pqc.crt"

@@ -25,8 +25,8 @@ validity: 7300d
 
 subject:
   fixed:
-    c: "FR"
-    o: "ACME Industrie"
+    c: "US"
+    o: "ACME Corp"
     cn: "ACME Root CA Hybrid"
 
 extensions:
@@ -45,5 +45,5 @@ extensions:
     critical: false
     policies:
       - oid: "2.5.29.32.0"
-        cps: "https://pki.acme-industrie.fr/cps"
-        userNotice: "ACME Industrie Root CA - Hybrid Catalyst (ECDSA + ML-DSA)"
+        cps: "https://pki.acme.example.com/cps"
+        userNotice: "ACME Corp Root CA - Hybrid Catalyst (ECDSA + ML-DSA)"
