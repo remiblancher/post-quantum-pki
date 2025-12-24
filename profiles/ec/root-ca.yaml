@@ -29,8 +29,8 @@ validity: 7300d
 # Subject DN
 subject:
   fixed:
-    c: "FR"
-    o: "ACME Industrie"
+    c: "US"
+    o: "ACME Corp"
     cn: "ACME Root CA"
 
 # Extensions
@@ -50,5 +50,5 @@ extensions:
     critical: false
     policies:
       - oid: "2.5.29.32.0"
-        cps: "https://pki.acme-industrie.fr/cps"
-        userNotice: "ACME Industrie Root Certificate Policy"
+        cps: "https://pki.acme.example.com/cps"
+        userNotice: "ACME Corp Root Certificate Policy"
