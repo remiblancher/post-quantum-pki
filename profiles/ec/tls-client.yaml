@@ -5,7 +5,7 @@
 # Usage: Certificate for client authentication (mTLS)
 #
 # Example:
-#   pki issue --profile ec/tls-client --cn "alice@acme.fr"
+#   pki issue --profile ec/tls-client --cn "alice@acme.example.com"
 #
 # =============================================================================
 
@@ -17,9 +17,9 @@ validity: 365d
 
 subject:
   fixed:
-    c: "FR"
-    o: "ACME Industrie"
-    ou: "Utilisateurs"
+    c: "US"
+    o: "ACME Corp"
+    ou: "Users"
   required:
     - cn
   optional:
@@ -50,14 +50,14 @@ extensions:
     critical: false
     policies:
       - oid: "1.3.6.1.4.1.99999.1.3.1"
-        cps: "https://pki.acme-industrie.fr/cps"
+        cps: "https://pki.acme.example.com/cps"
 
   crlDistributionPoints:
     urls:
-      - "http://crl.acme-industrie.fr/issuing-ca.crl"
+      - "http://crl.acme.example.com/issuing-ca.crl"
 
   authorityInfoAccess:
     caIssuers:
-      - "http://pki.acme-industrie.fr/certs/issuing-ca.crt"
+      - "http://pki.acme.example.com/certs/issuing-ca.crt"
     ocsp:
-      - "http://ocsp.acme-industrie.fr"
+      - "http://ocsp.acme.example.com"

@@ -14,9 +14,9 @@ validity: 365d
 
 subject:
   fixed:
-    c: "FR"
-    o: "ACME Industrie"
-    ou: "Serveurs"
+    c: "US"
+    o: "ACME Corp"
+    ou: "Servers"
   required:
     - cn
 
@@ -45,14 +45,14 @@ extensions:
     critical: false
     policies:
       - oid: "1.3.6.1.4.1.99999.1.2.5"
-        cps: "https://pki.acme-industrie.fr/cps"
+        cps: "https://pki.acme.example.com/cps"
 
   crlDistributionPoints:
     urls:
-      - "http://crl.acme-industrie.fr/issuing-ca-composite.crl"
+      - "http://crl.acme.example.com/issuing-ca-composite.crl"
 
   authorityInfoAccess:
     caIssuers:
-      - "http://pki.acme-industrie.fr/certs/issuing-ca-composite.crt"
+      - "http://pki.acme.example.com/certs/issuing-ca-composite.crt"
     ocsp:
-      - "http://ocsp.acme-industrie.fr"
+      - "http://ocsp.acme.example.com"
