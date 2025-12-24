@@ -297,66 +297,6 @@ func (ca *CA) issueCatalystCertFromProfile(req EnrollmentRequest, prof *profile.
 	return cert, []pkicrypto.Signer{classicalSigner, pqcSigner}, nil
 }
 
-// issueSimpleCert issues a simple certificate with a single algorithm.
-// Deprecated: Use issueSimpleCertFromProfile instead.
-func (ca *CA) issueSimpleCert(req EnrollmentRequest, alg pkicrypto.AlgorithmID, notBefore, notAfter time.Time, extensions *profile.ExtensionsConfig, validity time.Duration) (*x509.Certificate, pkicrypto.Signer, error) {
-	// Generate key pair
-	signer, err := pkicrypto.GenerateSoftwareSigner(alg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate key: %w", err)
-	}
-
-	template := &x509.Certificate{
-		Subject:        req.Subject,
-		DNSNames:       req.DNSNames,
-		EmailAddresses: req.EmailAddresses,
-		NotBefore:      notBefore,
-		NotAfter:       notAfter,
-	}
-
-	cert, err := ca.Issue(IssueRequest{
-		Template:   template,
-		PublicKey:  signer.Public(),
-		Extensions: extensions,
-		Validity:   validity,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cert, signer, nil
-}
-
-// issueLinkedCert issues a certificate linked to another certificate.
-func (ca *CA) issueLinkedCert(req EnrollmentRequest, alg pkicrypto.AlgorithmID, notBefore, notAfter time.Time, extensions *profile.ExtensionsConfig, validity time.Duration, relatedCert *x509.Certificate) (*x509.Certificate, pkicrypto.Signer, error) {
-	// Generate key pair
-	signer, err := pkicrypto.GenerateSoftwareSigner(alg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate key: %w", err)
-	}
-
-	template := &x509.Certificate{
-		Subject:        req.Subject,
-		DNSNames:       req.DNSNames,
-		EmailAddresses: req.EmailAddresses,
-		NotBefore:      notBefore,
-		NotAfter:       notAfter,
-	}
-
-	cert, err := ca.IssueLinked(LinkedCertRequest{
-		Template:    template,
-		PublicKey:   signer.Public(),
-		Extensions:  extensions,
-		Validity:    validity,
-		RelatedCert: relatedCert,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cert, signer, nil
-}
-
 // generateBundleID generates a unique bundle ID.
 func generateBundleID(commonName string) string {
 	// Use a timestamp and random suffix
