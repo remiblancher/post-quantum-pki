@@ -353,7 +353,8 @@ Content-Length: 512
 ### ECDSA (classique)
 
 ```bash
-pki issue --profile ec/ocsp-responder --cn "ACME OCSP Responder"
+pki bundle enroll --profile ec/ocsp-responder \
+    --subject "CN=ACME OCSP Responder" --id ocsp-responder --ca-dir ./ca
 ```
 
 Profil `profiles/ec/ocsp-responder.yaml` :
@@ -365,7 +366,8 @@ Profil `profiles/ec/ocsp-responder.yaml` :
 ### ML-DSA (post-quantique)
 
 ```bash
-pki issue --profile ml-dsa-kem/ocsp-responder --cn "ACME PQC OCSP Responder"
+pki bundle enroll --profile ml-dsa-kem/ocsp-responder \
+    --subject "CN=ACME PQC OCSP Responder" --id pqc-ocsp-responder --ca-dir ./ca
 ```
 
 Profil `profiles/ml-dsa-kem/ocsp-responder.yaml` :
@@ -377,7 +379,8 @@ Profil `profiles/ml-dsa-kem/ocsp-responder.yaml` :
 ### Hybride Catalyst
 
 ```bash
-pki issue --profile hybrid/catalyst/ocsp-responder --cn "ACME Hybrid OCSP Responder"
+pki bundle enroll --profile hybrid/catalyst/ocsp-responder \
+    --subject "CN=ACME Hybrid OCSP Responder" --id hybrid-ocsp-responder --ca-dir ./ca
 ```
 
 Profil `profiles/hybrid/catalyst/ocsp-responder.yaml` :

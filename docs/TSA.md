@@ -34,16 +34,20 @@ The TSA module implements an RFC 3161 compliant timestamping server with post-qu
 
 ```bash
 # ECDSA (classical)
-pki issue --profile ec/timestamping --cn "ACME TSA"
+pki bundle enroll --profile ec/timestamping \
+    --subject "CN=ACME TSA" --id tsa --ca-dir ./ca
 
 # ML-DSA (post-quantum)
-pki issue --profile ml-dsa-kem/timestamping --cn "ACME PQC TSA"
+pki bundle enroll --profile ml-dsa-kem/timestamping \
+    --subject "CN=ACME PQC TSA" --id pqc-tsa --ca-dir ./ca
 
 # SLH-DSA (hash-based, long-term)
-pki issue --profile slh-dsa/timestamping --cn "ACME Archive TSA"
+pki bundle enroll --profile slh-dsa/timestamping \
+    --subject "CN=ACME Archive TSA" --id archive-tsa --ca-dir ./ca
 
 # Hybrid (PQC transition)
-pki issue --profile hybrid/catalyst/timestamping --cn "ACME Hybrid TSA"
+pki bundle enroll --profile hybrid/catalyst/timestamping \
+    --subject "CN=ACME Hybrid TSA" --id hybrid-tsa --ca-dir ./ca
 ```
 
 ### Sign a File (CLI Mode)
@@ -275,9 +279,10 @@ pki tsa sign --data myapp.app/Contents/_CodeSignature/CodeResources \
 
 ```bash
 # Use SLH-DSA for maximum quantum resistance
-pki issue --profile slh-dsa/timestamping --cn "Archive TSA"
+pki bundle enroll --profile slh-dsa/timestamping \
+    --subject "CN=Archive TSA" --id archive-tsa --ca-dir ./ca
 
-# Timestamp documents
+# Timestamp documents (using certificates from bundle)
 for doc in *.pdf; do
     pki tsa sign --data "$doc" --cert archive-tsa.crt --key archive-tsa.key \
         -o "${doc%.pdf}.tsr"

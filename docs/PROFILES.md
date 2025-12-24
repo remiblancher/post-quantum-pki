@@ -221,8 +221,12 @@ pki profile export ec/tls-server ./my-custom.yaml
 # Edit the file
 vim ./my-custom.yaml
 
-# Use the custom profile
-pki issue --profile ./my-custom.yaml --cn server.example.com
+# Use the custom profile with bundle enroll
+pki bundle enroll --profile ./my-custom.yaml \
+    --subject "CN=server.example.com" --dns server.example.com --ca-dir ./ca
+
+# Or with CSR workflow
+pki issue --profile ./my-custom.yaml --csr server.csr --out server.crt --ca-dir ./ca
 ```
 
 ### Simple Profile Example
@@ -400,17 +404,31 @@ extensions:
 
 ## Usage Examples
 
-### Issue with a Profile
+### Direct Issuance with Bundle Enroll
 
 ```bash
 # Issue using an ECDSA profile
-pki issue --profile ec/tls-server --cn server.example.com --dns server.example.com
+pki bundle enroll --profile ec/tls-server \
+    --subject "CN=server.example.com" --dns server.example.com --ca-dir ./ca
 
 # Issue using a hybrid profile
-pki issue --profile hybrid/catalyst/tls-server --cn server.example.com
+pki bundle enroll --profile hybrid/catalyst/tls-server \
+    --subject "CN=server.example.com" --dns server.example.com --ca-dir ./ca
 
 # Issue using a PQC profile
-pki issue --profile ml-dsa-kem/tls-server-sign --cn server.example.com
+pki bundle enroll --profile ml-dsa-kem/tls-server-sign \
+    --subject "CN=server.example.com" --dns server.example.com --ca-dir ./ca
+```
+
+### CSR-Based Issuance
+
+```bash
+# Generate CSR first
+pki csr --algorithm ecdsa-p256 --keyout server.key \
+    --cn server.example.com --dns server.example.com -o server.csr
+
+# Issue from CSR
+pki issue --profile ec/tls-server --csr server.csr --out server.crt --ca-dir ./ca
 ```
 
 ### Recommended Profiles by Use Case

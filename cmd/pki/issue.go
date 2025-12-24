@@ -20,13 +20,11 @@ import (
 
 var issueCmd = &cobra.Command{
 	Use:   "issue",
-	Short: "Issue a new certificate",
-	Long: `Issue a new certificate signed by the CA.
+	Short: "Issue a certificate from a CSR",
+	Long: `Issue a new certificate from a Certificate Signing Request (CSR).
 
-The certificate can be issued from:
-  1. A Certificate Signing Request (CSR) file
-  2. A public key file
-  3. Auto-generated key pair
+This command requires a CSR file (--csr). For direct issuance with
+automatic key generation, use 'pki bundle enroll' instead.
 
 Profiles are organized by category:
   ec/          - ECDSA profiles (modern classical)
@@ -36,21 +34,20 @@ Profiles are organized by category:
   hybrid/catalyst/  - Catalyst hybrid (ITU-T X.509 Section 9.8)
   hybrid/composite/ - IETF composite hybrid
 
-Examples: ec/tls-server, hybrid/catalyst/tls-client, ml-dsa-kem/tls-server-sign
-
 Use 'pki profile list' to see all available profiles.
 
 Examples:
-  # Issue a TLS server certificate with auto-generated key
-  pki issue --profile ec/tls-server --cn server.example.com \
-    --dns server.example.com,www.example.com \
-    --out server.crt --key-out server.key
+  # Issue from a classical CSR
+  pki issue --profile ec/tls-server --csr server.csr --out server.crt
 
-  # Issue from a CSR with hybrid profile
-  pki issue --profile hybrid/catalyst/tls-server --csr request.csr --out server.crt
+  # Issue from a PQC CSR (ML-DSA)
+  pki issue --profile ml-dsa-kem/tls-server-sign --csr mldsa.csr --out server.crt
 
-  # Issue a subordinate CA
-  pki issue --profile ec/issuing-ca --cn "Issuing CA" --out issuing-ca.crt`,
+  # Issue from a ML-KEM CSR (requires attestation)
+  pki issue --profile ml-kem/client --csr kem.csr --attest-cert sign.crt --out kem.crt
+
+  # Issue from a hybrid CSR
+  pki issue --profile hybrid/catalyst/tls-server --csr hybrid.csr --out server.crt`,
 	RunE: runIssue,
 }
 
@@ -80,12 +77,13 @@ func init() {
 	flags.StringVar(&issueCommonName, "cn", "", "Subject common name")
 	flags.StringSliceVar(&issueDNSNames, "dns", nil, "DNS Subject Alternative Names")
 	flags.StringSliceVar(&issueIPAddrs, "ip", nil, "IP Subject Alternative Names")
-	flags.StringVar(&issueCSRFile, "csr", "", "Certificate Signing Request file")
+	flags.StringVar(&issueCSRFile, "csr", "", "Certificate Signing Request file (required)")
+	_ = issueCmd.MarkFlagRequired("csr")
 	flags.StringVar(&issuePubKeyFile, "pubkey", "", "Public key file (alternative to CSR)")
 	flags.StringVar(&issueKeyFile, "key", "", "Existing private key file (alternative to CSR)")
 	flags.StringVarP(&issueCertOut, "out", "o", "", "Output certificate file")
-	flags.StringVar(&issueKeyOut, "key-out", "", "Output private key file (for auto-generated keys)")
-	flags.StringVarP(&issueAlgorithm, "algorithm", "a", "ecdsa-p256", "Key algorithm (for auto-generated keys)")
+	flags.StringVar(&issueKeyOut, "key-out", "", "Output private key file (unused, kept for compatibility)")
+	flags.StringVarP(&issueAlgorithm, "algorithm", "a", "", "Key algorithm (unused, kept for compatibility)")
 	flags.IntVar(&issueValidityDays, "days", 0, "Validity period in days (overrides profile default)")
 	flags.StringVar(&issueCAPassphrase, "ca-passphrase", "", "CA private key passphrase (or env:VAR_NAME)")
 	flags.StringVar(&issueHybridAlg, "hybrid", "", "PQC algorithm for hybrid extension")
@@ -124,142 +122,85 @@ func runIssue(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Determine subject public key and template
+	// Parse CSR (required)
 	var subjectPubKey interface{}
 	var template *x509.Certificate
-	var generatedKeyPath string
 
-	switch {
-	case issueCSRFile != "":
-		// Load CSR
-		csrData, err := os.ReadFile(issueCSRFile)
-		if err != nil {
-			return fmt.Errorf("failed to read CSR file: %w", err)
+	csrData, err := os.ReadFile(issueCSRFile)
+	if err != nil {
+		return fmt.Errorf("failed to read CSR file: %w", err)
+	}
+
+	block, _ := pem.Decode(csrData)
+	if block == nil || block.Type != "CERTIFICATE REQUEST" {
+		return fmt.Errorf("invalid CSR file")
+	}
+
+	// Try standard Go x509 parsing first (classical algorithms)
+	csr, classicalErr := x509.ParseCertificateRequest(block.Bytes)
+	if classicalErr == nil {
+		// Classical CSR - verify signature
+		if err := csr.CheckSignature(); err != nil {
+			return fmt.Errorf("invalid CSR signature: %w", err)
+		}
+		subjectPubKey = csr.PublicKey
+		template = &x509.Certificate{
+			Subject:     csr.Subject,
+			DNSNames:    csr.DNSNames,
+			IPAddresses: csr.IPAddresses,
+		}
+	} else {
+		// Fallback to PQC CSR parsing (ML-DSA, SLH-DSA, ML-KEM)
+		pqcInfo, pqcErr := x509util.ParsePQCCSR(block.Bytes)
+		if pqcErr != nil {
+			return fmt.Errorf("failed to parse CSR (classical: %v, PQC: %v)", classicalErr, pqcErr)
 		}
 
-		block, _ := pem.Decode(csrData)
-		if block == nil || block.Type != "CERTIFICATE REQUEST" {
-			return fmt.Errorf("invalid CSR file")
-		}
-
-		// Try standard Go x509 parsing first (classical algorithms)
-		csr, classicalErr := x509.ParseCertificateRequest(block.Bytes)
-		if classicalErr == nil {
-			// Classical CSR - verify signature
-			if err := csr.CheckSignature(); err != nil {
-				return fmt.Errorf("invalid CSR signature: %w", err)
+		// Verify PQC CSR signature
+		var attestPubKey gocrypto.PublicKey
+		if pqcInfo.HasPossessionStatement() {
+			// ML-KEM CSR - need attestation cert for verification
+			if issueAttestCert == "" {
+				return fmt.Errorf("ML-KEM CSR with RFC 9883 attestation requires --attest-cert for verification")
 			}
-			subjectPubKey = csr.PublicKey
-			template = &x509.Certificate{
-				Subject:     csr.Subject,
-				DNSNames:    csr.DNSNames,
-				IPAddresses: csr.IPAddresses,
-			}
-		} else {
-			// Fallback to PQC CSR parsing (ML-DSA, SLH-DSA, ML-KEM)
-			pqcInfo, pqcErr := x509util.ParsePQCCSR(block.Bytes)
-			if pqcErr != nil {
-				return fmt.Errorf("failed to parse CSR (classical: %v, PQC: %v)", classicalErr, pqcErr)
-			}
-
-			// Verify PQC CSR signature
-			var attestPubKey gocrypto.PublicKey
-			if pqcInfo.HasPossessionStatement() {
-				// ML-KEM CSR - need attestation cert for verification
-				if issueAttestCert == "" {
-					return fmt.Errorf("ML-KEM CSR with RFC 9883 attestation requires --attest-cert for verification")
-				}
-				attestCert, err := loadCertificate(issueAttestCert)
-				if err != nil {
-					return fmt.Errorf("failed to load attestation cert: %w", err)
-				}
-				// Validate RFC 9883 statement
-				if err := x509util.ValidateRFC9883Statement(pqcInfo, attestCert); err != nil {
-					return fmt.Errorf("RFC 9883 validation failed: %w", err)
-				}
-				attestPubKey = attestCert.PublicKey
-			}
-
-			if err := x509util.VerifyPQCCSRSignature(pqcInfo, attestPubKey); err != nil {
-				return fmt.Errorf("invalid PQC CSR signature: %w", err)
-			}
-
-			// Reconstruct public key from CSR
-			pubKeyAlg := crypto.AlgorithmFromOID(pqcInfo.PublicKeyAlgorithm)
-			if pubKeyAlg == crypto.AlgUnknown {
-				return fmt.Errorf("unknown public key algorithm OID: %v", pqcInfo.PublicKeyAlgorithm)
-			}
-			parsedPubKey, err := crypto.ParsePublicKey(pubKeyAlg, pqcInfo.PublicKeyBytes)
+			attestCert, err := loadCertificate(issueAttestCert)
 			if err != nil {
-				return fmt.Errorf("failed to parse public key from CSR: %w", err)
+				return fmt.Errorf("failed to load attestation cert: %w", err)
 			}
-			subjectPubKey = parsedPubKey
-
-			// Build template from PQC CSR info
-			template = &x509.Certificate{
-				Subject: pkix.Name{
-					CommonName:         pqcInfo.Subject.CommonName,
-					Organization:       pqcInfo.Subject.Organization,
-					OrganizationalUnit: pqcInfo.Subject.OrganizationalUnit,
-					Country:            pqcInfo.Subject.Country,
-					Province:           pqcInfo.Subject.Province,
-					Locality:           pqcInfo.Subject.Locality,
-				},
-				DNSNames:    pqcInfo.DNSNames,
-				IPAddresses: parseIPStrings(pqcInfo.IPAddresses),
+			// Validate RFC 9883 statement
+			if err := x509util.ValidateRFC9883Statement(pqcInfo, attestCert); err != nil {
+				return fmt.Errorf("RFC 9883 validation failed: %w", err)
 			}
+			attestPubKey = attestCert.PublicKey
 		}
 
-	case issueKeyFile != "":
-		// Load existing key
-		signer, err := crypto.LoadPrivateKey(issueKeyFile, nil)
+		if err := x509util.VerifyPQCCSRSignature(pqcInfo, attestPubKey); err != nil {
+			return fmt.Errorf("invalid PQC CSR signature: %w", err)
+		}
+
+		// Reconstruct public key from CSR
+		pubKeyAlg := crypto.AlgorithmFromOID(pqcInfo.PublicKeyAlgorithm)
+		if pubKeyAlg == crypto.AlgUnknown {
+			return fmt.Errorf("unknown public key algorithm OID: %v", pqcInfo.PublicKeyAlgorithm)
+		}
+		parsedPubKey, err := crypto.ParsePublicKey(pubKeyAlg, pqcInfo.PublicKeyBytes)
 		if err != nil {
-			return fmt.Errorf("failed to load private key: %w", err)
+			return fmt.Errorf("failed to parse public key from CSR: %w", err)
 		}
-		subjectPubKey = signer.Public()
-		template = &x509.Certificate{}
+		subjectPubKey = parsedPubKey
 
-	case issuePubKeyFile != "":
-		// Load public key
-		return fmt.Errorf("--pubkey not yet implemented - use --csr or --key instead")
-
-	default:
-		// Generate new key pair
-		// Use algorithm from profile unless --algorithm was explicitly provided
-		var alg crypto.AlgorithmID
-		if cmd.Flags().Changed("algorithm") {
-			// User explicitly specified algorithm via --algorithm flag
-			alg, err = crypto.ParseAlgorithm(issueAlgorithm)
-			if err != nil {
-				return fmt.Errorf("invalid algorithm: %w", err)
-			}
-		} else {
-			// Use algorithm from profile
-			alg = prof.GetAlgorithm()
-			if alg == "" {
-				return fmt.Errorf("profile %s does not specify an algorithm", issueProfile)
-			}
-		}
-
-		kp, err := crypto.GenerateKeyPair(alg)
-		if err != nil {
-			return fmt.Errorf("failed to generate key pair: %w", err)
-		}
-
-		subjectPubKey = kp.PublicKey
-		template = &x509.Certificate{}
-
-		// Save private key if output path specified
-		if issueKeyOut != "" {
-			signer, err := crypto.NewSoftwareSigner(kp)
-			if err != nil {
-				return fmt.Errorf("failed to create signer: %w", err)
-			}
-
-			if err := signer.SavePrivateKey(issueKeyOut, nil); err != nil {
-				return fmt.Errorf("failed to save private key: %w", err)
-			}
-			generatedKeyPath = issueKeyOut
+		// Build template from PQC CSR info
+		template = &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:         pqcInfo.Subject.CommonName,
+				Organization:       pqcInfo.Subject.Organization,
+				OrganizationalUnit: pqcInfo.Subject.OrganizationalUnit,
+				Country:            pqcInfo.Subject.Country,
+				Province:           pqcInfo.Subject.Province,
+				Locality:           pqcInfo.Subject.Locality,
+			},
+			DNSNames:    pqcInfo.DNSNames,
+			IPAddresses: parseIPStrings(pqcInfo.IPAddresses),
 		}
 	}
 
@@ -296,8 +237,7 @@ func runIssue(cmd *cobra.Command, args []string) error {
 		// Catalyst mode: issue certificate with dual signatures
 		// Need both classical and PQC keys for the subject
 
-		// Get the algorithms from profile
-		classicalAlg := prof.GetAlgorithm()
+		// Get PQC algorithm from profile
 		pqcAlg := prof.GetAlternativeAlgorithm()
 
 		// For Catalyst, we need to generate both key types
@@ -305,60 +245,24 @@ func runIssue(cmd *cobra.Command, args []string) error {
 		var classicalPubKey interface{}
 		var pqcPubKey interface{}
 
-		if issueCSRFile != "" || issueKeyFile != "" {
-			// CSR/key provided - use it as classical, generate PQC
-			classicalPubKey = subjectPubKey
+		// CSR provides classical key, generate PQC key
+		classicalPubKey = subjectPubKey
 
-			pqcKP, err := crypto.GenerateKeyPair(pqcAlg)
+		pqcKP, err := crypto.GenerateKeyPair(pqcAlg)
+		if err != nil {
+			return fmt.Errorf("failed to generate PQC key for Catalyst: %w", err)
+		}
+		pqcPubKey = pqcKP.PublicKey
+
+		// Save PQC private key if output path specified
+		if issueKeyOut != "" {
+			pqcSigner, err := crypto.NewSoftwareSigner(pqcKP)
 			if err != nil {
-				return fmt.Errorf("failed to generate PQC key for Catalyst: %w", err)
+				return fmt.Errorf("failed to create PQC signer: %w", err)
 			}
-			pqcPubKey = pqcKP.PublicKey
-
-			// Save PQC private key if output path specified
-			if issueKeyOut != "" {
-				pqcSigner, err := crypto.NewSoftwareSigner(pqcKP)
-				if err != nil {
-					return fmt.Errorf("failed to create PQC signer: %w", err)
-				}
-				pqcKeyPath := issueKeyOut + ".pqc"
-				if err := pqcSigner.SavePrivateKey(pqcKeyPath, nil); err != nil {
-					return fmt.Errorf("failed to save PQC private key: %w", err)
-				}
-			}
-		} else {
-			// Auto-generate both keys
-			classicalKP, err := crypto.GenerateKeyPair(classicalAlg)
-			if err != nil {
-				return fmt.Errorf("failed to generate classical key: %w", err)
-			}
-			classicalPubKey = classicalKP.PublicKey
-
-			pqcKP, err := crypto.GenerateKeyPair(pqcAlg)
-			if err != nil {
-				return fmt.Errorf("failed to generate PQC key: %w", err)
-			}
-			pqcPubKey = pqcKP.PublicKey
-
-			// Save private keys if output path specified
-			if issueKeyOut != "" {
-				classicalSigner, err := crypto.NewSoftwareSigner(classicalKP)
-				if err != nil {
-					return fmt.Errorf("failed to create classical signer: %w", err)
-				}
-				if err := classicalSigner.SavePrivateKey(issueKeyOut, nil); err != nil {
-					return fmt.Errorf("failed to save classical private key: %w", err)
-				}
-				generatedKeyPath = issueKeyOut
-
-				pqcSigner, err := crypto.NewSoftwareSigner(pqcKP)
-				if err != nil {
-					return fmt.Errorf("failed to create PQC signer: %w", err)
-				}
-				pqcKeyPath := issueKeyOut + ".pqc"
-				if err := pqcSigner.SavePrivateKey(pqcKeyPath, nil); err != nil {
-					return fmt.Errorf("failed to save PQC private key: %w", err)
-				}
+			pqcKeyPath := issueKeyOut + ".pqc"
+			if err := pqcSigner.SavePrivateKey(pqcKeyPath, nil); err != nil {
+				return fmt.Errorf("failed to save PQC private key: %w", err)
 			}
 		}
 
@@ -434,9 +338,6 @@ func runIssue(cmd *cobra.Command, args []string) error {
 
 	if issueCertOut != "" {
 		fmt.Printf("  Certificate: %s\n", issueCertOut)
-	}
-	if generatedKeyPath != "" {
-		fmt.Printf("  Private Key: %s\n", generatedKeyPath)
 	}
 
 	// Show store path
