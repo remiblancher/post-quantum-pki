@@ -162,12 +162,18 @@ pki init-ca --name "HSM Root CA" \
   --pkcs11-key-label "ca-key" \
   --dir ./hsm-ca
 
-# Issue certificate (signing happens in HSM)
-pki issue --ca-dir ./hsm-ca \
+# Issue certificate using bundle enroll (signing happens in HSM)
+pki bundle enroll --ca-dir ./hsm-ca \
   --profile ec/tls-server \
-  --cn server.example.com \
-  --out server.crt --key-out server.key \
+  --subject "CN=server.example.com" \
+  --dns server.example.com \
   --pkcs11-pin 1234
+
+# Or using CSR workflow
+pki csr --algorithm ecdsa-p256 --keyout server.key \
+    --cn server.example.com --dns server.example.com -o server.csr
+pki issue --ca-dir ./hsm-ca --profile ec/tls-server \
+  --csr server.csr --out server.crt --pkcs11-pin 1234
 ```
 
 ## 6. Production HSM Notes

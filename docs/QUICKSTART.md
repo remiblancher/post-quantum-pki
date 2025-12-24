@@ -20,18 +20,22 @@ This creates a CA directory with:
 ## 2. Issue a TLS Server Certificate
 
 ```bash
-pki issue --ca-dir ./ca --profile ec/tls-server \
-  --cn "server.example.com" \
-  --dns server.example.com,www.example.com \
-  --out server.crt --key-out server.key
+# Using bundle enroll (generates key + certificate)
+pki bundle enroll --ca-dir ./ca --profile ec/tls-server \
+  --subject "CN=server.example.com" \
+  --dns server.example.com --dns www.example.com
+
+# Or using CSR workflow
+pki csr --algorithm ecdsa-p256 --keyout server.key \
+  --cn server.example.com --dns server.example.com -o server.csr
+pki issue --ca-dir ./ca --profile ec/tls-server --csr server.csr --out server.crt
 ```
 
 ## 3. Issue a TLS Client Certificate
 
 ```bash
-pki issue --ca-dir ./ca --profile ec/tls-client \
-  --cn "user@example.com" \
-  --out client.crt --key-out client.key
+pki bundle enroll --ca-dir ./ca --profile ec/tls-client \
+  --subject "CN=user@example.com"
 ```
 
 ## 4. Verify Certificates
@@ -86,9 +90,9 @@ pki gen-crl --ca-dir ./ca
 # Create hybrid CA using profile
 pki init-ca --name "Hybrid CA" --profile hybrid/catalyst/root-ca --dir ./hybrid-ca
 
-# Issue hybrid certificate
-pki issue --ca-dir ./hybrid-ca --profile hybrid/catalyst/tls-server \
-  --cn "pqc.example.com" --out pqc.crt --key-out pqc.key
+# Issue hybrid certificate using bundle enroll
+pki bundle enroll --ca-dir ./hybrid-ca --profile hybrid/catalyst/tls-server \
+  --subject "CN=pqc.example.com" --dns pqc.example.com
 ```
 
 ## Next Steps

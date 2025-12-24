@@ -160,8 +160,8 @@ pki init-ca --name "Issuing CA" --profile ec/issuing-ca \
   --dir ./issuing-ca --parent ./root-ca
 
 # The subordinate CA can then issue end-entity certificates
-pki issue --ca-dir ./issuing-ca --profile ec/tls-server \
-  --cn server.example.com --out server.crt --key-out server.key
+pki bundle enroll --ca-dir ./issuing-ca --profile ec/tls-server \
+  --subject "CN=server.example.com" --dns server.example.com
 ```
 
 This creates a complete CA structure with:
@@ -209,22 +209,25 @@ pki csr --key existing.key --cn server.example.com -o server.csr
 
 ### Issue Certificates
 
+Certificates are always issued from a CSR (Certificate Signing Request).
+For direct issuance with key generation, use `pki bundle enroll` instead.
+
 ```bash
-# Direct issuance (auto-generates key)
+# From classical CSR (ECDSA, RSA)
 pki issue --ca-dir ./myca --profile ec/tls-server \
-  --cn server.example.com \
-  --dns server.example.com,www.example.com \
-  --out server.crt --key-out server.key
+  --csr server.csr --out server.crt
 
-# From CSR (traditional PKI workflow)
-pki issue --ca-dir ./myca --profile ec/tls-server \
-  --csr server.csr \
-  --out server.crt
+# From PQC signature CSR (ML-DSA, SLH-DSA)
+pki issue --ca-dir ./myca --profile ml-dsa-kem/tls-server-sign \
+  --csr mldsa.csr --out server.crt
 
-# Issue hybrid certificate (classical + PQC)
+# From ML-KEM CSR (requires RFC 9883 attestation for verification)
+pki issue --ca-dir ./myca --profile ml-kem/client \
+  --csr kem.csr --attest-cert sign.crt --out kem.crt
+
+# From Hybrid CSR (classical + PQC dual signatures)
 pki issue --ca-dir ./myca --profile hybrid/catalyst/tls-server \
-  --cn server.example.com \
-  --out server.crt --key-out server.key
+  --csr hybrid.csr --out server.crt
 ```
 
 ### Inspect Certificates
