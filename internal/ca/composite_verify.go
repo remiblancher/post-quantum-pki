@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha512"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
 
@@ -105,6 +106,8 @@ func VerifyCompositeCertificate(cert, issuer *x509.Certificate) (*CompositeVerif
 }
 
 // parseCompositePublicKeyFromCert extracts both public keys from a composite certificate.
+// Per draft-ietf-lamps-pq-composite-sigs-13, the encoding is:
+//   CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
 func parseCompositePublicKeyFromCert(cert *x509.Certificate) (pqcPub, classicalPub crypto.PublicKey, err error) {
 	// Use Go's parsed RawSubjectPublicKeyInfo
 	spkiBytes := cert.RawSubjectPublicKeyInfo
@@ -116,8 +119,9 @@ func parseCompositePublicKeyFromCert(cert *x509.Certificate) (pqcPub, classicalP
 		return nil, nil, fmt.Errorf("failed to parse SPKI: %w", err)
 	}
 
-	// The public key bytes contain a CompositePublicKey
-	var compPK CompositePublicKey
+	// The public key bytes contain a CompositeSignaturePublicKey
+	// CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
+	var compPK CompositeSignaturePublicKey
 	_, err = asn1.Unmarshal(spki.PublicKey.Bytes, &compPK)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse composite public key: %w", err)
@@ -129,14 +133,14 @@ func parseCompositePublicKeyFromCert(cert *x509.Certificate) (pqcPub, classicalP
 		return nil, nil, fmt.Errorf("unknown composite algorithm: %w", err)
 	}
 
-	// Parse ML-DSA public key
-	pqcPub, err = parseMLDSAPublicKey(compAlg.PQCAlg, compPK.MLDSAKey.PublicKey.Bytes)
+	// Parse ML-DSA public key from raw bytes
+	pqcPub, err = parseMLDSAPublicKey(compAlg.PQCAlg, compPK.MLDSAKey.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse ML-DSA key: %w", err)
 	}
 
-	// Parse classical public key (ECDSA)
-	classicalPub, err = parseClassicalPublicKey(compPK.ClassicalKey)
+	// Parse classical public key (ECDSA) from raw bytes
+	classicalPub, err = parseClassicalPublicKeyFromBytes(compAlg.ClassicalAlg, compPK.ClassicalKey.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse classical key: %w", err)
 	}
@@ -164,8 +168,32 @@ func parseMLDSAPublicKey(alg pkicrypto.AlgorithmID, data []byte) (crypto.PublicK
 	}
 }
 
-// parseClassicalPublicKey parses an ECDSA public key from SPKI format.
-func parseClassicalPublicKey(spki publicKeyInfo) (crypto.PublicKey, error) {
+// parseClassicalPublicKeyFromBytes parses an ECDSA public key from raw bytes.
+// The raw bytes are the uncompressed EC point (0x04 || X || Y).
+func parseClassicalPublicKeyFromBytes(alg pkicrypto.AlgorithmID, data []byte) (crypto.PublicKey, error) {
+	// Determine the curve OID based on algorithm
+	var curveOID asn1.ObjectIdentifier
+	switch alg {
+	case pkicrypto.AlgECDSAP256:
+		curveOID = x509util.OIDNamedCurveP256
+	case pkicrypto.AlgECDSAP384:
+		curveOID = x509util.OIDNamedCurveP384
+	default:
+		return nil, fmt.Errorf("unsupported classical algorithm: %s", alg)
+	}
+
+	// Build SPKI structure with EC public key
+	spki := publicKeyInfo{
+		Algorithm: pkix.AlgorithmIdentifier{
+			Algorithm:  x509util.OIDPublicKeyECDSA,
+			Parameters: asn1.RawValue{FullBytes: mustMarshal(curveOID)},
+		},
+		PublicKey: asn1.BitString{
+			Bytes:     data,
+			BitLength: len(data) * 8,
+		},
+	}
+
 	// Marshal back to DER for Go's x509 parser
 	der, err := asn1.Marshal(spki)
 	if err != nil {
@@ -173,6 +201,15 @@ func parseClassicalPublicKey(spki publicKeyInfo) (crypto.PublicKey, error) {
 	}
 
 	return x509.ParsePKIXPublicKey(der)
+}
+
+// mustMarshal marshals a value or panics.
+func mustMarshal(v interface{}) []byte {
+	data, err := asn1.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 // verifyMLDSA verifies an ML-DSA signature.

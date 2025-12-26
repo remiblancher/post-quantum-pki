@@ -68,6 +68,9 @@ var (
 
 // Elliptic Curve OIDs.
 var (
+	// OIDPublicKeyECDSA is the OID for EC public keys (id-ecPublicKey).
+	OIDPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+
 	OIDNamedCurveP256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 3, 1, 7}
 	OIDNamedCurveP384 = asn1.ObjectIdentifier{1, 3, 132, 0, 34}
 	OIDNamedCurveP521 = asn1.ObjectIdentifier{1, 3, 132, 0, 35}
