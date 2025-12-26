@@ -54,12 +54,13 @@ type CompositeSignatureValue struct {
 	ClassicalSig asn1.BitString // Second: Classical (ECDSA) signature
 }
 
-// CompositePublicKey represents the ASN.1 structure for composite public keys.
-// CompositePublicKey ::= SEQUENCE SIZE (2) OF SubjectPublicKeyInfo
-// Per draft-ietf-lamps-pq-composite-sigs-13 Section 4.
-type CompositePublicKey struct {
-	MLDSAKey     publicKeyInfo // First: ML-DSA public key
-	ClassicalKey publicKeyInfo // Second: Classical public key
+// CompositeSignaturePublicKey represents the ASN.1 structure for composite public keys.
+// CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
+// Per draft-ietf-lamps-pq-composite-sigs-13 Section 6.
+// Each BIT STRING contains the raw public key bytes (not wrapped in SubjectPublicKeyInfo).
+type CompositeSignaturePublicKey struct {
+	MLDSAKey     asn1.BitString // First: ML-DSA public key bytes
+	ClassicalKey asn1.BitString // Second: Classical public key bytes
 }
 
 // compositeCertificate is used for final certificate assembly with raw TBS bytes.
@@ -133,26 +134,36 @@ func BuildDomainSeparator(oid asn1.ObjectIdentifier) ([]byte, error) {
 
 // EncodeCompositePublicKey encodes two public keys into composite format.
 // Order per spec: ML-DSA first, then classical.
+// Per draft-ietf-lamps-pq-composite-sigs-13, the encoding is:
+//   SubjectPublicKeyInfo.publicKey = BIT STRING containing:
+//     CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
 func EncodeCompositePublicKey(
 	pqcAlg pkicrypto.AlgorithmID, pqcPub crypto.PublicKey,
 	classicalAlg pkicrypto.AlgorithmID, classicalPub crypto.PublicKey,
 ) (publicKeyInfo, error) {
-	// Get PQC SPKI
-	pqcSPKI, err := encodeSubjectPublicKeyInfo(pqcPub)
+	// Get raw PQC public key bytes
+	pqcBytes, err := getPublicKeyBytes(pqcPub)
 	if err != nil {
-		return publicKeyInfo{}, fmt.Errorf("failed to encode PQC public key: %w", err)
+		return publicKeyInfo{}, fmt.Errorf("failed to get PQC public key bytes: %w", err)
 	}
 
-	// Get classical SPKI
-	classicalSPKI, err := encodeSubjectPublicKeyInfo(classicalPub)
+	// Get raw classical public key bytes
+	classicalBytes, err := getPublicKeyBytes(classicalPub)
 	if err != nil {
-		return publicKeyInfo{}, fmt.Errorf("failed to encode classical public key: %w", err)
+		return publicKeyInfo{}, fmt.Errorf("failed to get classical public key bytes: %w", err)
 	}
 
 	// Marshal the composite public key (PQC first per spec)
-	compPK := CompositePublicKey{
-		MLDSAKey:     pqcSPKI,
-		ClassicalKey: classicalSPKI,
+	// CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
+	compPK := CompositeSignaturePublicKey{
+		MLDSAKey: asn1.BitString{
+			Bytes:     pqcBytes,
+			BitLength: len(pqcBytes) * 8,
+		},
+		ClassicalKey: asn1.BitString{
+			Bytes:     classicalBytes,
+			BitLength: len(classicalBytes) * 8,
+		},
 	}
 
 	compPKBytes, err := asn1.Marshal(compPK)
@@ -179,27 +190,37 @@ func EncodeCompositePublicKey(
 
 // encodeCompositePublicKeyWithOID encodes two public keys into composite format with explicit OID.
 // This is used when the subject's algorithm differs from the lookup algorithms.
+// Per draft-ietf-lamps-pq-composite-sigs-13, the encoding is:
+//   SubjectPublicKeyInfo.publicKey = BIT STRING containing:
+//     CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
 func encodeCompositePublicKeyWithOID(
 	oid asn1.ObjectIdentifier,
 	pqcAlg pkicrypto.AlgorithmID, pqcPub crypto.PublicKey,
 	classicalAlg pkicrypto.AlgorithmID, classicalPub crypto.PublicKey,
 ) (publicKeyInfo, error) {
-	// Get PQC SPKI
-	pqcSPKI, err := encodeSubjectPublicKeyInfo(pqcPub)
+	// Get raw PQC public key bytes
+	pqcBytes, err := getPublicKeyBytes(pqcPub)
 	if err != nil {
-		return publicKeyInfo{}, fmt.Errorf("failed to encode PQC public key: %w", err)
+		return publicKeyInfo{}, fmt.Errorf("failed to get PQC public key bytes: %w", err)
 	}
 
-	// Get classical SPKI
-	classicalSPKI, err := encodeSubjectPublicKeyInfo(classicalPub)
+	// Get raw classical public key bytes
+	classicalBytes, err := getPublicKeyBytes(classicalPub)
 	if err != nil {
-		return publicKeyInfo{}, fmt.Errorf("failed to encode classical public key: %w", err)
+		return publicKeyInfo{}, fmt.Errorf("failed to get classical public key bytes: %w", err)
 	}
 
 	// Marshal the composite public key (PQC first per spec)
-	compPK := CompositePublicKey{
-		MLDSAKey:     pqcSPKI,
-		ClassicalKey: classicalSPKI,
+	// CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
+	compPK := CompositeSignaturePublicKey{
+		MLDSAKey: asn1.BitString{
+			Bytes:     pqcBytes,
+			BitLength: len(pqcBytes) * 8,
+		},
+		ClassicalKey: asn1.BitString{
+			Bytes:     classicalBytes,
+			BitLength: len(classicalBytes) * 8,
+		},
 	}
 
 	compPKBytes, err := asn1.Marshal(compPK)
