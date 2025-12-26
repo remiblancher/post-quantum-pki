@@ -50,9 +50,10 @@ OID arc: `1.3.6.1.5.5.7.6.x` (IETF id-smime algorithms)
 ## ASN.1 Structures
 
 ```asn1
--- Composite Public Key (Section 4)
-CompositePublicKey ::= SEQUENCE SIZE (2) OF SubjectPublicKeyInfo
--- Order: [0] ML-DSA, [1] Classical
+-- Composite Public Key (Section 6)
+CompositeSignaturePublicKey ::= SEQUENCE SIZE (2) OF BIT STRING
+-- Order: [0] ML-DSA public key bytes, [1] Classical public key bytes
+-- Each BIT STRING contains raw public key bytes (NOT wrapped in SubjectPublicKeyInfo)
 
 -- Composite Signature (Section 5)
 CompositeSignatureValue ::= SEQUENCE SIZE (2) OF BIT STRING
