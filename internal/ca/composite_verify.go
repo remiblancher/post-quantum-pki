@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha512"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
 
