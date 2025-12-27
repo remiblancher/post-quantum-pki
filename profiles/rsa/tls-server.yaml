@@ -63,16 +63,19 @@ validity: 365d
 # -----------------------------------------------------------------------------
 variables:
   cn:
-    type: string
+    type: dns_name
     required: true
-    pattern: "^[a-zA-Z0-9][a-zA-Z0-9.-]+$"
-    description: "Common Name - Server's primary FQDN"
+    wildcard:
+      allowed: true
+    description: "Common Name - Server's primary FQDN (wildcards allowed)"
 
   dns_names:
-    type: list
+    type: dns_names
     required: false
     default: []
-    description: "DNS Subject Alternative Names"
+    wildcard:
+      allowed: true
+    description: "DNS Subject Alternative Names (wildcards allowed)"
 
   ip_addresses:
     type: ip_list
