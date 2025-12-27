@@ -21,7 +21,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile ec/root-ca \
 #       --var cn="ACME Root CA"
 #

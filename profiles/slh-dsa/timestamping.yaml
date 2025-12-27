@@ -43,7 +43,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile slh-dsa/timestamping \
 #       --var cn="ACME Archive TSA"
 #

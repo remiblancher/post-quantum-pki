@@ -28,7 +28,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile hybrid/catalyst/root-ca \
 #       --var cn="ACME Root CA Hybrid"
 #

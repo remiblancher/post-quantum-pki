@@ -24,7 +24,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile ml-dsa-kem/tls-client \
 #       --var cn="alice@acme.example.com" \
 #       --var email="alice@acme.example.com"

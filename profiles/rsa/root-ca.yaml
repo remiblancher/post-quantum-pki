@@ -23,7 +23,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile rsa/root-ca \
 #       --var cn="ACME Root CA RSA"
 #
