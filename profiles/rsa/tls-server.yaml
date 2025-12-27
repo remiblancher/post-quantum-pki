@@ -28,7 +28,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile rsa/tls-server \
 #       --var cn="www.acme.example.com" \
 #       --var dns_names="www.acme.example.com,api.acme.example.com"

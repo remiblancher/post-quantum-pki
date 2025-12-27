@@ -35,7 +35,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile hybrid/composite/tls-server \
 #       --var cn="secure.acme.example.com" \
 #       --var dns_names="secure.acme.example.com,api.acme.example.com"
