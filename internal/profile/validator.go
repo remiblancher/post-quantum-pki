@@ -1,0 +1,363 @@
+// Package profile provides variable validation for certificate profiles.
+package profile
+
+import (
+	"fmt"
+	"net"
+	"regexp"
+	"strings"
+)
+
+// VariableValidator validates user-provided values against variable constraints.
+// All expensive operations (regex compilation, CIDR parsing) are done once
+// when the validator is created, not during validation.
+type VariableValidator struct {
+	variables map[string]*Variable
+
+	// Pre-compiled regex patterns (one per variable with a pattern)
+	compiled map[string]*regexp.Regexp
+
+	// Pre-parsed CIDR ranges (for ip_list constraints)
+	ipNets map[string][]*net.IPNet
+}
+
+// NewVariableValidator creates a new validator for the given variables.
+// It pre-compiles all regex patterns and pre-parses all CIDR ranges.
+func NewVariableValidator(vars map[string]*Variable) (*VariableValidator, error) {
+	v := &VariableValidator{
+		variables: vars,
+		compiled:  make(map[string]*regexp.Regexp),
+		ipNets:    make(map[string][]*net.IPNet),
+	}
+
+	// Pre-compile all patterns at load time
+	for name, variable := range vars {
+		if variable.Pattern != "" {
+			re, err := regexp.Compile(variable.Pattern)
+			if err != nil {
+				return nil, fmt.Errorf("variable %s: invalid pattern %q: %w", name, variable.Pattern, err)
+			}
+			v.compiled[name] = re
+		}
+
+		// Pre-parse CIDR ranges for ip_list constraints
+		if variable.Type == VarTypeIPList && variable.Constraints != nil {
+			for _, cidr := range variable.Constraints.AllowedRanges {
+				_, ipNet, err := net.ParseCIDR(cidr)
+				if err != nil {
+					return nil, fmt.Errorf("variable %s: invalid CIDR %q: %w", name, cidr, err)
+				}
+				v.ipNets[name] = append(v.ipNets[name], ipNet)
+			}
+		}
+	}
+
+	return v, nil
+}
+
+// Validate validates a single variable value.
+func (v *VariableValidator) Validate(name string, value interface{}) error {
+	variable, ok := v.variables[name]
+	if !ok {
+		return fmt.Errorf("unknown variable: %s", name)
+	}
+
+	// Nil value is only ok if variable has a default
+	if value == nil {
+		if variable.Required && !variable.HasDefault() {
+			return fmt.Errorf("%s: required variable not provided", name)
+		}
+		return nil
+	}
+
+	// Validate based on type
+	switch variable.Type {
+	case VarTypeString:
+		return v.validateString(name, variable, value)
+	case VarTypeInteger:
+		return v.validateInteger(name, variable, value)
+	case VarTypeBoolean:
+		return v.validateBoolean(name, value)
+	case VarTypeList:
+		return v.validateList(name, variable, value)
+	case VarTypeIPList:
+		return v.validateIPList(name, variable, value)
+	default:
+		return fmt.Errorf("%s: unknown variable type: %s", name, variable.Type)
+	}
+}
+
+// ValidateAll validates all provided values and checks for required variables.
+// Returns the first validation error encountered.
+func (v *VariableValidator) ValidateAll(values VariableValues) error {
+	// Check each provided value
+	for name, value := range values {
+		if err := v.Validate(name, value); err != nil {
+			return err
+		}
+	}
+
+	// Check that all required variables are provided
+	for name, variable := range v.variables {
+		if variable.Required && !variable.HasDefault() {
+			if _, ok := values[name]; !ok {
+				return fmt.Errorf("required variable %q not provided", name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// MergeWithDefaults merges user-provided values with default values.
+// Returns a new map with all variables resolved.
+func (v *VariableValidator) MergeWithDefaults(values VariableValues) VariableValues {
+	result := make(VariableValues, len(v.variables))
+
+	// Start with defaults
+	for name, variable := range v.variables {
+		if variable.HasDefault() {
+			result[name] = variable.Default
+		}
+	}
+
+	// Override with user values
+	for name, value := range values {
+		result[name] = value
+	}
+
+	return result
+}
+
+func (v *VariableValidator) validateString(name string, variable *Variable, value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("%s: expected string, got %T", name, value)
+	}
+
+	// Pattern check (using pre-compiled regex)
+	if re, ok := v.compiled[name]; ok {
+		if !re.MatchString(str) {
+			return fmt.Errorf("%s: value %q does not match pattern %q", name, str, variable.Pattern)
+		}
+	}
+
+	// Enum check
+	if len(variable.Enum) > 0 {
+		valid := false
+		for _, e := range variable.Enum {
+			if str == e {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("%s: value %q not in allowed values %v", name, str, variable.Enum)
+		}
+	}
+
+	// Length checks
+	if variable.MinLength > 0 && len(str) < variable.MinLength {
+		return fmt.Errorf("%s: length %d below minimum %d", name, len(str), variable.MinLength)
+	}
+	if variable.MaxLength > 0 && len(str) > variable.MaxLength {
+		return fmt.Errorf("%s: length %d exceeds maximum %d", name, len(str), variable.MaxLength)
+	}
+
+	return nil
+}
+
+func (v *VariableValidator) validateInteger(name string, variable *Variable, value interface{}) error {
+	var intVal int
+
+	switch i := value.(type) {
+	case int:
+		intVal = i
+	case float64:
+		intVal = int(i)
+	default:
+		return fmt.Errorf("%s: expected integer, got %T", name, value)
+	}
+
+	// Min check
+	if variable.Min != nil && intVal < *variable.Min {
+		return fmt.Errorf("%s: value %d below minimum %d", name, intVal, *variable.Min)
+	}
+
+	// Max check
+	if variable.Max != nil && intVal > *variable.Max {
+		return fmt.Errorf("%s: value %d exceeds maximum %d", name, intVal, *variable.Max)
+	}
+
+	// Enum check (for integer enums, compare as strings)
+	if len(variable.Enum) > 0 {
+		strVal := fmt.Sprintf("%d", intVal)
+		valid := false
+		for _, e := range variable.Enum {
+			if strVal == e {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("%s: value %d not in allowed values %v", name, intVal, variable.Enum)
+		}
+	}
+
+	return nil
+}
+
+func (v *VariableValidator) validateBoolean(name string, value interface{}) error {
+	_, ok := value.(bool)
+	if !ok {
+		return fmt.Errorf("%s: expected boolean, got %T", name, value)
+	}
+	return nil
+}
+
+func (v *VariableValidator) validateList(name string, variable *Variable, value interface{}) error {
+	var list []string
+
+	switch l := value.(type) {
+	case []string:
+		list = l
+	case []interface{}:
+		list = make([]string, 0, len(l))
+		for _, item := range l {
+			if s, ok := item.(string); ok {
+				list = append(list, s)
+			} else {
+				return fmt.Errorf("%s: list item is not a string: %T", name, item)
+			}
+		}
+	default:
+		return fmt.Errorf("%s: expected list, got %T", name, value)
+	}
+
+	c := variable.Constraints
+	if c == nil {
+		return nil
+	}
+
+	// Item count checks
+	if c.MinItems > 0 && len(list) < c.MinItems {
+		return fmt.Errorf("%s: need at least %d items, got %d", name, c.MinItems, len(list))
+	}
+	if c.MaxItems > 0 && len(list) > c.MaxItems {
+		return fmt.Errorf("%s: max %d items allowed, got %d", name, c.MaxItems, len(list))
+	}
+
+	// Check each item
+	for _, item := range list {
+		// Suffix check
+		if len(c.AllowedSuffixes) > 0 {
+			valid := false
+			for _, suffix := range c.AllowedSuffixes {
+				if strings.HasSuffix(item, suffix) {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return fmt.Errorf("%s: %q does not match allowed suffixes %v", name, item, c.AllowedSuffixes)
+			}
+		}
+
+		// Prefix deny check
+		for _, prefix := range c.DeniedPrefixes {
+			if strings.HasPrefix(item, prefix) {
+				return fmt.Errorf("%s: %q matches denied prefix %q", name, item, prefix)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (v *VariableValidator) validateIPList(name string, variable *Variable, value interface{}) error {
+	var list []string
+
+	switch l := value.(type) {
+	case []string:
+		list = l
+	case []interface{}:
+		list = make([]string, 0, len(l))
+		for _, item := range l {
+			if s, ok := item.(string); ok {
+				list = append(list, s)
+			} else {
+				return fmt.Errorf("%s: list item is not a string: %T", name, item)
+			}
+		}
+	default:
+		return fmt.Errorf("%s: expected ip_list, got %T", name, value)
+	}
+
+	c := variable.Constraints
+	if c == nil {
+		c = &ListConstraints{}
+	}
+
+	// Item count checks
+	if c.MinItems > 0 && len(list) < c.MinItems {
+		return fmt.Errorf("%s: need at least %d IPs, got %d", name, c.MinItems, len(list))
+	}
+	if c.MaxItems > 0 && len(list) > c.MaxItems {
+		return fmt.Errorf("%s: max %d IPs allowed, got %d", name, c.MaxItems, len(list))
+	}
+
+	// Pre-parsed allowed ranges
+	allowedRanges := v.ipNets[name]
+
+	// Validate each IP
+	for _, ipStr := range list {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			return fmt.Errorf("%s: invalid IP address %q", name, ipStr)
+		}
+
+		// Check against allowed ranges (if any)
+		if len(allowedRanges) > 0 {
+			valid := false
+			for _, ipNet := range allowedRanges {
+				if ipNet.Contains(ip) {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return fmt.Errorf("%s: IP %q not in allowed ranges %v", name, ipStr, c.AllowedRanges)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Variables returns the map of variables this validator checks.
+func (v *VariableValidator) Variables() map[string]*Variable {
+	return v.variables
+}
+
+// HasVariable returns true if the validator has the named variable.
+func (v *VariableValidator) HasVariable(name string) bool {
+	_, ok := v.variables[name]
+	return ok
+}
+
+// GetVariable returns the variable definition for the given name.
+func (v *VariableValidator) GetVariable(name string) (*Variable, bool) {
+	variable, ok := v.variables[name]
+	return variable, ok
+}
+
+// RequiredVariables returns the names of all required variables.
+func (v *VariableValidator) RequiredVariables() []string {
+	var required []string
+	for name, variable := range v.variables {
+		if variable.Required && !variable.HasDefault() {
+			required = append(required, name)
+		}
+	}
+	return required
+}

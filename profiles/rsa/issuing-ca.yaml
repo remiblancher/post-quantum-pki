@@ -17,13 +17,15 @@
 #   RSA is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
 #   For quantum-resistant Issuing CA, use hybrid/catalyst/issuing-ca.
 #
-# Path Length: 0
-#   This CA can only issue end-entity certificates, not other CAs.
+# Examples:
 #
-# Example:
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile rsa/issuing-ca \
-#     --name "ACME Issuing CA RSA" --dir ./issuing-ca-rsa \
-#     --parent ./root-ca-rsa
+#       --var cn="ACME Issuing CA RSA" \
+#       --parent ./root-ca-rsa
+#
+#   # Using --var-file
+#   pki init-ca --profile rsa/issuing-ca --var-file ca-vars.yaml --parent ./root-ca-rsa
 #
 # Expected DN: CN=ACME Issuing CA RSA, O=ACME Corp, C=US
 #
@@ -35,65 +37,71 @@ description: "Issuing CA RSA 4096-bit"
 # -----------------------------------------------------------------------------
 # Algorithm
 # -----------------------------------------------------------------------------
-# RSA-4096 for Issuing CA.
-#   - Same as Root CA for consistency
-#   - Strong classical security
-#   - Universal compatibility
-#
 algorithm: rsa-4096
 
 # -----------------------------------------------------------------------------
 # Validity
 # -----------------------------------------------------------------------------
-# 10 years for Issuing CA.
-#
 validity: 3650d
+
+# -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Issuing CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
 
 # -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Issuing CA RSA"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
 # -----------------------------------------------------------------------------
 extensions:
 
-  # Basic Constraints (RFC 5280 Section 4.2.1.9)
-  # ---------------------------------------------------------------------------
   basicConstraints:
     critical: true
     ca: true
     pathLen: 0
 
-  # Key Usage (RFC 5280 Section 4.2.1.3)
-  # ---------------------------------------------------------------------------
   keyUsage:
     critical: true
     values:
       - keyCertSign
       - cRLSign
 
-  # Certificate Policies (RFC 5280 Section 4.2.1.4)
-  # ---------------------------------------------------------------------------
   certificatePolicies:
     critical: false
     policies:
       - oid: "1.3.6.1.4.1.99999.1.0.1"
         cps: "https://pki.acme.example.com/cps"
 
-  # CRL Distribution Points (RFC 5280 Section 4.2.1.13)
-  # ---------------------------------------------------------------------------
   crlDistributionPoints:
     urls:
       - "http://crl.acme.example.com/root-ca-rsa.crl"
 
-  # Authority Information Access (RFC 5280 Section 4.2.2.1)
-  # ---------------------------------------------------------------------------
   authorityInfoAccess:
     caIssuers:
       - "http://pki.acme.example.com/certs/root-ca-rsa.crt"

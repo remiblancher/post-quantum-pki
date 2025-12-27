@@ -16,8 +16,9 @@ type profileYAML struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
 
-	// Subject DN configuration
-	Subject *SubjectYAML `yaml:"subject,omitempty"`
+	// Subject DN configuration (flat map with {{ template }} values)
+	// Example: cn: "{{ cn }}", o: "{{ organization }}", ou: "Servers"
+	Subject map[string]string `yaml:"subject,omitempty"`
 
 	// Algorithm configuration (mutually exclusive options)
 	Algorithm  string   `yaml:"algorithm,omitempty"`  // Simple profile: single algorithm
@@ -28,13 +29,9 @@ type profileYAML struct {
 
 	Validity   string            `yaml:"validity"` // Duration string like "8760h" or "365d"
 	Extensions *ExtensionsConfig `yaml:"extensions,omitempty"`
-}
 
-// SubjectYAML defines subject DN configuration in YAML.
-type SubjectYAML struct {
-	Fixed    map[string]string `yaml:"fixed,omitempty"`
-	Required []string          `yaml:"required,omitempty"`
-	Optional []string          `yaml:"optional,omitempty"`
+	// Declarative variables for template substitution
+	Variables map[string]*Variable `yaml:"variables,omitempty"`
 }
 
 // LoadProfileFromFile loads a profile from a YAML file.
@@ -63,15 +60,21 @@ func profileYAMLToProfile(py *profileYAML) (*Profile, error) {
 		Name:        py.Name,
 		Description: py.Description,
 		Extensions:  py.Extensions,
+		Variables:   py.Variables,
 	}
 
-	// Copy subject configuration
-	if py.Subject != nil {
+	// Copy subject configuration (new format: flat map with templates)
+	// The subject map contains template strings like "{{ cn }}" that will
+	// be resolved at enrollment time using the TemplateEngine.
+	if len(py.Subject) > 0 {
 		p.Subject = &SubjectConfig{
-			Fixed:    py.Subject.Fixed,
-			Required: py.Subject.Required,
-			Optional: py.Subject.Optional,
+			Fixed: py.Subject,
 		}
+	}
+
+	// Set variable names from map keys
+	for name, v := range p.Variables {
+		v.Name = name
 	}
 
 	// Parse algorithm configuration
@@ -277,15 +280,12 @@ func profileToYAML(p *Profile) *profileYAML {
 		Name:        p.Name,
 		Description: p.Description,
 		Extensions:  p.Extensions,
+		Variables:   p.Variables,
 	}
 
-	// Convert subject
-	if p.Subject != nil {
-		py.Subject = &SubjectYAML{
-			Fixed:    p.Subject.Fixed,
-			Required: p.Subject.Required,
-			Optional: p.Subject.Optional,
-		}
+	// Convert subject (new format: flat map with templates)
+	if p.Subject != nil && len(p.Subject.Fixed) > 0 {
+		py.Subject = p.Subject.Fixed
 	}
 
 	// Convert algorithm configuration

@@ -23,10 +23,15 @@
 #   - ECDSA P-256 in standard signature field
 #   - ML-DSA-65 in altSignatureValue extension
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile hybrid/catalyst/issuing-ca \
-#     --name "ACME Issuing CA Hybrid" --dir ./issuing-ca-hybrid \
-#     --parent ./root-ca-hybrid
+#       --var cn="ACME Issuing CA Hybrid" \
+#       --parent ./root-ca-hybrid
+#
+#   # Using --var-file
+#   pki init-ca --profile hybrid/catalyst/issuing-ca --var-file ca-vars.yaml --parent ./root-ca-hybrid
 #
 # Expected DN: CN=ACME Issuing CA Hybrid, O=ACME Corp, C=US
 #
@@ -60,13 +65,36 @@ algorithms:
 validity: 3650d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Issuing CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Issuing CA Hybrid"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

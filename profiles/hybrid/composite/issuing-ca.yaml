@@ -31,10 +31,15 @@
 #   Composite certificates require composite-aware verifiers.
 #   For backward compatibility, use hybrid/catalyst/issuing-ca instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile hybrid/composite/issuing-ca \
-#     --name "ACME Issuing CA Composite" --dir ./issuing-ca-composite \
-#     --parent ./root-ca-composite
+#       --var cn="ACME Issuing CA Composite" \
+#       --parent ./root-ca-composite
+#
+#   # Using --var-file
+#   pki init-ca --profile hybrid/composite/issuing-ca --var-file ca-vars.yaml --parent ./root-ca-composite
 #
 # Expected DN: CN=ACME Issuing CA Composite, O=ACME Corp, C=US
 #
@@ -63,13 +68,36 @@ algorithms:
 validity: 3650d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Issuing CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Issuing CA Composite"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

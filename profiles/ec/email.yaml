@@ -17,10 +17,20 @@
 #   ECDSA is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
 #   For quantum-resistant email, use ml-dsa-kem/email-sign + ml-dsa-kem/email-encrypt.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile ec/email \
-#     --subject "CN=alice@acme.example.com" \
-#     --email alice@acme.example.com
+#       --var cn=alice@acme.example.com \
+#       --var email=alice@acme.example.com
+#
+#   # Using --var-file
+#   pki bundle enroll --profile ec/email --var-file email-vars.yaml
+#
+#   # Using --subject (legacy, no validation)
+#   pki bundle enroll --profile ec/email \
+#       --subject "CN=alice@acme.example.com" \
+#       --email alice@acme.example.com
 #
 # Expected DN: CN=alice@acme.example.com, OU=Users, O=ACME Corp, C=US
 #
@@ -46,18 +56,52 @@ algorithm: ecdsa-p256
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+# Input variables with validation constraints.
+# Use: pki bundle enroll --profile ec/email --var cn=alice@example.com
+#
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - User's email address or name"
+
+  email:
+    type: string
+    required: true
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    description: "RFC 822 email address (required for S/MIME)"
+
+  serial_number:
+    type: string
+    required: false
+    description: "Employee ID"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"                   # Country
-    o: "ACME Corp"            # Organization
-    ou: "Users"               # Organizational Unit
-  required:
-    - cn                      # User's email address or name
-  optional:
-    - email                   # RFC 822 email (if different from CN)
-    - serialNumber            # Employee ID
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "Users"
+  c: "{{ country }}"
+  serialNumber: "{{ serial_number }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
@@ -97,8 +141,7 @@ extensions:
   #
   subjectAltName:
     critical: false
-    email:
-      - "${EMAIL}"            # Variable: --email flag value
+    email: "{{ email }}"
 
   # Certificate Policies (RFC 5280 Section 4.2.1.4)
   # ---------------------------------------------------------------------------

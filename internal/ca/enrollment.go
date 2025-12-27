@@ -124,6 +124,183 @@ func (ca *CA) EnrollWithProfile(req EnrollmentRequest, prof *profile.Profile) (*
 	return result, nil
 }
 
+// EnrollWithCompiledProfile creates a certificate using a pre-compiled profile.
+// This is optimized for high-throughput scenarios where profiles are pre-compiled
+// at startup, avoiding per-certificate parsing overhead.
+func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile) (*EnrollmentResult, error) {
+	if ca.signer == nil {
+		return nil, fmt.Errorf("CA signer not loaded")
+	}
+
+	// Create bundle ID
+	bundleID := generateBundleID(req.Subject.CommonName)
+
+	// Create bundle
+	b := bundle.NewBundle(bundleID, bundle.SubjectFromPkixName(req.Subject), []string{cp.Profile.Name})
+
+	result := &EnrollmentResult{
+		Bundle:       b,
+		Certificates: make([]*x509.Certificate, 0),
+		Signers:      make([]pkicrypto.Signer, 0),
+	}
+
+	// Set validity
+	notBefore := time.Now()
+	notAfter := notBefore.Add(cp.Profile.Validity)
+	b.SetValidity(notBefore, notAfter)
+
+	// Issue certificate using compiled profile
+	var cert *x509.Certificate
+	var signers []pkicrypto.Signer
+	var err error
+
+	if cp.Profile.IsCatalyst() {
+		cert, signers, err = ca.issueCatalystCertFromCompiledProfile(req, cp, notBefore, notAfter)
+	} else if cp.Profile.IsComposite() {
+		cert, signers, err = ca.issueCompositeCertFromCompiledProfile(req, cp, notBefore, notAfter)
+	} else {
+		var signer pkicrypto.Signer
+		cert, signer, err = ca.issueSimpleCertFromCompiledProfile(req, cp, notBefore, notAfter)
+		if signer != nil {
+			signers = []pkicrypto.Signer{signer}
+		}
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to issue certificate: %w", err)
+	}
+
+	result.Certificates = append(result.Certificates, cert)
+	result.Signers = append(result.Signers, signers...)
+
+	// Add to bundle
+	role := bundle.RoleSignature
+	if cp.Profile.IsKEM() {
+		role = bundle.RoleEncryption
+	}
+	altAlg := ""
+	if cp.Profile.IsCatalyst() {
+		altAlg = string(cp.Profile.GetAlternativeAlgorithm())
+	}
+	ref := bundle.CertificateRefFromCert(cert, role, cp.Profile.IsCatalyst(), altAlg)
+	ref.Profile = cp.Profile.Name
+	b.AddCertificate(ref)
+
+	// Activate bundle
+	b.Activate()
+
+	return result, nil
+}
+
+// issueSimpleCertFromCompiledProfile issues a simple certificate using a pre-compiled profile.
+// Extensions are already parsed, avoiding runtime parsing overhead.
+func (ca *CA) issueSimpleCertFromCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile, notBefore, notAfter time.Time) (*x509.Certificate, pkicrypto.Signer, error) {
+	alg := cp.Profile.GetAlgorithm()
+
+	// Generate key pair
+	signer, err := pkicrypto.GenerateSoftwareSigner(alg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate key: %w", err)
+	}
+
+	// Use CompiledProfile.ApplyToTemplate for pre-parsed extensions
+	template := cp.ApplyToTemplate(req.Subject, req.DNSNames, nil, req.EmailAddresses)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
+
+	cert, err := ca.Issue(IssueRequest{
+		Template:  template,
+		PublicKey: signer.Public(),
+		Validity:  cp.Profile.Validity,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, signer, nil
+}
+
+// issueCatalystCertFromCompiledProfile issues a Catalyst certificate using a pre-compiled profile.
+func (ca *CA) issueCatalystCertFromCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile, notBefore, notAfter time.Time) (*x509.Certificate, []pkicrypto.Signer, error) {
+	if !cp.Profile.IsCatalyst() || len(cp.Profile.Algorithms) != 2 {
+		return nil, nil, fmt.Errorf("invalid catalyst profile: requires exactly 2 algorithms")
+	}
+
+	classicalAlg := cp.Profile.Algorithms[0]
+	pqcAlg := cp.Profile.Algorithms[1]
+
+	// Generate classical key pair
+	classicalSigner, err := pkicrypto.GenerateSoftwareSigner(classicalAlg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate classical key: %w", err)
+	}
+
+	// Generate PQC key pair
+	pqcSigner, err := pkicrypto.GenerateSoftwareSigner(pqcAlg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate PQC key: %w", err)
+	}
+
+	// Use CompiledProfile.ApplyToTemplate for pre-parsed extensions
+	template := cp.ApplyToTemplate(req.Subject, req.DNSNames, nil, req.EmailAddresses)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
+
+	cert, err := ca.IssueCatalyst(CatalystRequest{
+		Template:           template,
+		ClassicalPublicKey: classicalSigner.Public(),
+		PQCPublicKey:       pqcSigner.Public(),
+		PQCAlgorithm:       pqcAlg,
+		Validity:           cp.Profile.Validity,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, []pkicrypto.Signer{classicalSigner, pqcSigner}, nil
+}
+
+// issueCompositeCertFromCompiledProfile issues a Composite certificate using a pre-compiled profile.
+func (ca *CA) issueCompositeCertFromCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile, notBefore, notAfter time.Time) (*x509.Certificate, []pkicrypto.Signer, error) {
+	if !cp.Profile.IsComposite() || len(cp.Profile.Algorithms) != 2 {
+		return nil, nil, fmt.Errorf("invalid composite profile: requires exactly 2 algorithms")
+	}
+
+	classicalAlg := cp.Profile.Algorithms[0]
+	pqcAlg := cp.Profile.Algorithms[1]
+
+	// Generate classical key pair
+	classicalSigner, err := pkicrypto.GenerateSoftwareSigner(classicalAlg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate classical key: %w", err)
+	}
+
+	// Generate PQC key pair
+	pqcSigner, err := pkicrypto.GenerateSoftwareSigner(pqcAlg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate PQC key: %w", err)
+	}
+
+	// Use CompiledProfile.ApplyToTemplate for pre-parsed extensions
+	template := cp.ApplyToTemplate(req.Subject, req.DNSNames, nil, req.EmailAddresses)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
+
+	cert, err := ca.IssueComposite(CompositeRequest{
+		Template:           template,
+		ClassicalPublicKey: classicalSigner.Public(),
+		PQCPublicKey:       pqcSigner.Public(),
+		ClassicalAlg:       classicalAlg,
+		PQCAlg:             pqcAlg,
+		Validity:           cp.Profile.Validity,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, []pkicrypto.Signer{classicalSigner, pqcSigner}, nil
+}
+
 // EnrollMulti creates a bundle with multiple certificates from multiple profiles.
 // This is the main enrollment function for creating bundles.
 // Profiles are processed in order. For KEM certificates, a signature

@@ -17,19 +17,18 @@
 #
 # Quantum Safety: VULNERABLE
 #   RSA is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
-#   Shor's algorithm can factor RSA moduli efficiently.
 #   For quantum-resistant Root CA, use:
 #   - hybrid/catalyst/root-ca (backward compatible + PQC)
 #   - ml-dsa-kem/root-ca (pure PQC)
 #
-# RSA vs ECDSA:
-#   - RSA: Universal compatibility, larger keys/signatures, established trust
-#   - ECDSA: Smaller keys/signatures, better performance, modern standard
-#   Choose based on your compatibility and performance requirements.
+# Examples:
 #
-# Example:
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile rsa/root-ca \
-#     --name "ACME Root CA RSA" --dir ./root-ca-rsa
+#       --var cn="ACME Root CA RSA"
+#
+#   # Using --var-file
+#   pki init-ca --profile rsa/root-ca --var-file ca-vars.yaml
 #
 # Expected DN: CN=ACME Root CA RSA, O=ACME Corp, C=US
 #
@@ -41,52 +40,61 @@ description: "Root CA RSA 4096-bit"
 # -----------------------------------------------------------------------------
 # Algorithm
 # -----------------------------------------------------------------------------
-# RSA-4096 for Root CA.
-#   - ~112-bit equivalent security (classical)
-#   - Universal compatibility across all systems
-#   - NIST recommended minimum for long-lived CAs
-#   - Larger keys (8192) not recommended due to performance
-#
 algorithm: rsa-4096
 
 # -----------------------------------------------------------------------------
 # Validity
 # -----------------------------------------------------------------------------
-# 20 years for Root CA.
-#
 validity: 7300d
+
+# -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Root CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
 
 # -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Root CA RSA"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
 # -----------------------------------------------------------------------------
 extensions:
 
-  # Basic Constraints (RFC 5280 Section 4.2.1.9)
-  # ---------------------------------------------------------------------------
   basicConstraints:
     critical: true
     ca: true
     pathLen: 1
 
-  # Key Usage (RFC 5280 Section 4.2.1.3)
-  # ---------------------------------------------------------------------------
   keyUsage:
     critical: true
     values:
       - keyCertSign
       - cRLSign
 
-  # Certificate Policies (RFC 5280 Section 4.2.1.4)
-  # ---------------------------------------------------------------------------
   certificatePolicies:
     critical: false
     policies:

@@ -26,9 +26,14 @@
 #   - Alternative: ML-DSA-87 (in altSignatureAlgorithm extension)
 #   Both signatures cover the same TBS (To-Be-Signed) certificate data.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile hybrid/catalyst/root-ca \
-#     --name "ACME Root CA Hybrid" --dir ./root-ca-hybrid
+#       --var cn="ACME Root CA Hybrid"
+#
+#   # Using --var-file
+#   pki init-ca --profile hybrid/catalyst/root-ca --var-file ca-vars.yaml
 #
 # Expected DN: CN=ACME Root CA Hybrid, O=ACME Corp, C=US
 #
@@ -74,13 +79,36 @@ algorithms:
 validity: 7300d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Root CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Root CA Hybrid"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
