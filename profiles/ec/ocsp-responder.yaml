@@ -21,9 +21,18 @@
 #   The CA delegates OCSP signing authority to this responder.
 #   RFC 6960 Section 4.2.2.2 defines the delegation mechanism.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile ec/ocsp-responder \
-#     --subject "CN=ACME OCSP Responder"
+#       --var cn="ACME OCSP Responder"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile ec/ocsp-responder --var-file ocsp-vars.yaml
+#
+#   # Using --subject (legacy, no validation)
+#   pki bundle enroll --profile ec/ocsp-responder \
+#       --subject "CN=ACME OCSP Responder"
 #
 # Expected DN: CN=ACME OCSP Responder, OU=PKI Services, O=ACME Corp, C=US
 #
@@ -49,15 +58,40 @@ algorithm: ecdsa-p384
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+# Input variables with validation constraints.
+# Use: pki bundle enroll --profile ec/ocsp-responder --var cn="My OCSP"
+#
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - OCSP service name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"                   # Country
-    o: "ACME Corp"            # Organization
-    ou: "PKI Services"        # Organizational Unit
-  required:
-    - cn                      # OCSP service name
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "PKI Services"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

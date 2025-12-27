@@ -28,10 +28,15 @@
 #   Not compatible with standard mTLS servers.
 #   For backward compatibility, use hybrid/catalyst/tls-client instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile hybrid/composite/tls-client \
-#     --subject "CN=alice@acme.example.com" \
-#     --email alice@acme.example.com
+#       --var cn="alice@acme.example.com" \
+#       --var email="alice@acme.example.com"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile hybrid/composite/tls-client --var-file client-vars.yaml
 #
 # Expected DN: CN=alice@acme.example.com, OU=Users, O=ACME Corp, C=US
 #
@@ -58,18 +63,48 @@ algorithms:
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - User or device identifier"
+
+  email:
+    type: string
+    required: false
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    description: "RFC 822 email address (optional)"
+
+  serial_number:
+    type: string
+    required: false
+    description: "Device serial number for hardware authentication"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "Users"
-  required:
-    - cn                      # User identifier
-  optional:
-    - email                   # RFC 822 email address
-    - serialNumber            # Employee/device ID
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "Users"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
@@ -102,8 +137,7 @@ extensions:
   # ---------------------------------------------------------------------------
   subjectAltName:
     critical: false
-    email:
-      - "${EMAIL}"
+    email: "{{ email }}"
 
   # Certificate Policies (RFC 5280 Section 4.2.1.4)
   # ---------------------------------------------------------------------------

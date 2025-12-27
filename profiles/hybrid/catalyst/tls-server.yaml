@@ -24,10 +24,15 @@
 #   - Future PQC-TLS clients can verify the ML-DSA signature
 #   - No protocol changes required for deployment
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile hybrid/catalyst/tls-server \
-#     --subject "CN=api.acme.example.com" \
-#     --dns api.acme.example.com --dns api-v2.acme.example.com
+#       --var cn="api.acme.example.com" \
+#       --var dns_names="api.acme.example.com,api-v2.acme.example.com"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile hybrid/catalyst/tls-server --var-file server-vars.yaml
 #
 # Expected DN: CN=api.acme.example.com, OU=Servers, O=ACME Corp, C=US
 #
@@ -60,15 +65,50 @@ algorithms:
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    pattern: "^[a-zA-Z0-9][a-zA-Z0-9.-]+$"
+    description: "Common Name - Server's primary FQDN"
+
+  dns_names:
+    type: list
+    required: false
+    default: []
+    description: "DNS Subject Alternative Names"
+
+  ip_addresses:
+    type: ip_list
+    required: false
+    default: []
+    description: "IP Address Subject Alternative Names"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "Servers"
-  required:
-    - cn                      # Server FQDN
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "Servers"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
@@ -100,8 +140,9 @@ extensions:
   # ---------------------------------------------------------------------------
   subjectAltName:
     critical: false
-    dns:
-      - "${DNS}"
+    dns: "{{ dns_names }}"
+    ip: "{{ ip_addresses }}"
+    dns_include_cn: true
 
   # Certificate Policies (RFC 5280 Section 4.2.1.4)
   # ---------------------------------------------------------------------------

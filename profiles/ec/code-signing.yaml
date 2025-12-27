@@ -21,9 +21,18 @@
 # Best Practice: Always timestamp signatures using a TSA (RFC 3161).
 #   Timestamped signatures remain valid even after certificate expiration.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile ec/code-signing \
-#     --subject "CN=ACME Release Signing"
+#       --var cn="ACME Release Signing"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile ec/code-signing --var-file signing-vars.yaml
+#
+#   # Using --subject (legacy, no validation)
+#   pki bundle enroll --profile ec/code-signing \
+#       --subject "CN=ACME Release Signing"
 #
 # Expected DN: CN=ACME Release Signing, OU=Engineering, O=ACME Corp, C=US
 #
@@ -49,15 +58,40 @@ algorithm: ecdsa-p256
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+# Input variables with validation constraints.
+# Use: pki bundle enroll --profile ec/code-signing --var cn="My Signing Key"
+#
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Signing identity name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"                   # Country
-    o: "ACME Corp"            # Organization
-    ou: "Engineering"         # Organizational Unit
-  required:
-    - cn                      # Signing identity name
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "Engineering"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

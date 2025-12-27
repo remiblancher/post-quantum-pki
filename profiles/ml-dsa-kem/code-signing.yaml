@@ -29,9 +29,14 @@
 #   Most package managers and OS verifiers don't support ML-DSA yet.
 #   For backward compatibility, use hybrid/catalyst/code-signing instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile ml-dsa-kem/code-signing \
-#     --subject "CN=ACME Build System"
+#       --var cn="ACME Build System"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile ml-dsa-kem/code-signing --var-file signing-vars.yaml
 #
 # Expected DN: CN=ACME Build System, OU=DevOps, O=ACME Corp, C=US
 #
@@ -60,17 +65,37 @@ algorithm: ml-dsa-65
 validity: 1095d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Build system or team name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "DevOps"
-  required:
-    - cn                      # Build system or team name
-  optional:
-    - ou                      # Override organizational unit
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "DevOps"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/remiblancher/pki/internal/bundle"
 	"github.com/remiblancher/pki/internal/ca"
@@ -63,7 +64,29 @@ Each profile creates one certificate. Use multiple --profile flags for
 multi-certificate bundles (e.g., signature + encryption, classical + PQC).
 
 The bundle ID is auto-generated as {cn-slug}-{YYYYMMDD}-{hash}, or you can
-provide a custom ID with --id.`,
+provide a custom ID with --id.
+
+Variables can be provided via --var flags or --var-file. When a profile
+declares variables, they are validated against the profile constraints
+(pattern, enum, min/max, allowed_suffixes, etc.).
+
+Examples:
+  # Using --subject (traditional)
+  pki bundle enroll --profile ec/tls-server --subject "CN=api.example.com"
+
+  # Using --var (declarative variables)
+  pki bundle enroll --profile ec/tls-server \
+      --var cn=api.example.com \
+      --var dns_names=api.example.com,api2.example.com \
+      --var environment=production
+
+  # Using a variables file
+  pki bundle enroll --profile ec/tls-server --var-file vars.yaml
+
+  # Mix: file + override with --var
+  pki bundle enroll --profile ec/tls-server \
+      --var-file defaults.yaml \
+      --var cn=custom.example.com`,
 	RunE: runBundleEnroll,
 }
 
@@ -136,6 +159,8 @@ var (
 	bundleEnrollID       string
 	bundleEnrollDNS      []string
 	bundleEnrollEmail    []string
+	bundleEnrollVars     []string // --var key=value
+	bundleEnrollVarFile  string   // --var-file vars.yaml
 
 	// Renew flags (crypto-agility)
 	bundleRenewProfiles []string
@@ -159,9 +184,10 @@ func init() {
 	bundleEnrollCmd.Flags().StringVar(&bundleEnrollID, "id", "", "Custom bundle ID (auto-generated if not set)")
 	bundleEnrollCmd.Flags().StringSliceVar(&bundleEnrollDNS, "dns", nil, "DNS SANs (repeatable)")
 	bundleEnrollCmd.Flags().StringSliceVar(&bundleEnrollEmail, "email", nil, "Email SANs (repeatable)")
+	bundleEnrollCmd.Flags().StringArrayVar(&bundleEnrollVars, "var", nil, "Variable value (key=value, repeatable)")
+	bundleEnrollCmd.Flags().StringVar(&bundleEnrollVarFile, "var-file", "", "YAML file with variable values")
 	bundleEnrollCmd.Flags().StringVarP(&bundlePassphrase, "passphrase", "p", "", "Passphrase for private keys")
 	_ = bundleEnrollCmd.MarkFlagRequired("profile")
-	_ = bundleEnrollCmd.MarkFlagRequired("subject")
 
 	// Renew flags
 	bundleRenewCmd.Flags().StringVarP(&bundlePassphrase, "passphrase", "p", "", "Passphrase for new private keys")
@@ -196,12 +222,6 @@ func runBundleEnroll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid CA directory: %w", err)
 	}
 
-	// Parse subject DN
-	subject, err := parseSubjectDN(bundleEnrollSubject)
-	if err != nil {
-		return fmt.Errorf("invalid subject: %w", err)
-	}
-
 	// Load CA
 	caStore := ca.NewStore(caDir)
 	caInstance, err := ca.New(caStore)
@@ -230,11 +250,75 @@ func runBundleEnroll(cmd *cobra.Command, args []string) error {
 		profiles = append(profiles, prof)
 	}
 
+	// Load variables from file and/or flags
+	varValues, err := loadVariables(bundleEnrollVarFile, bundleEnrollVars)
+	if err != nil {
+		return fmt.Errorf("failed to load variables: %w", err)
+	}
+
+	// If profile has variables, validate and render them
+	// Use first profile for variable resolution (all profiles should use same vars)
+	if len(profiles) > 0 && len(profiles[0].Variables) > 0 {
+		engine, err := profile.NewTemplateEngine(profiles[0])
+		if err != nil {
+			return fmt.Errorf("failed to create template engine: %w", err)
+		}
+
+		// Render and validate variables
+		rendered, err := engine.Render(varValues)
+		if err != nil {
+			return fmt.Errorf("variable validation failed: %w", err)
+		}
+
+		// Extract values from rendered profile
+		varValues = rendered.ResolvedValues
+	}
+
+	// Build subject from variables or --subject flag
+	subject, err := buildSubject(bundleEnrollSubject, varValues)
+	if err != nil {
+		return fmt.Errorf("invalid subject: %w", err)
+	}
+
+	// Substitute variables in profile extensions
+	// This replaces {{ dns_names }}, {{ ip_addresses }}, etc. with actual values
+	varsForSubstitution := make(map[string][]string)
+	if dns, ok := varValues.GetStringList("dns_names"); ok {
+		varsForSubstitution["dns_names"] = dns
+	}
+	if ips, ok := varValues.GetStringList("ip_addresses"); ok {
+		varsForSubstitution["ip_addresses"] = ips
+	}
+	if em, ok := varValues.GetStringList("email"); ok {
+		varsForSubstitution["email"] = em
+	}
+
+	// Apply substitution to each profile's extensions
+	for i, prof := range profiles {
+		if prof.Extensions != nil {
+			substituted, err := prof.Extensions.SubstituteVariables(varsForSubstitution)
+			if err != nil {
+				return fmt.Errorf("failed to substitute variables in profile %s: %w", prof.Name, err)
+			}
+			// Create a shallow copy of the profile with substituted extensions
+			profileCopy := *prof
+			profileCopy.Extensions = substituted
+			profiles[i] = &profileCopy
+		}
+	}
+
+	// DNS/Email SANs:
+	// - If --dns/--email flags are used, they go in the request (legacy mode)
+	// - If --var dns_names/email is used, they're already in the substituted extensions
+	// Don't extract from variables to avoid duplication
+	dnsNames := bundleEnrollDNS
+	emails := bundleEnrollEmail
+
 	// Create enrollment request
 	req := ca.EnrollmentRequest{
 		Subject:        subject,
-		DNSNames:       bundleEnrollDNS,
-		EmailAddresses: bundleEnrollEmail,
+		DNSNames:       dnsNames,
+		EmailAddresses: emails,
 	}
 
 	// Enroll
@@ -322,6 +406,89 @@ func parseSubjectDN(dn string) (pkix.Name, error) {
 
 	if result.CommonName == "" {
 		return result, fmt.Errorf("CN (CommonName) is required")
+	}
+
+	return result, nil
+}
+
+// loadVariables loads variable values from a YAML file and/or --var flags.
+// Flag values override file values.
+func loadVariables(varFile string, varFlags []string) (profile.VariableValues, error) {
+	values := make(profile.VariableValues)
+
+	// Load from file if specified
+	if varFile != "" {
+		data, err := os.ReadFile(varFile)
+		if err != nil {
+			return nil, fmt.Errorf("read var-file: %w", err)
+		}
+
+		var fileVars map[string]interface{}
+		if err := yaml.Unmarshal(data, &fileVars); err != nil {
+			return nil, fmt.Errorf("parse var-file: %w", err)
+		}
+
+		for k, v := range fileVars {
+			values[k] = v
+		}
+	}
+
+	// Parse --var flags (override file values)
+	if len(varFlags) > 0 {
+		flagVars, err := profile.ParseVarFlags(varFlags)
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range flagVars {
+			values[k] = v
+		}
+	}
+
+	return values, nil
+}
+
+// buildSubject builds a pkix.Name from --subject flag or variables.
+// If --subject is provided, it takes precedence.
+// Otherwise, subject is built from variables (cn, o, ou, c, etc.).
+func buildSubject(subjectFlag string, vars profile.VariableValues) (pkix.Name, error) {
+	// If explicit --subject flag, use it
+	if subjectFlag != "" {
+		return parseSubjectDN(subjectFlag)
+	}
+
+	// Build from variables
+	result := pkix.Name{}
+
+	if cn, ok := vars.GetString("cn"); ok {
+		result.CommonName = cn
+	}
+	if o, ok := vars.GetString("o"); ok {
+		result.Organization = []string{o}
+	} else if o, ok := vars.GetString("organization"); ok {
+		result.Organization = []string{o}
+	}
+	if ou, ok := vars.GetString("ou"); ok {
+		result.OrganizationalUnit = []string{ou}
+	}
+	if c, ok := vars.GetString("c"); ok {
+		result.Country = []string{c}
+	} else if c, ok := vars.GetString("country"); ok {
+		result.Country = []string{c}
+	}
+	if st, ok := vars.GetString("st"); ok {
+		result.Province = []string{st}
+	} else if st, ok := vars.GetString("state"); ok {
+		result.Province = []string{st}
+	}
+	if l, ok := vars.GetString("l"); ok {
+		result.Locality = []string{l}
+	} else if l, ok := vars.GetString("locality"); ok {
+		result.Locality = []string{l}
+	}
+
+	if result.CommonName == "" {
+		return result, fmt.Errorf("CN (CommonName) is required: use --subject or --var cn=value")
 	}
 
 	return result, nil

@@ -209,19 +209,19 @@ func runIssue(cmd *cobra.Command, args []string) error {
 		template.Subject.CommonName = issueCommonName
 	}
 	// Note: DNSNames and IPAddresses are handled via profile variable substitution
-	// If the profile uses ${DNS}/${IP} variables, they will be substituted below.
+	// If the profile uses {{ dns_names }}/{{ ip_addresses }} variables, they will be substituted below.
 	// If no profile SubjectAltName is defined, the values from CSR are used.
 
 	// Build variable map for profile template substitution
+	// Variable names match the new declarative profile format
 	vars := map[string][]string{
-		"DNS":   issueDNSNames,
-		"IP":    issueIPAddrs,
-		"CN":    nil, // CN is handled via template.Subject.CommonName
-		"EMAIL": nil, // TODO: add --email flag if needed
-		"URI":   nil, // TODO: add --uri flag if needed
+		"dns_names":    issueDNSNames,
+		"ip_addresses": issueIPAddrs,
+		"cn":           nil, // CN is handled via template.Subject.CommonName
+		"email":        nil, // TODO: add --email flag if needed
 	}
 	if issueCommonName != "" {
-		vars["CN"] = []string{issueCommonName}
+		vars["cn"] = []string{issueCommonName}
 	}
 
 	// Substitute variables in profile extensions

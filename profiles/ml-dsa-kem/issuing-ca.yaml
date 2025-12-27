@@ -28,10 +28,15 @@
 #   Most applications cannot verify ML-DSA signatures yet.
 #   For backward compatibility, use hybrid/catalyst/issuing-ca instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile ml-dsa-kem/issuing-ca \
-#     --name "ACME Issuing CA PQC" --dir ./issuing-ca-pqc \
-#     --parent ./root-ca-pqc
+#       --var cn="ACME Issuing CA PQC" \
+#       --parent ./root-ca-pqc
+#
+#   # Using --var-file
+#   pki init-ca --profile ml-dsa-kem/issuing-ca --var-file ca-vars.yaml --parent ./root-ca-pqc
 #
 # Expected DN: CN=ACME Issuing CA PQC, O=ACME Corp, C=US
 #
@@ -59,13 +64,36 @@ algorithm: ml-dsa-65
 validity: 3650d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Issuing CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Issuing CA PQC"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
