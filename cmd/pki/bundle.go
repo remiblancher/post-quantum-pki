@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/x509/pkix"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +8,6 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/remiblancher/pki/internal/bundle"
 	"github.com/remiblancher/pki/internal/ca"
@@ -169,7 +167,7 @@ func init() {
 	bundleCmd.AddCommand(bundleExportCmd)
 
 	// Global flags
-	bundleCmd.PersistentFlags().StringVarP(&bundleCADir, "ca-dir", "c", "./ca", "CA directory")
+	bundleCmd.PersistentFlags().StringVarP(&bundleCADir, "ca-dir", "d", "./ca", "CA directory")
 
 	// Enroll flags
 	bundleEnrollCmd.Flags().StringSliceVarP(&bundleEnrollProfiles, "profile", "P", nil, "Profile(s) to use (repeatable)")
@@ -241,7 +239,7 @@ func runBundleEnroll(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load variables from file and/or flags
-	varValues, err := loadVariables(bundleEnrollVarFile, bundleEnrollVars)
+	varValues, err := profile.LoadVariables(bundleEnrollVarFile, bundleEnrollVars)
 	if err != nil {
 		return fmt.Errorf("failed to load variables: %w", err)
 	}
@@ -265,7 +263,7 @@ func runBundleEnroll(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build subject from variables
-	subject, err := buildSubject(varValues)
+	subject, err := profile.BuildSubject(varValues)
 	if err != nil {
 		return fmt.Errorf("invalid subject: %w", err)
 	}
@@ -349,80 +347,6 @@ func runBundleEnroll(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// loadVariables loads variable values from a YAML file and/or --var flags.
-// Flag values override file values.
-func loadVariables(varFile string, varFlags []string) (profile.VariableValues, error) {
-	values := make(profile.VariableValues)
-
-	// Load from file if specified
-	if varFile != "" {
-		data, err := os.ReadFile(varFile)
-		if err != nil {
-			return nil, fmt.Errorf("read var-file: %w", err)
-		}
-
-		var fileVars map[string]interface{}
-		if err := yaml.Unmarshal(data, &fileVars); err != nil {
-			return nil, fmt.Errorf("parse var-file: %w", err)
-		}
-
-		for k, v := range fileVars {
-			values[k] = v
-		}
-	}
-
-	// Parse --var flags (override file values)
-	if len(varFlags) > 0 {
-		flagVars, err := profile.ParseVarFlags(varFlags)
-		if err != nil {
-			return nil, err
-		}
-
-		for k, v := range flagVars {
-			values[k] = v
-		}
-	}
-
-	return values, nil
-}
-
-// buildSubject builds a pkix.Name from variables (cn, o, ou, c, etc.).
-func buildSubject(vars profile.VariableValues) (pkix.Name, error) {
-	result := pkix.Name{}
-
-	if cn, ok := vars.GetString("cn"); ok {
-		result.CommonName = cn
-	}
-	if o, ok := vars.GetString("o"); ok {
-		result.Organization = []string{o}
-	} else if o, ok := vars.GetString("organization"); ok {
-		result.Organization = []string{o}
-	}
-	if ou, ok := vars.GetString("ou"); ok {
-		result.OrganizationalUnit = []string{ou}
-	}
-	if c, ok := vars.GetString("c"); ok {
-		result.Country = []string{c}
-	} else if c, ok := vars.GetString("country"); ok {
-		result.Country = []string{c}
-	}
-	if st, ok := vars.GetString("st"); ok {
-		result.Province = []string{st}
-	} else if st, ok := vars.GetString("state"); ok {
-		result.Province = []string{st}
-	}
-	if l, ok := vars.GetString("l"); ok {
-		result.Locality = []string{l}
-	} else if l, ok := vars.GetString("locality"); ok {
-		result.Locality = []string{l}
-	}
-
-	if result.CommonName == "" {
-		return result, fmt.Errorf("CN (CommonName) is required: use --var cn=value")
-	}
-
-	return result, nil
-}
 
 func runBundleList(cmd *cobra.Command, args []string) error {
 	caDir, err := filepath.Abs(bundleCADir)
