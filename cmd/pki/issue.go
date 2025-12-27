@@ -61,12 +61,12 @@ var (
 	issuePubKeyFile   string
 	issueKeyFile      string
 	issueCertOut      string
-	issueKeyOut       string
-	issueAlgorithm    string
 	issueValidityDays int
 	issueCAPassphrase string
 	issueHybridAlg    string
 	issueAttestCert   string
+	issueVars         []string // --var key=value
+	issueVarFile      string   // --var-file vars.yaml
 )
 
 func init() {
@@ -82,9 +82,9 @@ func init() {
 	flags.StringVar(&issuePubKeyFile, "pubkey", "", "Public key file (alternative to CSR)")
 	flags.StringVar(&issueKeyFile, "key", "", "Existing private key file (alternative to CSR)")
 	flags.StringVarP(&issueCertOut, "out", "o", "", "Output certificate file")
-	flags.StringVar(&issueKeyOut, "key-out", "", "Output private key file (unused, kept for compatibility)")
-	flags.StringVarP(&issueAlgorithm, "algorithm", "a", "", "Key algorithm (unused, kept for compatibility)")
 	flags.IntVar(&issueValidityDays, "days", 0, "Validity period in days (overrides profile default)")
+	flags.StringArrayVar(&issueVars, "var", nil, "Variable value (key=value, repeatable)")
+	flags.StringVar(&issueVarFile, "var-file", "", "YAML file with variable values")
 	flags.StringVar(&issueCAPassphrase, "ca-passphrase", "", "CA private key passphrase (or env:VAR_NAME)")
 	flags.StringVar(&issueHybridAlg, "hybrid", "", "PQC algorithm for hybrid extension")
 	flags.StringVar(&issueAttestCert, "attest-cert", "", "Attestation certificate for ML-KEM CSR verification (RFC 9883)")
@@ -212,22 +212,44 @@ func runIssue(cmd *cobra.Command, args []string) error {
 	// If the profile uses {{ dns_names }}/{{ ip_addresses }} variables, they will be substituted below.
 	// If no profile SubjectAltName is defined, the values from CSR are used.
 
-	// Build variable map for profile template substitution
-	// Variable names match the new declarative profile format
-	vars := map[string][]string{
-		"dns_names":    issueDNSNames,
-		"ip_addresses": issueIPAddrs,
-		"cn":           nil, // CN is handled via template.Subject.CommonName
-		"email":        nil, // TODO: add --email flag if needed
-	}
-	if issueCommonName != "" {
-		vars["cn"] = []string{issueCommonName}
+	// Load variables from file and/or flags
+	varValues, err := profile.LoadVariables(issueVarFile, issueVars)
+	if err != nil {
+		return fmt.Errorf("failed to load variables: %w", err)
 	}
 
+	// Merge legacy CLI flags into variables (backward compatibility)
+	// --var takes precedence over legacy flags
+	if _, exists := varValues["cn"]; !exists && issueCommonName != "" {
+		varValues["cn"] = issueCommonName
+	}
+	if _, exists := varValues["dns_names"]; !exists && len(issueDNSNames) > 0 {
+		varValues["dns_names"] = issueDNSNames
+	}
+	if _, exists := varValues["ip_addresses"]; !exists && len(issueIPAddrs) > 0 {
+		varValues["ip_addresses"] = issueIPAddrs
+	}
+
+	// Validate and render variables via TemplateEngine if profile has variables
+	if len(prof.Variables) > 0 {
+		engine, err := profile.NewTemplateEngine(prof)
+		if err != nil {
+			return fmt.Errorf("failed to create template engine: %w", err)
+		}
+		rendered, err := engine.Render(varValues)
+		if err != nil {
+			return fmt.Errorf("variable validation failed: %w", err)
+		}
+		varValues = rendered.ResolvedValues
+	}
+
+	// Extract SAN variables for extension substitution
+	varsForSubstitution := profile.ExtractSANVariables(varValues)
+
 	// Substitute variables in profile extensions
-	resolvedExtensions, err := prof.Extensions.SubstituteVariables(vars)
+	resolvedExtensions, err := prof.Extensions.SubstituteVariables(varsForSubstitution)
 	if err != nil {
-		return fmt.Errorf("profile requires: %w", err)
+		return fmt.Errorf("failed to substitute variables: %w", err)
 	}
 
 	// Issue certificate based on profile mode
@@ -253,18 +275,6 @@ func runIssue(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to generate PQC key for Catalyst: %w", err)
 		}
 		pqcPubKey = pqcKP.PublicKey
-
-		// Save PQC private key if output path specified
-		if issueKeyOut != "" {
-			pqcSigner, err := crypto.NewSoftwareSigner(pqcKP)
-			if err != nil {
-				return fmt.Errorf("failed to create PQC signer: %w", err)
-			}
-			pqcKeyPath := issueKeyOut + ".pqc"
-			if err := pqcSigner.SavePrivateKey(pqcKeyPath, nil); err != nil {
-				return fmt.Errorf("failed to save PQC private key: %w", err)
-			}
-		}
 
 		// Build Catalyst request
 		catalystReq := ca.CatalystRequest{

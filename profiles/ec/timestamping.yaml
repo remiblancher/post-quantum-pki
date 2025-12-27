@@ -30,9 +30,9 @@
 #   # Using --var-file
 #   pki bundle enroll --profile ec/timestamping --var-file tsa-vars.yaml
 #
-#   # Using --subject (legacy, no validation)
+#   # Using --var flags
 #   pki bundle enroll --profile ec/timestamping \
-#       --subject "CN=ACME TSA"
+#       --var cn="ACME TSA"
 #
 # Expected DN: CN=ACME TSA, OU=PKI Services, O=ACME Corp, C=US
 #
