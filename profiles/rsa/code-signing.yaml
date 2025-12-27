@@ -18,7 +18,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile rsa/code-signing \
 #       --var cn="ACME Build System"
 #

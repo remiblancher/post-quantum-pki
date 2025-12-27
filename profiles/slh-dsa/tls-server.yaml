@@ -38,7 +38,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile slh-dsa/tls-server \
 #       --var cn="archive.acme.example.com" \
 #       --var dns_names="archive.acme.example.com,backup.acme.example.com"

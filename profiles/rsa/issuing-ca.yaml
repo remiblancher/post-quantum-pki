@@ -19,7 +19,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile rsa/issuing-ca \
 #       --var cn="ACME Issuing CA RSA" \
 #       --parent ./root-ca-rsa

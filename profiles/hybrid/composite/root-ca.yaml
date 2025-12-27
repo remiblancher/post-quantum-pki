@@ -38,7 +38,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile hybrid/composite/root-ca \
 #       --var cn="ACME Root CA Composite"
 #

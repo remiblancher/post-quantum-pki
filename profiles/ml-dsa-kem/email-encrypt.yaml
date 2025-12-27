@@ -29,7 +29,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll \
 #       --profile ml-dsa-kem/email-sign \
 #       --profile ml-dsa-kem/email-encrypt \

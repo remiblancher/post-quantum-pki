@@ -29,7 +29,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile ml-dsa-kem/tls-server-sign \
 #       --var cn="api.acme.example.com" \
 #       --var dns_names="api.acme.example.com,api-v2.acme.example.com"

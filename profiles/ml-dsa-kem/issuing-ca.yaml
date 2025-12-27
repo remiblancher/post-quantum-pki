@@ -30,7 +30,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile ml-dsa-kem/issuing-ca \
 #       --var cn="ACME Issuing CA PQC" \
 #       --parent ./root-ca-pqc

@@ -32,7 +32,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki init-ca --profile slh-dsa/issuing-ca \
 #       --var cn="ACME Issuing CA SLH-DSA" \
 #       --parent ./root-ca-slh

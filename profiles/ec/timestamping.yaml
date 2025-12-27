@@ -23,7 +23,7 @@
 #
 # Examples:
 #
-#   # Using --var (recommended, with validation)
+#   # Using --var
 #   pki bundle enroll --profile ec/timestamping \
 #       --var cn="ACME TSA"
 #
