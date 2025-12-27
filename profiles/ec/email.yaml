@@ -27,10 +27,10 @@
 #   # Using --var-file
 #   pki bundle enroll --profile ec/email --var-file email-vars.yaml
 #
-#   # Using --subject (legacy, no validation)
+#   # Using --var flags
 #   pki bundle enroll --profile ec/email \
-#       --subject "CN=alice@acme.example.com" \
-#       --email alice@acme.example.com
+#       --var cn=alice@acme.example.com \
+#       --var email=alice@acme.example.com
 #
 # Expected DN: CN=alice@acme.example.com, OU=Users, O=ACME Corp, C=US
 #

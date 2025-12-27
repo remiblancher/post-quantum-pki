@@ -43,7 +43,7 @@ Examples:
   pki init-ca --name "My Root CA" --algorithm ecdsa-p256
 
   # Issue certificate using bundle enroll (generates key + certificate)
-  pki bundle enroll --profile ec/tls-server --subject "CN=server.example.com" --dns server.example.com
+  pki bundle enroll --profile ec/tls-server --var cn=server.example.com --var dns_names=server.example.com
 
   # Or using CSR workflow
   pki csr --algorithm ecdsa-p256 --keyout server.key --cn server.example.com -o server.csr

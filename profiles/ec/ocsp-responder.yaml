@@ -30,9 +30,9 @@
 #   # Using --var-file
 #   pki bundle enroll --profile ec/ocsp-responder --var-file ocsp-vars.yaml
 #
-#   # Using --subject (legacy, no validation)
+#   # Using --var flags
 #   pki bundle enroll --profile ec/ocsp-responder \
-#       --subject "CN=ACME OCSP Responder"
+#       --var cn="ACME OCSP Responder"
 #
 # Expected DN: CN=ACME OCSP Responder, OU=PKI Services, O=ACME Corp, C=US
 #
