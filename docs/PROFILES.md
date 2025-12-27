@@ -293,19 +293,287 @@ algorithms:               # List of algorithm IDs
 
 validity: duration        # Duration format (e.g., 365d, 8760h, 1y)
 
-subject:                  # Optional subject DN configuration
-  fixed:                  # Fixed attributes
-    c: "FR"
-    o: "ACME Corp"
-  required:               # Required from user
-    - cn
-  optional:               # Optional from user
-    - email
+variables:                # Declarative input variables (see below)
+  cn:
+    type: string
+    required: true
+  organization:
+    type: string
+    default: "ACME Corp"
+
+subject:                  # Subject DN with template variables
+  cn: "{{ cn }}"          # Resolved from variables.cn
+  o: "{{ organization }}" # Resolved from variables.organization
+  c: "FR"                 # Fixed value
 
 extensions:               # X.509 extensions (see below)
   keyUsage: ...
   extKeyUsage: ...
   basicConstraints: ...
+```
+
+## Declarative Variables
+
+Profiles can declare typed variables with validation constraints. Variables enable:
+- Input validation before certificate issuance
+- Pattern matching (regex)
+- Enumerated values
+- Domain constraints (allowed_suffixes, allowed_ranges)
+- Default values
+
+### Variable Types
+
+| Type | Go Type | Description |
+|------|---------|-------------|
+| `string` | `string` | Text with optional pattern/enum validation |
+| `integer` | `int` | Number with optional min/max validation |
+| `boolean` | `bool` | True/false value |
+| `list` | `[]string` | List of strings with suffix/prefix constraints |
+| `ip_list` | `[]string` | List of IP addresses with CIDR range constraints |
+
+### Profile with Variables Example
+
+```yaml
+name: ec/tls-server-secure
+description: "Production TLS server with validation"
+
+algorithm: ecdsa-p256
+validity: 365d
+
+# Declarative variables with constraints
+variables:
+  cn:
+    type: string
+    required: true
+    pattern: "^[a-zA-Z0-9][a-zA-Z0-9.-]+$"
+    description: "Common Name (FQDN)"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "FR"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+  environment:
+    type: string
+    required: false
+    default: "production"
+    enum: ["development", "staging", "production"]
+    description: "Deployment environment"
+
+  dns_names:
+    type: list
+    required: false
+    default: []
+    constraints:
+      allowed_suffixes:
+        - ".example.com"
+        - ".internal"
+      denied_prefixes:
+        - "test-"
+      max_items: 10
+    description: "DNS Subject Alternative Names"
+
+  ip_addresses:
+    type: ip_list
+    required: false
+    constraints:
+      allowed_ranges:
+        - "10.0.0.0/8"
+        - "192.168.0.0/16"
+      max_items: 5
+    description: "IP Subject Alternative Names"
+
+  validity_days:
+    type: integer
+    required: false
+    default: 365
+    min: 1
+    max: 825
+    description: "Certificate validity in days"
+
+extensions:
+  keyUsage:
+    critical: true
+    values:
+      - digitalSignature
+  extKeyUsage:
+    values:
+      - serverAuth
+```
+
+### Variable Constraints Reference
+
+#### String Constraints
+
+```yaml
+variables:
+  my_var:
+    type: string
+    required: true          # Must be provided
+    default: "value"        # Default if not provided
+    pattern: "^[a-z]+$"     # Regex pattern
+    enum: ["a", "b", "c"]   # Allowed values
+    minLength: 1            # Minimum length
+    maxLength: 64           # Maximum length
+```
+
+#### Integer Constraints
+
+```yaml
+variables:
+  days:
+    type: integer
+    required: false
+    default: 365
+    min: 1                  # Minimum value
+    max: 825                # Maximum value
+    enum: ["30", "90", "365"]  # Allowed values (as strings)
+```
+
+#### List Constraints
+
+```yaml
+variables:
+  dns_names:
+    type: list
+    default: []
+    constraints:
+      allowed_suffixes:     # Each item must end with one of these
+        - ".example.com"
+      denied_prefixes:      # Items starting with these are rejected
+        - "internal-"
+      min_items: 1          # Minimum number of items
+      max_items: 10         # Maximum number of items
+```
+
+#### IP List Constraints
+
+```yaml
+variables:
+  ip_addresses:
+    type: ip_list
+    constraints:
+      allowed_ranges:       # IPs must be within one of these CIDRs
+        - "10.0.0.0/8"
+        - "192.168.0.0/16"
+      max_items: 5
+```
+
+### Using Variables via CLI
+
+#### Using --var flags
+
+```bash
+# Single variable
+pki bundle enroll --profile ec/tls-server-secure \
+    --var cn=api.example.com
+
+# Multiple variables
+pki bundle enroll --profile ec/tls-server-secure \
+    --var cn=api.example.com \
+    --var dns_names=api.example.com,api2.example.com \
+    --var environment=production \
+    --var organization="My Company"
+
+# List values are comma-separated
+pki bundle enroll --profile ec/tls-server-secure \
+    --var cn=api.example.com \
+    --var ip_addresses=10.0.0.1,10.0.0.2
+```
+
+#### Using --var-file
+
+Create a YAML file with variable values:
+
+```yaml
+# vars.yaml
+cn: api.example.com
+organization: "My Company"
+country: US
+environment: production
+dns_names:
+  - api.example.com
+  - api2.example.com
+ip_addresses:
+  - 10.0.0.1
+  - 10.0.0.2
+validity_days: 365
+```
+
+Then use it:
+
+```bash
+pki bundle enroll --profile ec/tls-server-secure --var-file vars.yaml
+```
+
+#### Mixing --var-file and --var
+
+File values are loaded first, then --var flags override:
+
+```bash
+# Load defaults from file, override CN
+pki bundle enroll --profile ec/tls-server-secure \
+    --var-file defaults.yaml \
+    --var cn=custom.example.com
+```
+
+### Variables vs --subject
+
+You can use either approach:
+
+```bash
+# Traditional: --subject flag
+pki bundle enroll --profile ec/tls-server \
+    --subject "CN=api.example.com,O=ACME,C=FR"
+
+# Modern: --var flags (with validation)
+pki bundle enroll --profile ec/tls-server-secure \
+    --var cn=api.example.com \
+    --var organization=ACME \
+    --var country=FR
+
+# Mixed: --var-file with --subject override
+pki bundle enroll --profile ec/tls-server-secure \
+    --var-file vars.yaml \
+    --subject "CN=override.example.com"
+```
+
+When using profiles with variables, the CLI automatically:
+1. Loads variables from `--var-file` (if provided)
+2. Overrides with `--var` flags
+3. Validates all values against profile constraints
+4. Applies default values for missing optional variables
+5. Builds subject DN from variables (if `--subject` not provided)
+
+### Error Messages
+
+Variable validation provides clear error messages:
+
+```
+# Pattern mismatch
+variable validation failed: cn: value "-invalid" does not match pattern "^[a-zA-Z0-9][a-zA-Z0-9.-]+$"
+
+# Enum violation
+variable validation failed: environment: value "test" not in allowed values [development staging production]
+
+# Range violation
+variable validation failed: validity_days: value 1000 exceeds maximum 825
+
+# Domain constraint
+variable validation failed: dns_names: "api.other.com" does not match allowed suffixes [.example.com .internal]
+
+# IP range constraint
+variable validation failed: ip_addresses: IP "8.8.8.8" not in allowed ranges [10.0.0.0/8 192.168.0.0/16]
 ```
 
 ## X.509 Extensions
@@ -346,10 +614,10 @@ extensions:
         cps: "http://example.com/cps"
 
   subjectAltName:
-    dns:
-      - "${DNS}"
-    email:
-      - "${EMAIL}"
+    dns: "{{ dns_names }}"       # Template variable (expanded at runtime)
+    email: "{{ email }}"         # Template variable
+    ip: "{{ ip_addresses }}"     # Template variable
+    dns_include_cn: true         # Auto-add CN to DNS SANs
 ```
 
 ### Key Usage Values
@@ -441,8 +709,50 @@ pki issue --profile ec/tls-server --csr server.csr --out server.crt --ca-dir ./c
 | Full post-quantum | `ml-dsa-kem/tls-server-sign` | Pure PQC signature |
 | Long-term archive | `slh-dsa/timestamping` | Conservative hash-based |
 
+## Performance: CompiledProfile
+
+For high-throughput scenarios (web services, APIs), profiles can be pre-compiled at startup to avoid per-certificate parsing overhead.
+
+### Benefits
+
+| Metric | Standard | Compiled | Improvement |
+|--------|----------|----------|-------------|
+| Profile lookup | ~50ns | ~26ns | 2x faster |
+| Extensions parsing | Per-cert | Once at load | Eliminated |
+| Regex compilation | Per-cert | Once at load | Eliminated |
+| CIDR parsing | Per-cert | Once at load | Eliminated |
+
+### Usage (Go API)
+
+```go
+// At startup: compile all profiles once
+store := profile.NewCompiledProfileStore("./profiles")
+if err := store.Load(); err != nil {
+    log.Fatal(err)
+}
+
+// Per-request: use pre-compiled profile (26ns lookup, 0 allocs)
+cp, ok := store.Get("ec/tls-server")
+if !ok {
+    return errors.New("profile not found")
+}
+
+// Issue certificate with pre-compiled profile
+result, err := ca.EnrollWithCompiledProfile(req, cp)
+```
+
+### What Gets Pre-Compiled
+
+- **KeyUsage**: String values → `x509.KeyUsage` bits
+- **ExtKeyUsage**: String values → `x509.ExtKeyUsage` constants
+- **BasicConstraints**: Parsed once
+- **NameConstraints**: CIDR strings → `net.IPNet` structures
+- **Variable patterns**: Regex strings → `*regexp.Regexp`
+- **CIDR ranges**: IP ranges parsed once
+
 ## See Also
 
 - [BUNDLES.md](BUNDLES.md) - Certificate bundle management
 - [CATALYST.md](CATALYST.md) - Catalyst certificate details
 - [PQC.md](PQC.md) - Post-quantum cryptography overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture

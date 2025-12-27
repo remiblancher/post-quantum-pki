@@ -19,7 +19,16 @@
 #   ECDSA is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
 #   For quantum-resistant PKI, use hybrid/catalyst/root-ca or ml-dsa-kem/root-ca.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
+#   pki init-ca --profile ec/root-ca \
+#       --var cn="ACME Root CA"
+#
+#   # Using --var-file
+#   pki init-ca --profile ec/root-ca --var-file ca-vars.yaml
+#
+#   # Using --name (legacy, no validation)
 #   pki init-ca --profile ec/root-ca --name "ACME Root CA" --dir ./root-ca
 #
 # Expected DN: CN=ACME Root CA, O=ACME Corp, C=US
@@ -48,15 +57,39 @@ algorithm: ecdsa-p384
 validity: 7300d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+# Input variables with validation constraints.
+# Use: pki init-ca --profile ec/root-ca --var cn="My Root CA"
+#
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Root CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
-# Root CA has a fixed subject - no user-provided fields.
-#
 subject:
-  fixed:
-    c: "US"                   # Country
-    o: "ACME Corp"            # Organization
-    cn: "ACME Root CA"        # Common Name
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

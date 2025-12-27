@@ -30,10 +30,15 @@
 #   Pure PQC certificates are NOT compatible with existing PKI software.
 #   For backward compatibility, use hybrid/catalyst/issuing-ca instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki init-ca --profile slh-dsa/issuing-ca \
-#     --name "ACME Issuing CA SLH-DSA" --dir ./issuing-ca-slh \
-#     --parent ./root-ca-slh
+#       --var cn="ACME Issuing CA SLH-DSA" \
+#       --parent ./root-ca-slh
+#
+#   # Using --var-file
+#   pki init-ca --profile slh-dsa/issuing-ca --var-file ca-vars.yaml --parent ./root-ca-slh
 #
 # Expected DN: CN=ACME Issuing CA SLH-DSA, O=ACME Corp, C=US
 #
@@ -60,13 +65,36 @@ algorithm: slh-dsa-192f
 validity: 3650d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Issuing CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    cn: "ACME Issuing CA SLH-DSA"
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

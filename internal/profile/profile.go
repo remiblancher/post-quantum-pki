@@ -33,15 +33,14 @@ const (
 )
 
 // SubjectConfig defines subject DN configuration.
+// With the declarative variable format, subject fields use {{ variable }} templates
+// that are resolved at enrollment time. Required/optional constraints are defined
+// in the variables section of the profile.
 type SubjectConfig struct {
-	// Fixed contains fixed DN attributes (e.g., "c": "FR", "o": "ACME").
+	// Fixed contains DN attribute templates (e.g., "cn": "{{ cn }}", "o": "ACME").
+	// Template variables like {{ cn }} are resolved using the profile's variables.
+	// Static values (without {{ }}) are used as-is.
 	Fixed map[string]string `yaml:"fixed,omitempty" json:"fixed,omitempty"`
-
-	// Required lists DN attributes that must be provided.
-	Required []string `yaml:"required,omitempty" json:"required,omitempty"`
-
-	// Optional lists DN attributes that may be provided.
-	Optional []string `yaml:"optional,omitempty" json:"optional,omitempty"`
 }
 
 // Profile defines a certificate type.
@@ -74,6 +73,10 @@ type Profile struct {
 
 	// Extensions defines X.509 extensions with configurable criticality.
 	Extensions *ExtensionsConfig `yaml:"extensions,omitempty" json:"extensions,omitempty"`
+
+	// Variables defines declarative input variables for the profile.
+	// Variables are declared in YAML and can be referenced in templates using {{ var }}.
+	Variables map[string]*Variable `yaml:"variables,omitempty" json:"variables,omitempty"`
 }
 
 // Validate checks that the profile configuration is valid.

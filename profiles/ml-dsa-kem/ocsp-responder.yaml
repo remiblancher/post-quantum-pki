@@ -28,9 +28,14 @@
 #   Not compatible with standard PKI software yet.
 #   For backward compatibility, use ec/ocsp-responder instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile ml-dsa-kem/ocsp-responder \
-#     --subject "CN=ACME OCSP Responder PQC"
+#       --var cn="ACME OCSP Responder PQC"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile ml-dsa-kem/ocsp-responder --var-file ocsp-vars.yaml
 #
 # Expected DN: CN=ACME OCSP Responder PQC, OU=PKI Services, O=ACME Corp, C=US
 #
@@ -58,15 +63,37 @@ algorithm: ml-dsa-65
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - OCSP service name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "PKI Services"
-  required:
-    - cn                      # OCSP service name
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "PKI Services"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

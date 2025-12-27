@@ -27,12 +27,17 @@
 #   Not compatible with standard email clients yet.
 #   For backward compatibility, use hybrid/catalyst/email instead.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll \
-#     --profile ml-dsa-kem/email-sign \
-#     --profile ml-dsa-kem/email-encrypt \
-#     --subject "CN=Alice Smith" \
-#     --email alice@acme.example.com
+#       --profile ml-dsa-kem/email-sign \
+#       --profile ml-dsa-kem/email-encrypt \
+#       --var cn="Alice Smith" \
+#       --var email="alice@acme.example.com"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile ml-dsa-kem/email-encrypt --var-file email-vars.yaml
 #
 # Expected DN: CN=Alice Smith, OU=Users, O=ACME Corp, C=US
 #
@@ -57,18 +62,48 @@ algorithm: ml-kem-768
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - User's display name"
+
+  email:
+    type: string
+    required: true
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    description: "RFC 822 email address (required for S/MIME)"
+
+  serial_number:
+    type: string
+    required: false
+    description: "Employee ID"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "Users"
-  required:
-    - cn                      # User's display name
-  optional:
-    - email                   # RFC 822 email address
-    - serialNumber            # Employee ID
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "Users"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
@@ -103,8 +138,7 @@ extensions:
   #
   subjectAltName:
     critical: false
-    email:
-      - "${EMAIL}"
+    email: "{{ email }}"
 
   # Certificate Policies (RFC 5280 Section 4.2.1.4)
   # ---------------------------------------------------------------------------

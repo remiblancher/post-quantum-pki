@@ -8,6 +8,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 )
 
@@ -133,12 +134,47 @@ func (c *BasicConstraintsConfig) IsCritical() bool {
 
 // SubjectAltNameConfig configures the Subject Alternative Name extension (OID 2.5.29.17).
 // RFC 5280: This extension SHOULD be non-critical, but MUST be critical if subject is empty.
+//
+// SAN fields accept either a string template ("{{ variable }}") or a list of strings.
+// Examples:
+//
+//	dns: "{{ dns_names }}"           # template, expanded at runtime
+//	dns: ["example.com", "*.example.com"]  # static list
 type SubjectAltNameConfig struct {
-	Critical *bool    `yaml:"critical,omitempty"` // default: false (true if subject empty)
-	DNS      []string `yaml:"dns,omitempty"`
-	Email    []string `yaml:"email,omitempty"`
-	IP       []string `yaml:"ip,omitempty"`
-	URI      []string `yaml:"uri,omitempty"`
+	Critical *bool         `yaml:"critical,omitempty"` // default: false (true if subject empty)
+	DNS      StringOrSlice `yaml:"dns,omitempty"`      // Can be template: "{{ dns_names }}"
+	Email    StringOrSlice `yaml:"email,omitempty"`    // Can be template: "{{ email }}"
+	IP       StringOrSlice `yaml:"ip,omitempty"`       // Can be template: "{{ ip_addresses }}"
+	URI      StringOrSlice `yaml:"uri,omitempty"`
+
+	// DNSIncludeCN automatically adds the CN to DNS SANs if true.
+	// Browsers require DNS names in SAN (CN is deprecated for server identity).
+	DNSIncludeCN bool `yaml:"dns_include_cn,omitempty" json:"dns_include_cn,omitempty"`
+}
+
+// StringOrSlice can unmarshal from either a single string or a string slice.
+// This allows profile YAML to use either format:
+//
+//	dns: "{{ dns_names }}"       # single template string
+//	dns: ["a.example.com"]       # explicit list
+type StringOrSlice []string
+
+// UnmarshalYAML implements yaml.Unmarshaler for StringOrSlice.
+func (s *StringOrSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try as string first
+	var str string
+	if err := unmarshal(&str); err == nil {
+		*s = []string{str}
+		return nil
+	}
+
+	// Try as slice
+	var slice []string
+	if err := unmarshal(&slice); err != nil {
+		return err
+	}
+	*s = slice
+	return nil
 }
 
 // IsCritical returns true if the extension should be marked critical.
@@ -494,11 +530,12 @@ func (e *ExtensionsConfig) DeepCopy() *ExtensionsConfig {
 	// Copy SubjectAltName
 	if e.SubjectAltName != nil {
 		result.SubjectAltName = &SubjectAltNameConfig{
-			Critical: copyBoolPtr(e.SubjectAltName.Critical),
-			DNS:      copyStringSlice(e.SubjectAltName.DNS),
-			Email:    copyStringSlice(e.SubjectAltName.Email),
-			IP:       copyStringSlice(e.SubjectAltName.IP),
-			URI:      copyStringSlice(e.SubjectAltName.URI),
+			Critical:     copyBoolPtr(e.SubjectAltName.Critical),
+			DNS:          copyStringSlice(e.SubjectAltName.DNS),
+			Email:        copyStringSlice(e.SubjectAltName.Email),
+			IP:           copyStringSlice(e.SubjectAltName.IP),
+			URI:          copyStringSlice(e.SubjectAltName.URI),
+			DNSIncludeCN: e.SubjectAltName.DNSIncludeCN,
 		}
 	}
 
@@ -560,7 +597,7 @@ func (e *ExtensionsConfig) DeepCopy() *ExtensionsConfig {
 	return result
 }
 
-// SubstituteVariables replaces template variables (e.g., ${DNS}) with actual values.
+// SubstituteVariables replaces template variables ({{ variable }}) with actual values.
 // Returns an error if a required variable is referenced but not provided.
 func (e *ExtensionsConfig) SubstituteVariables(vars map[string][]string) (*ExtensionsConfig, error) {
 	if e == nil {
@@ -571,58 +608,46 @@ func (e *ExtensionsConfig) SubstituteVariables(vars map[string][]string) (*Exten
 
 	// Substitute variables in SubjectAltName
 	if result.SubjectAltName != nil {
-		var err error
-
 		// DNS
-		result.SubjectAltName.DNS, err = substituteStringSlice(result.SubjectAltName.DNS, vars)
-		if err != nil {
-			return nil, fmt.Errorf("subjectAltName.dns: %w", err)
-		}
+		result.SubjectAltName.DNS = substituteStringSlice(result.SubjectAltName.DNS, vars)
 
 		// Email
-		result.SubjectAltName.Email, err = substituteStringSlice(result.SubjectAltName.Email, vars)
-		if err != nil {
-			return nil, fmt.Errorf("subjectAltName.email: %w", err)
-		}
+		result.SubjectAltName.Email = substituteStringSlice(result.SubjectAltName.Email, vars)
 
 		// IP
-		result.SubjectAltName.IP, err = substituteStringSlice(result.SubjectAltName.IP, vars)
-		if err != nil {
-			return nil, fmt.Errorf("subjectAltName.ip: %w", err)
-		}
+		result.SubjectAltName.IP = substituteStringSlice(result.SubjectAltName.IP, vars)
 
 		// URI
-		result.SubjectAltName.URI, err = substituteStringSlice(result.SubjectAltName.URI, vars)
-		if err != nil {
-			return nil, fmt.Errorf("subjectAltName.uri: %w", err)
-		}
+		result.SubjectAltName.URI = substituteStringSlice(result.SubjectAltName.URI, vars)
 	}
 
 	return result, nil
 }
 
+// sanVarPattern matches {{ variable_name }} patterns for SAN substitution.
+var sanVarPattern = regexp.MustCompile(`^\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}$`)
+
 // substituteStringSlice replaces template variables in a string slice.
-// Variables have the form ${VARNAME}. If a variable is referenced but not
-// provided in vars, an error is returned.
-func substituteStringSlice(values []string, vars map[string][]string) ([]string, error) {
+// Variables have the form {{ variable_name }}. If a variable is not provided,
+// it is silently skipped (variables are optional by default).
+func substituteStringSlice(values []string, vars map[string][]string) []string {
 	var result []string
 
 	for _, v := range values {
-		if strings.HasPrefix(v, "${") && strings.HasSuffix(v, "}") {
-			// This is a variable reference
-			varName := strings.TrimSuffix(strings.TrimPrefix(v, "${"), "}")
+		// Check for {{ variable }} pattern
+		if matches := sanVarPattern.FindStringSubmatch(strings.TrimSpace(v)); len(matches) == 2 {
+			varName := matches[1]
 			if substitutes, ok := vars[varName]; ok && len(substitutes) > 0 {
 				result = append(result, substitutes...)
-			} else {
-				return nil, fmt.Errorf("required variable ${%s} not provided (use --%s flag)", varName, strings.ToLower(varName))
 			}
+			// If not provided, skip (variable is optional)
 		} else {
 			// Static value, keep as-is
 			result = append(result, v)
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 // copyBoolPtr creates a copy of a bool pointer.

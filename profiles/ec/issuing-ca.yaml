@@ -19,9 +19,19 @@
 #   ECDSA is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
 #   For quantum-resistant PKI, use hybrid/catalyst/issuing-ca.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
+#   pki init-ca --profile ec/issuing-ca \
+#       --var cn="ACME Issuing CA" \
+#       --parent ./root-ca
+#
+#   # Using --var-file
+#   pki init-ca --profile ec/issuing-ca --var-file ca-vars.yaml --parent ./root-ca
+#
+#   # Using --name (legacy, no validation)
 #   pki init-ca --profile ec/issuing-ca --name "ACME Issuing CA" \
-#     --dir ./issuing-ca --parent ./root-ca
+#       --dir ./issuing-ca --parent ./root-ca
 #
 # Expected DN: CN=ACME Issuing CA, O=ACME Corp, C=US
 #
@@ -48,13 +58,39 @@ algorithm: ecdsa-p256
 validity: 3650d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+# Input variables with validation constraints.
+# Use: pki init-ca --profile ec/issuing-ca --var cn="My Issuing CA"
+#
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - Issuing CA name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"                   # Country
-    o: "ACME Corp"            # Organization
-    cn: "ACME Issuing CA"     # Common Name
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions

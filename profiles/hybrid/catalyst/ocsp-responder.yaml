@@ -23,9 +23,14 @@
 #   This certificate enables a delegated OCSP responder (signed by issuing CA).
 #   The ocspNoCheck extension prevents recursive OCSP lookups.
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile hybrid/catalyst/ocsp-responder \
-#     --subject "CN=ACME Hybrid OCSP"
+#       --var cn="ACME Hybrid OCSP"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile hybrid/catalyst/ocsp-responder --var-file ocsp-vars.yaml
 #
 # Expected DN: CN=ACME Hybrid OCSP, OU=PKI Services, O=ACME Corp, C=US
 #
@@ -56,15 +61,37 @@ algorithms:
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    description: "Common Name - OCSP service name"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "PKI Services"
-  required:
-    - cn                      # OCSP service name
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "PKI Services"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
@@ -110,10 +137,10 @@ extensions:
   # ---------------------------------------------------------------------------
   crlDistributionPoints:
     urls:
-      - "http://crl.acme.example.com/issuing-ca.crl"
+      - "http://crl.acme.example.com/issuing-ca-hybrid.crl"
 
   # Authority Information Access (RFC 5280 Section 4.2.2.1)
   # ---------------------------------------------------------------------------
   authorityInfoAccess:
     caIssuers:
-      - "http://pki.acme.example.com/certs/issuing-ca.crt"
+      - "http://pki.acme.example.com/certs/issuing-ca-hybrid.crt"

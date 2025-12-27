@@ -26,10 +26,15 @@
 #   - hybrid/catalyst/tls-server (backward compatible + PQC)
 #   - ml-dsa-kem/tls-server-sign (pure post-quantum)
 #
-# Example:
+# Examples:
+#
+#   # Using --var (recommended, with validation)
 #   pki bundle enroll --profile rsa-pss/tls-server \
-#     --subject "CN=www.acme.example.com" \
-#     --dns www.acme.example.com
+#       --var cn="www.acme.example.com" \
+#       --var dns_names="www.acme.example.com,api.acme.example.com"
+#
+#   # Using --var-file
+#   pki bundle enroll --profile rsa-pss/tls-server --var-file server-vars.yaml
 #
 # Expected DN: CN=www.acme.example.com, OU=Servers, O=ACME Corp, C=US
 #
@@ -57,15 +62,50 @@ algorithm: rsa-4096
 validity: 365d
 
 # -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  cn:
+    type: string
+    required: true
+    pattern: "^[a-zA-Z0-9][a-zA-Z0-9.-]+$"
+    description: "Common Name - Server's primary FQDN"
+
+  dns_names:
+    type: list
+    required: false
+    default: []
+    description: "DNS Subject Alternative Names"
+
+  ip_addresses:
+    type: ip_list
+    required: false
+    default: []
+    description: "IP Address Subject Alternative Names"
+
+  organization:
+    type: string
+    required: false
+    default: "ACME Corp"
+    description: "Organization name"
+
+  country:
+    type: string
+    required: false
+    default: "US"
+    pattern: "^[A-Z]{2}$"
+    minLength: 2
+    maxLength: 2
+    description: "ISO 3166-1 alpha-2 country code"
+
+# -----------------------------------------------------------------------------
 # Subject DN (Distinguished Name)
 # -----------------------------------------------------------------------------
 subject:
-  fixed:
-    c: "US"
-    o: "ACME Corp"
-    ou: "Servers"
-  required:
-    - cn
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  ou: "Servers"
+  c: "{{ country }}"
 
 # -----------------------------------------------------------------------------
 # X.509 Extensions
@@ -102,8 +142,9 @@ extensions:
   #
   subjectAltName:
     critical: false
-    dns:
-      - "${DNS}"
+    dns: "{{ dns_names }}"
+    ip: "{{ ip_addresses }}"
+    dns_include_cn: true
 
   # Certificate Policies (RFC 5280 Section 4.2.1.4)
   # ---------------------------------------------------------------------------
