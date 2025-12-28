@@ -61,7 +61,7 @@ jobs:
       - name: Smoke test
         run: |
           ./pki --help
-          ./pki ca init --name "Test CA" --dir /tmp/test-ca
+          ./pki ca init --name "Test CA" --profile ec/root-ca --dir /tmp/test-ca
           ./pki credential enroll --ca-dir /tmp/test-ca --profile ec/tls-server \
             --var cn=test.local --var dns_names=test.local
           ./pki credential list --ca-dir /tmp/test-ca
@@ -69,7 +69,7 @@ jobs:
 
       - name: Smoke test subordinate CA
         run: |
-          ./pki ca init --name "Issuing CA" --dir /tmp/issuing-ca --parent /tmp/test-ca
+          ./pki ca init --name "Issuing CA" --profile ec/issuing-ca --dir /tmp/issuing-ca --parent /tmp/test-ca
           ./pki credential enroll --ca-dir /tmp/issuing-ca --profile ec/tls-server \
             --var cn=sub.test.local --var dns_names=sub.test.local
           ./pki cert list --ca-dir /tmp/issuing-ca
@@ -87,7 +87,7 @@ jobs:
       - name: PQC smoke test (ML-DSA-87)
         run: |
           # Create PQC CA
-          ./pki ca init --name "PQC Test CA" --dir /tmp/pqc-ca --algorithm ml-dsa-87
+          ./pki ca init --name "PQC Test CA" --profile ml-dsa/root-ca --dir /tmp/pqc-ca
           # Issue PQC certificate using credential enroll
           ./pki credential enroll --ca-dir /tmp/pqc-ca --profile ml-dsa-kem/tls-server-sign \
             --var cn=pqc.test.local --var dns_names=pqc.test.local
@@ -100,7 +100,7 @@ jobs:
       - name: PQC smoke test (SLH-DSA-256f)
         run: |
           # Create SLH-DSA CA
-          ./pki ca init --name "SLH-DSA Test CA" --dir /tmp/slhdsa-ca --algorithm slh-dsa-256f
+          ./pki ca init --name "SLH-DSA Test CA" --profile slh-dsa/root-ca --dir /tmp/slhdsa-ca
           # Issue SLH-DSA certificate using credential enroll
           ./pki credential enroll --ca-dir /tmp/slhdsa-ca --profile slh-dsa/tls-server \
             --var cn=slhdsa.test.local --var dns_names=slhdsa.test.local
