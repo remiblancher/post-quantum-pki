@@ -1,0 +1,302 @@
+package main
+
+import (
+	"bytes"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/spf13/cobra"
+)
+
+// executeCommand executes a Cobra command with the given args and returns output.
+func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
+	buf := new(bytes.Buffer)
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs(args)
+
+	err = root.Execute()
+	return buf.String(), err
+}
+
+// testContext holds test resources.
+type testContext struct {
+	t       *testing.T
+	tempDir string
+}
+
+// newTestContext creates a new test context with a temp directory.
+func newTestContext(t *testing.T) *testContext {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "pki-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return &testContext{t: t, tempDir: dir}
+}
+
+// path returns a path within the temp directory.
+func (tc *testContext) path(name string) string {
+	return filepath.Join(tc.tempDir, name)
+}
+
+// writeFile writes content to a file in the temp directory.
+func (tc *testContext) writeFile(name, content string) string {
+	tc.t.Helper()
+	path := tc.path(name)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		tc.t.Fatalf("Failed to write file %s: %v", name, err)
+	}
+	return path
+}
+
+// readFile reads a file from the temp directory.
+func (tc *testContext) readFile(name string) []byte {
+	tc.t.Helper()
+	path := tc.path(name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		tc.t.Fatalf("Failed to read file %s: %v", name, err)
+	}
+	return data
+}
+
+// generateECDSAKeyPair generates an ECDSA key pair.
+func generateECDSAKeyPair(t *testing.T) (*ecdsa.PrivateKey, *ecdsa.PublicKey) {
+	t.Helper()
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %v", err)
+	}
+	return priv, &priv.PublicKey
+}
+
+// generateRSAKeyPair generates an RSA key pair.
+func generateRSAKeyPair(t *testing.T, bits int) (*rsa.PrivateKey, *rsa.PublicKey) {
+	t.Helper()
+	priv, err := rsa.GenerateKey(rand.Reader, bits)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+	return priv, &priv.PublicKey
+}
+
+// generateSelfSignedCert generates a self-signed certificate.
+func generateSelfSignedCert(t *testing.T, priv crypto.Signer, pub crypto.PublicKey) *x509.Certificate {
+	t.Helper()
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "Test Certificate",
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageEmailProtection, x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, pub, priv)
+	if err != nil {
+		t.Fatalf("Failed to create certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	return cert
+}
+
+// generateCACert generates a CA certificate.
+func generateCACert(t *testing.T, priv crypto.Signer, pub crypto.PublicKey) *x509.Certificate {
+	t.Helper()
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "Test CA",
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            1,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, pub, priv)
+	if err != nil {
+		t.Fatalf("Failed to create CA certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse CA certificate: %v", err)
+	}
+
+	return cert
+}
+
+// issueCertificate issues a certificate signed by a CA.
+func issueCertificate(t *testing.T, caCert *x509.Certificate, caKey crypto.Signer, pub crypto.PublicKey) *x509.Certificate {
+	t.Helper()
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "Test End Entity",
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageEmailProtection},
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, caCert, pub, caKey)
+	if err != nil {
+		t.Fatalf("Failed to create certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	return cert
+}
+
+// writeCertPEM writes a certificate to a PEM file.
+func (tc *testContext) writeCertPEM(name string, cert *x509.Certificate) string {
+	tc.t.Helper()
+	path := tc.path(name)
+	pemData := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+	if err := os.WriteFile(path, pemData, 0644); err != nil {
+		tc.t.Fatalf("Failed to write certificate: %v", err)
+	}
+	return path
+}
+
+// writeKeyPEM writes a private key to a PEM file.
+func (tc *testContext) writeKeyPEM(name string, key crypto.Signer) string {
+	tc.t.Helper()
+	path := tc.path(name)
+
+	var pemData []byte
+	switch k := key.(type) {
+	case *ecdsa.PrivateKey:
+		der, err := x509.MarshalECPrivateKey(k)
+		if err != nil {
+			tc.t.Fatalf("Failed to marshal ECDSA key: %v", err)
+		}
+		pemData = pem.EncodeToMemory(&pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: der,
+		})
+	case *rsa.PrivateKey:
+		der := x509.MarshalPKCS1PrivateKey(k)
+		pemData = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: der,
+		})
+	default:
+		tc.t.Fatalf("Unsupported key type: %T", key)
+	}
+
+	if err := os.WriteFile(path, pemData, 0600); err != nil {
+		tc.t.Fatalf("Failed to write key: %v", err)
+	}
+	return path
+}
+
+// setupSigningPair creates a key pair and certificate for signing tests.
+func (tc *testContext) setupSigningPair() (certPath, keyPath string) {
+	tc.t.Helper()
+	priv, pub := generateECDSAKeyPair(tc.t)
+	cert := generateSelfSignedCert(tc.t, priv, pub)
+	certPath = tc.writeCertPEM("signer.crt", cert)
+	keyPath = tc.writeKeyPEM("signer.key", priv)
+	return
+}
+
+// setupCAAndCert creates a CA and end-entity certificate.
+func (tc *testContext) setupCAAndCert() (caCertPath, certPath, keyPath string) {
+	tc.t.Helper()
+
+	// Generate CA
+	caPriv, caPub := generateECDSAKeyPair(tc.t)
+	caCert := generateCACert(tc.t, caPriv, caPub)
+	caCertPath = tc.writeCertPEM("ca.crt", caCert)
+
+	// Generate end-entity
+	priv, pub := generateECDSAKeyPair(tc.t)
+	cert := issueCertificate(tc.t, caCert, caPriv, pub)
+	certPath = tc.writeCertPEM("entity.crt", cert)
+	keyPath = tc.writeKeyPEM("entity.key", priv)
+
+	return
+}
+
+// resetCommandFlags resets all flags to their default values.
+// This is needed because Cobra retains flag values between test runs.
+func resetCMSFlags() {
+	cmsSignData = ""
+	cmsSignCert = ""
+	cmsSignKey = ""
+	cmsSignPassphrase = ""
+	cmsSignHash = "sha256"
+	cmsSignOutput = ""
+	cmsSignDetached = true
+	cmsSignIncludeCerts = true
+
+	cmsVerifySignature = ""
+	cmsVerifyData = ""
+	cmsVerifyCA = ""
+
+	cmsEncryptRecipients = nil
+	cmsEncryptInput = ""
+	cmsEncryptOutput = ""
+	cmsEncryptContentEnc = "aes-256-gcm"
+
+	cmsDecryptKey = ""
+	cmsDecryptCert = ""
+	cmsDecryptPassphrase = ""
+	cmsDecryptInput = ""
+	cmsDecryptOutput = ""
+}
