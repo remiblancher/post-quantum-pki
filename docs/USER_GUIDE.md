@@ -114,21 +114,17 @@ pki ca init --name "Composite Root CA" --profile hybrid/composite/root-ca --dir 
 pki ca init --name "Issuing CA" --profile ec/issuing-ca \
   --dir ./issuing-ca --parent ./rootca
 
-# Manual configuration (without profile)
-pki ca init --name "My Root CA" --org "My Company" --dir ./myca
-
-# High-security CA with P-384
-pki ca init --name "Root CA" --algorithm ecdsa-p384 --validity 20 --dir ./rootca
-
-# Hybrid CA with ML-DSA (manual)
-pki ca init --name "Hybrid CA" --algorithm ecdsa-p384 \
-  --hybrid-algorithm ml-dsa-65 --dir ./hybrid-ca
-
 # CA with passphrase-protected key
-pki ca init --name "Secure CA" --passphrase "mysecret" --dir ./secure-ca
+pki ca init --name "Secure CA" --profile ec/root-ca --passphrase "mysecret" --dir ./secure-ca
 
-# Subordinate CA signed by parent (manual)
-pki ca init --name "Issuing CA" --org "My Company" \
+# PQC root CA with ML-DSA
+pki ca init --name "PQC Root CA" --profile ml-dsa/root-ca --dir ./pqc-ca
+
+# Hybrid CA with ECDSA + ML-DSA (Catalyst mode)
+pki ca init --name "Hybrid CA" --profile hybrid/catalyst/root-ca --dir ./hybrid-ca
+
+# Subordinate CA signed by parent
+pki ca init --name "Issuing CA" --profile ec/issuing-ca \
   --dir ./issuing-ca --parent ./rootca
 ```
 
