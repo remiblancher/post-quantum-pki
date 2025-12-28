@@ -26,12 +26,6 @@ jobs:
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
           echo "Total coverage: ${COVERAGE}"
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
-          fail_ci_if_error: true
-
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
