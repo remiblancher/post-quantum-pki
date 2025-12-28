@@ -248,9 +248,103 @@ func verifySignature(signedData *SignedData, signerInfo *SignerInfo, cert *x509.
 	return verifySignatureBytes(content, signerInfo.Signature, cert, hashAlg, signerInfo.SignatureAlgorithm.Algorithm)
 }
 
+// validateAlgorithmKeyMatch validates that the declared signature algorithm OID
+// is compatible with the certificate's public key type.
+//
+// SECURITY: This is critical to prevent algorithm confusion attacks.
+// The algorithm used for verification MUST be determined by the OID,
+// not by the Go key type. This function rejects mismatches before any
+// cryptographic verification is attempted.
+//
+// See: CVE-2024-49958 (Linux kernel), CVE-2022-21449 (Java psychic signatures)
+func validateAlgorithmKeyMatch(sigAlgOID asn1.ObjectIdentifier, pub crypto.PublicKey, hashAlg crypto.Hash) error {
+	switch pub.(type) {
+	case *ecdsa.PublicKey:
+		// ECDSA key - OID must be ECDSA with matching hash
+		switch {
+		case sigAlgOID.Equal(OIDECDSAWithSHA256):
+			if hashAlg != crypto.SHA256 {
+				return fmt.Errorf("algorithm mismatch: ECDSA-SHA256 OID but hash is %v", hashAlg)
+			}
+			return nil
+		case sigAlgOID.Equal(OIDECDSAWithSHA384):
+			if hashAlg != crypto.SHA384 {
+				return fmt.Errorf("algorithm mismatch: ECDSA-SHA384 OID but hash is %v", hashAlg)
+			}
+			return nil
+		case sigAlgOID.Equal(OIDECDSAWithSHA512):
+			if hashAlg != crypto.SHA512 {
+				return fmt.Errorf("algorithm mismatch: ECDSA-SHA512 OID but hash is %v", hashAlg)
+			}
+			return nil
+		default:
+			return fmt.Errorf("algorithm mismatch: OID %v is not valid for ECDSA key", sigAlgOID)
+		}
+
+	case ed25519.PublicKey:
+		// Ed25519 key - OID must be Ed25519
+		if !sigAlgOID.Equal(OIDEd25519) {
+			return fmt.Errorf("algorithm mismatch: OID %v is not valid for Ed25519 key", sigAlgOID)
+		}
+		return nil
+
+	case *rsa.PublicKey:
+		// RSA key - OID must be RSA with matching hash
+		switch {
+		case sigAlgOID.Equal(OIDSHA256WithRSA):
+			if hashAlg != crypto.SHA256 {
+				return fmt.Errorf("algorithm mismatch: RSA-SHA256 OID but hash is %v", hashAlg)
+			}
+			return nil
+		case sigAlgOID.Equal(OIDSHA384WithRSA):
+			if hashAlg != crypto.SHA384 {
+				return fmt.Errorf("algorithm mismatch: RSA-SHA384 OID but hash is %v", hashAlg)
+			}
+			return nil
+		case sigAlgOID.Equal(OIDSHA512WithRSA):
+			if hashAlg != crypto.SHA512 {
+				return fmt.Errorf("algorithm mismatch: RSA-SHA512 OID but hash is %v", hashAlg)
+			}
+			return nil
+		default:
+			return fmt.Errorf("algorithm mismatch: OID %v is not valid for RSA key", sigAlgOID)
+		}
+
+	default:
+		// PQC keys - validate OID matches the key type
+		typeName := fmt.Sprintf("%T", pub)
+		switch {
+		case sigAlgOID.Equal(OIDMLDSA44):
+			if typeName != "*mldsa44.PublicKey" {
+				return fmt.Errorf("algorithm mismatch: ML-DSA-44 OID but key is %s", typeName)
+			}
+			return nil
+		case sigAlgOID.Equal(OIDMLDSA65):
+			if typeName != "*mldsa65.PublicKey" {
+				return fmt.Errorf("algorithm mismatch: ML-DSA-65 OID but key is %s", typeName)
+			}
+			return nil
+		case sigAlgOID.Equal(OIDMLDSA87):
+			if typeName != "*mldsa87.PublicKey" {
+				return fmt.Errorf("algorithm mismatch: ML-DSA-87 OID but key is %s", typeName)
+			}
+			return nil
+		default:
+			// Unknown OID - reject for security
+			return fmt.Errorf("unknown or unsupported signature algorithm OID: %v for key type %s", sigAlgOID, typeName)
+		}
+	}
+}
+
 // verifySignatureBytes verifies a signature over data.
 func verifySignatureBytes(data, signature []byte, cert *x509.Certificate, hashAlg crypto.Hash, sigAlgOID asn1.ObjectIdentifier) error {
 	pub := cert.PublicKey
+
+	// SECURITY: Validate that the declared OID matches the key type
+	// BEFORE attempting cryptographic verification
+	if err := validateAlgorithmKeyMatch(sigAlgOID, pub, hashAlg); err != nil {
+		return err
+	}
 
 	switch pubKey := pub.(type) {
 	case *ecdsa.PublicKey:
