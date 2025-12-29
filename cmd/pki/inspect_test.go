@@ -134,3 +134,141 @@ func TestInspect_MissingArgument(t *testing.T) {
 	_, err := executeCommand(rootCmd, "inspect")
 	assertError(t, err)
 }
+
+// =============================================================================
+// Inspect CSR Tests
+// =============================================================================
+
+func TestInspect_CSR(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("server.key")
+	csrOut := tc.path("server.csr")
+
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", keyOut,
+		"--cn", "server.example.com",
+		"--dns", "server.example.com",
+		"--dns", "www.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+
+	// Inspect the CSR
+	_, err = executeCommand(rootCmd, "inspect", csrOut)
+	assertNoError(t, err)
+}
+
+func TestInspect_CSR_WithIPAddresses(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("server.key")
+	csrOut := tc.path("server.csr")
+
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", keyOut,
+		"--cn", "server.example.com",
+		"--ip", "192.168.1.1",
+		"--ip", "10.0.0.1",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+
+	// Inspect the CSR
+	_, err = executeCommand(rootCmd, "inspect", csrOut)
+	assertNoError(t, err)
+}
+
+func TestInspect_CSR_MLDSA(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("mldsa.key")
+	csrOut := tc.path("mldsa.csr")
+
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ml-dsa-65",
+		"--keyout", keyOut,
+		"--cn", "pqc.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+
+	// Inspect the PQC CSR
+	_, err = executeCommand(rootCmd, "inspect", csrOut)
+	assertNoError(t, err)
+}
+
+// =============================================================================
+// Inspect Certificate with Extended Key Usage
+// =============================================================================
+
+func TestInspect_CertificateWithExtKeyUsage(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+	resetCredentialFlags()
+
+	// Create CA
+	caDir := tc.path("ca")
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	// Enroll a TLS server credential (has serverAuth EKU)
+	resetCredentialFlags()
+	_, err = executeCommand(rootCmd, "credential", "enroll",
+		"--ca-dir", caDir,
+		"--profile", "ec/tls-server",
+		"--var", "cn=server.example.com",
+		"--var", "dns_names=server.example.com",
+	)
+	assertNoError(t, err)
+
+	// Find and inspect the credential certificate
+	bundlesDir := filepath.Join(caDir, "bundles")
+	entries, _ := filepath.Glob(filepath.Join(bundlesDir, "*", "certificates.pem"))
+	if len(entries) > 0 {
+		_, err = executeCommand(rootCmd, "inspect", entries[0])
+		assertNoError(t, err)
+	}
+}
+
+func TestInspect_CertificateWithClientAuth(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+	resetCredentialFlags()
+
+	// Create CA
+	caDir := tc.path("ca")
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	// Enroll a TLS client credential (has clientAuth EKU)
+	resetCredentialFlags()
+	_, err = executeCommand(rootCmd, "credential", "enroll",
+		"--ca-dir", caDir,
+		"--profile", "ec/tls-client",
+		"--var", "cn=client@example.com",
+		"--var", "email=client@example.com",
+	)
+	assertNoError(t, err)
+
+	// Find and inspect the credential certificate
+	bundlesDir := filepath.Join(caDir, "bundles")
+	entries, _ := filepath.Glob(filepath.Join(bundlesDir, "*", "certificates.pem"))
+	if len(entries) > 0 {
+		_, err = executeCommand(rootCmd, "inspect", entries[0])
+		assertNoError(t, err)
+	}
+}
