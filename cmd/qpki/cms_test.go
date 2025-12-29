@@ -655,16 +655,16 @@ func setupCAWithKEMCredential(tc *testContext) (string, string, string) {
 		tc.t.Fatalf("failed to enroll credential: %v", err)
 	}
 
-	// Find the credential bundle
-	bundlesDir := filepath.Join(caDir, "bundles")
-	entries, err := os.ReadDir(bundlesDir)
+	// Find the credential
+	credentialsDir := filepath.Join(caDir, "credentials")
+	entries, err := os.ReadDir(credentialsDir)
 	if err != nil || len(entries) == 0 {
-		tc.t.Fatal("no credential bundles found")
+		tc.t.Fatal("no credentials found")
 	}
 
-	bundleDir := filepath.Join(bundlesDir, entries[0].Name())
-	recipientCert := filepath.Join(bundleDir, "certificates.pem")
-	recipientKey := filepath.Join(bundleDir, "private-keys.pem")
+	credentialDir := filepath.Join(credentialsDir, entries[0].Name())
+	recipientCert := filepath.Join(credentialDir, "certificates.pem")
+	recipientKey := filepath.Join(credentialDir, "private-keys.pem")
 
 	return caDir, recipientCert, recipientKey
 }

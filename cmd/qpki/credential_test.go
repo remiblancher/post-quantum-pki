@@ -57,9 +57,9 @@ func TestCredentialEnroll(t *testing.T) {
 	)
 	assertNoError(t, err)
 
-	// Verify bundle directory was created
-	bundlesDir := filepath.Join(caDir, "bundles")
-	assertFileExists(t, bundlesDir)
+	// Verify credentials directory was created
+	credentialsDir := filepath.Join(caDir, "credentials")
+	assertFileExists(t, credentialsDir)
 }
 
 func TestCredentialEnroll_MissingProfile(t *testing.T) {
@@ -213,11 +213,11 @@ func setupCAWithCredential(tc *testContext) (string, string) {
 		tc.t.Fatalf("failed to enroll credential: %v", err)
 	}
 
-	// Find the credential ID from bundles directory
-	bundlesDir := filepath.Join(caDir, "bundles")
-	entries, err := os.ReadDir(bundlesDir)
+	// Find the credential ID from credentials directory
+	credentialsDir := filepath.Join(caDir, "credentials")
+	entries, err := os.ReadDir(credentialsDir)
 	if err != nil || len(entries) == 0 {
-		tc.t.Fatal("no credential bundles found")
+		tc.t.Fatal("no credentials found")
 	}
 
 	return caDir, entries[0].Name()
@@ -271,11 +271,11 @@ func setupCAWithSimpleCredential(tc *testContext) (string, string) {
 		tc.t.Fatalf("failed to enroll credential: %v", err)
 	}
 
-	// Find the credential ID from bundles directory
-	bundlesDir := filepath.Join(caDir, "bundles")
-	entries, err := os.ReadDir(bundlesDir)
+	// Find the credential ID from credentials directory
+	credentialsDir := filepath.Join(caDir, "credentials")
+	entries, err := os.ReadDir(credentialsDir)
 	if err != nil || len(entries) == 0 {
-		tc.t.Fatal("no credential bundles found")
+		tc.t.Fatal("no credentials found")
 	}
 
 	return caDir, entries[0].Name()

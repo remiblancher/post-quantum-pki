@@ -13,41 +13,41 @@ import (
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
-// Store manages bundle persistence.
+// Store manages credential persistence.
 type Store interface {
-	// Save saves a bundle with its certificates and keys.
-	Save(bundle *Bundle, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error
+	// Save saves a credential with its certificates and keys.
+	Save(cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error
 
-	// Load loads a bundle by ID.
-	Load(bundleID string) (*Bundle, error)
+	// Load loads a credential by ID.
+	Load(credentialID string) (*Credential, error)
 
-	// LoadCertificates loads the certificates for a bundle.
-	LoadCertificates(bundleID string) ([]*x509.Certificate, error)
+	// LoadCertificates loads the certificates for a credential.
+	LoadCertificates(credentialID string) ([]*x509.Certificate, error)
 
-	// LoadKeys loads the private keys for a bundle.
-	LoadKeys(bundleID string, passphrase []byte) ([]pkicrypto.Signer, error)
+	// LoadKeys loads the private keys for a credential.
+	LoadKeys(credentialID string, passphrase []byte) ([]pkicrypto.Signer, error)
 
-	// List returns all bundle IDs, optionally filtered by subject.
+	// List returns all credential IDs, optionally filtered by subject.
 	List(subjectFilter string) ([]string, error)
 
-	// ListAll returns all bundles.
-	ListAll() ([]*Bundle, error)
+	// ListAll returns all credentials.
+	ListAll() ([]*Credential, error)
 
-	// UpdateStatus updates the status of a bundle.
-	UpdateStatus(bundleID string, status Status, reason string) error
+	// UpdateStatus updates the status of a credential.
+	UpdateStatus(credentialID string, status Status, reason string) error
 
-	// Delete deletes a bundle.
-	Delete(bundleID string) error
+	// Delete deletes a credential.
+	Delete(credentialID string) error
 
-	// Exists checks if a bundle exists.
-	Exists(bundleID string) bool
+	// Exists checks if a credential exists.
+	Exists(credentialID string) bool
 }
 
 // FileStore implements Store using the filesystem.
-// Bundle layout:
+// Credential layout:
 //
-//	{basePath}/bundles/{bundleID}/
-//	    bundle.json         # Metadata
+//	{basePath}/credentials/{credentialID}/
+//	    credential.json     # Metadata
 //	    certificates.pem    # All certificates
 //	    private-keys.pem    # All private keys (encrypted)
 type FileStore struct {
@@ -55,53 +55,53 @@ type FileStore struct {
 	mu       sync.RWMutex
 }
 
-// NewFileStore creates a new file-based bundle store.
+// NewFileStore creates a new file-based credential store.
 func NewFileStore(caPath string) *FileStore {
 	return &FileStore{
-		basePath: filepath.Join(caPath, "bundles"),
+		basePath: filepath.Join(caPath, "credentials"),
 	}
 }
 
-// bundlePath returns the path to a bundle directory.
-func (s *FileStore) bundlePath(bundleID string) string {
-	return filepath.Join(s.basePath, bundleID)
+// credentialPath returns the path to a credential directory.
+func (s *FileStore) credentialPath(credentialID string) string {
+	return filepath.Join(s.basePath, credentialID)
 }
 
-// metadataPath returns the path to the bundle metadata file.
-func (s *FileStore) metadataPath(bundleID string) string {
-	return filepath.Join(s.bundlePath(bundleID), "bundle.json")
+// metadataPath returns the path to the credential metadata file.
+func (s *FileStore) metadataPath(credentialID string) string {
+	return filepath.Join(s.credentialPath(credentialID), "credential.json")
 }
 
 // certsPath returns the path to the certificates PEM file.
-func (s *FileStore) certsPath(bundleID string) string {
-	return filepath.Join(s.bundlePath(bundleID), "certificates.pem")
+func (s *FileStore) certsPath(credentialID string) string {
+	return filepath.Join(s.credentialPath(credentialID), "certificates.pem")
 }
 
 // keysPath returns the path to the private keys PEM file.
-func (s *FileStore) keysPath(bundleID string) string {
-	return filepath.Join(s.bundlePath(bundleID), "private-keys.pem")
+func (s *FileStore) keysPath(credentialID string) string {
+	return filepath.Join(s.credentialPath(credentialID), "private-keys.pem")
 }
 
-// Save saves a bundle with its certificates and keys.
-func (s *FileStore) Save(bundle *Bundle, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
+// Save saves a credential with its certificates and keys.
+func (s *FileStore) Save(cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	bundleDir := s.bundlePath(bundle.ID)
+	credDir := s.credentialPath(cred.ID)
 
-	// Create bundle directory
-	if err := os.MkdirAll(bundleDir, 0700); err != nil {
-		return fmt.Errorf("failed to create bundle directory: %w", err)
+	// Create credential directory
+	if err := os.MkdirAll(credDir, 0700); err != nil {
+		return fmt.Errorf("failed to create credential directory: %w", err)
 	}
 
 	// Save metadata
-	metaData, err := json.MarshalIndent(bundle, "", "  ")
+	metaData, err := json.MarshalIndent(cred, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal bundle metadata: %w", err)
+		return fmt.Errorf("failed to marshal credential metadata: %w", err)
 	}
 
-	if err := os.WriteFile(s.metadataPath(bundle.ID), metaData, 0644); err != nil {
-		return fmt.Errorf("failed to write bundle metadata: %w", err)
+	if err := os.WriteFile(s.metadataPath(cred.ID), metaData, 0644); err != nil {
+		return fmt.Errorf("failed to write credential metadata: %w", err)
 	}
 
 	// Save certificates
@@ -111,7 +111,7 @@ func (s *FileStore) Save(bundle *Bundle, certs []*x509.Certificate, signers []pk
 			return fmt.Errorf("failed to encode certificates: %w", err)
 		}
 
-		if err := os.WriteFile(s.certsPath(bundle.ID), certsPEM, 0644); err != nil {
+		if err := os.WriteFile(s.certsPath(cred.ID), certsPEM, 0644); err != nil {
 			return fmt.Errorf("failed to write certificates: %w", err)
 		}
 	}
@@ -123,7 +123,7 @@ func (s *FileStore) Save(bundle *Bundle, certs []*x509.Certificate, signers []pk
 			return fmt.Errorf("failed to encode private keys: %w", err)
 		}
 
-		if err := os.WriteFile(s.keysPath(bundle.ID), keysPEM, 0600); err != nil {
+		if err := os.WriteFile(s.keysPath(cred.ID), keysPEM, 0600); err != nil {
 			return fmt.Errorf("failed to write private keys: %w", err)
 		}
 	}
@@ -131,35 +131,35 @@ func (s *FileStore) Save(bundle *Bundle, certs []*x509.Certificate, signers []pk
 	return nil
 }
 
-// Load loads a bundle by ID.
-func (s *FileStore) Load(bundleID string) (*Bundle, error) {
+// Load loads a credential by ID.
+func (s *FileStore) Load(credentialID string) (*Credential, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	metaPath := s.metadataPath(bundleID)
+	metaPath := s.metadataPath(credentialID)
 
 	data, err := os.ReadFile(metaPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("bundle not found: %s", bundleID)
+			return nil, fmt.Errorf("credential not found: %s", credentialID)
 		}
-		return nil, fmt.Errorf("failed to read bundle metadata: %w", err)
+		return nil, fmt.Errorf("failed to read credential metadata: %w", err)
 	}
 
-	var bundle Bundle
-	if err := json.Unmarshal(data, &bundle); err != nil {
-		return nil, fmt.Errorf("failed to parse bundle metadata: %w", err)
+	var cred Credential
+	if err := json.Unmarshal(data, &cred); err != nil {
+		return nil, fmt.Errorf("failed to parse credential metadata: %w", err)
 	}
 
-	return &bundle, nil
+	return &cred, nil
 }
 
-// LoadCertificates loads the certificates for a bundle.
-func (s *FileStore) LoadCertificates(bundleID string) ([]*x509.Certificate, error) {
+// LoadCertificates loads the certificates for a credential.
+func (s *FileStore) LoadCertificates(credentialID string) ([]*x509.Certificate, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	certsPath := s.certsPath(bundleID)
+	certsPath := s.certsPath(credentialID)
 
 	data, err := os.ReadFile(certsPath)
 	if err != nil {
@@ -172,12 +172,12 @@ func (s *FileStore) LoadCertificates(bundleID string) ([]*x509.Certificate, erro
 	return DecodeCertificatesPEM(data)
 }
 
-// LoadKeys loads the private keys for a bundle.
-func (s *FileStore) LoadKeys(bundleID string, passphrase []byte) ([]pkicrypto.Signer, error) {
+// LoadKeys loads the private keys for a credential.
+func (s *FileStore) LoadKeys(credentialID string, passphrase []byte) ([]pkicrypto.Signer, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	keysPath := s.keysPath(bundleID)
+	keysPath := s.keysPath(credentialID)
 
 	data, err := os.ReadFile(keysPath)
 	if err != nil {
@@ -190,7 +190,7 @@ func (s *FileStore) LoadKeys(bundleID string, passphrase []byte) ([]pkicrypto.Si
 	return DecodePrivateKeysPEM(data, passphrase)
 }
 
-// List returns all bundle IDs, optionally filtered by subject.
+// List returns all credential IDs, optionally filtered by subject.
 func (s *FileStore) List(subjectFilter string) ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -200,7 +200,7 @@ func (s *FileStore) List(subjectFilter string) ([]string, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to read bundles directory: %w", err)
+		return nil, fmt.Errorf("failed to read credentials directory: %w", err)
 	}
 
 	var ids []string
@@ -209,46 +209,46 @@ func (s *FileStore) List(subjectFilter string) ([]string, error) {
 			continue
 		}
 
-		bundleID := entry.Name()
+		credentialID := entry.Name()
 
-		// If filter provided, load bundle and check subject
+		// If filter provided, load credential and check subject
 		if subjectFilter != "" {
-			bundle, err := s.loadUnlocked(bundleID)
+			cred, err := s.loadUnlocked(credentialID)
 			if err != nil {
 				continue
 			}
 
-			if !strings.Contains(strings.ToLower(bundle.Subject.CommonName), strings.ToLower(subjectFilter)) {
+			if !strings.Contains(strings.ToLower(cred.Subject.CommonName), strings.ToLower(subjectFilter)) {
 				continue
 			}
 		}
 
-		ids = append(ids, bundleID)
+		ids = append(ids, credentialID)
 	}
 
 	sort.Strings(ids)
 	return ids, nil
 }
 
-// loadUnlocked loads a bundle without locking (for internal use).
-func (s *FileStore) loadUnlocked(bundleID string) (*Bundle, error) {
-	metaPath := s.metadataPath(bundleID)
+// loadUnlocked loads a credential without locking (for internal use).
+func (s *FileStore) loadUnlocked(credentialID string) (*Credential, error) {
+	metaPath := s.metadataPath(credentialID)
 
 	data, err := os.ReadFile(metaPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var bundle Bundle
-	if err := json.Unmarshal(data, &bundle); err != nil {
+	var cred Credential
+	if err := json.Unmarshal(data, &cred); err != nil {
 		return nil, err
 	}
 
-	return &bundle, nil
+	return &cred, nil
 }
 
-// ListAll returns all bundles.
-func (s *FileStore) ListAll() ([]*Bundle, error) {
+// ListAll returns all credentials.
+func (s *FileStore) ListAll() ([]*Credential, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -257,83 +257,83 @@ func (s *FileStore) ListAll() ([]*Bundle, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to read bundles directory: %w", err)
+		return nil, fmt.Errorf("failed to read credentials directory: %w", err)
 	}
 
-	var bundles []*Bundle
+	var credentials []*Credential
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 
-		bundle, err := s.loadUnlocked(entry.Name())
+		cred, err := s.loadUnlocked(entry.Name())
 		if err != nil {
 			continue
 		}
 
-		bundles = append(bundles, bundle)
+		credentials = append(credentials, cred)
 	}
 
-	return bundles, nil
+	return credentials, nil
 }
 
-// UpdateStatus updates the status of a bundle.
-func (s *FileStore) UpdateStatus(bundleID string, status Status, reason string) error {
+// UpdateStatus updates the status of a credential.
+func (s *FileStore) UpdateStatus(credentialID string, status Status, reason string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	bundle, err := s.loadUnlocked(bundleID)
+	cred, err := s.loadUnlocked(credentialID)
 	if err != nil {
-		return fmt.Errorf("failed to load bundle: %w", err)
+		return fmt.Errorf("failed to load credential: %w", err)
 	}
 
-	bundle.Status = status
+	cred.Status = status
 	if status == StatusRevoked {
-		bundle.Revoke(reason)
+		cred.Revoke(reason)
 	}
 
 	// Save updated metadata
-	metaData, err := json.MarshalIndent(bundle, "", "  ")
+	metaData, err := json.MarshalIndent(cred, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal bundle metadata: %w", err)
+		return fmt.Errorf("failed to marshal credential metadata: %w", err)
 	}
 
-	if err := os.WriteFile(s.metadataPath(bundleID), metaData, 0644); err != nil {
-		return fmt.Errorf("failed to write bundle metadata: %w", err)
+	if err := os.WriteFile(s.metadataPath(credentialID), metaData, 0644); err != nil {
+		return fmt.Errorf("failed to write credential metadata: %w", err)
 	}
 
 	return nil
 }
 
-// Delete deletes a bundle.
-func (s *FileStore) Delete(bundleID string) error {
+// Delete deletes a credential.
+func (s *FileStore) Delete(credentialID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	bundleDir := s.bundlePath(bundleID)
+	credDir := s.credentialPath(credentialID)
 
-	if err := os.RemoveAll(bundleDir); err != nil {
-		return fmt.Errorf("failed to delete bundle: %w", err)
+	if err := os.RemoveAll(credDir); err != nil {
+		return fmt.Errorf("failed to delete credential: %w", err)
 	}
 
 	return nil
 }
 
-// Exists checks if a bundle exists.
-func (s *FileStore) Exists(bundleID string) bool {
+// Exists checks if a credential exists.
+func (s *FileStore) Exists(credentialID string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	_, err := os.Stat(s.metadataPath(bundleID))
+	_, err := os.Stat(s.metadataPath(credentialID))
 	return err == nil
 }
 
-// BasePath returns the bundles directory path.
+// BasePath returns the credentials directory path.
 func (s *FileStore) BasePath() string {
 	return s.basePath
 }
 
-// Init ensures the bundles directory exists.
+// Init ensures the credentials directory exists.
 func (s *FileStore) Init() error {
 	return os.MkdirAll(s.basePath, 0700)
 }
