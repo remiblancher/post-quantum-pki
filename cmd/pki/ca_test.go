@@ -391,6 +391,275 @@ func TestCAExport_InvalidBundle(t *testing.T) {
 	assertError(t, err)
 }
 
+func TestCAExport_CANotFound(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	_, err := executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", tc.path("nonexistent"),
+	)
+
+	assertError(t, err)
+}
+
+func TestCAExport_ToStdout(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Export to stdout (no --out flag)
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+	)
+
+	assertNoError(t, err)
+}
+
+func TestCAExport_AllVersions(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Rotate to create a version
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Export all versions
+	outPath := tc.path("all.pem")
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--all",
+		"--out", outPath,
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, outPath)
+}
+
+func TestCAExport_AllVersions_NonVersioned(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA (no rotation = non-versioned)
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Export with --all on non-versioned CA
+	outPath := tc.path("all.pem")
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--all",
+		"--out", outPath,
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, outPath)
+}
+
+func TestCAExport_Version(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Rotate to create a version
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Export v1 (original)
+	outPath := tc.path("v1.pem")
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--version", "v1",
+		"--out", outPath,
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, outPath)
+}
+
+func TestCAExport_Version_V2(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Rotate to create a version (v2)
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Export v2 (first rotated version)
+	outPath := tc.path("v2.pem")
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--version", "v2",
+		"--out", outPath,
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, outPath)
+}
+
+func TestCAExport_Version_NonVersioned(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA (no rotation = non-versioned)
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Try to export with --version on non-versioned CA
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--version", "v2",
+	)
+
+	assertError(t, err) // CA is not versioned
+}
+
+func TestCAExport_Version_NotFound(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Rotate to create a version
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Try to export non-existent version
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--version", "v99",
+	)
+
+	assertError(t, err)
+}
+
+func TestCAExport_DER_MultiCert(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Rotate to create a version
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Try to export all in DER format (should fail - DER only supports single cert)
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", caDir,
+		"--all",
+		"--format", "der",
+		"--out", tc.path("all.der"),
+	)
+
+	assertError(t, err)
+}
+
 // =============================================================================
 // CA List Tests
 // =============================================================================
@@ -715,6 +984,111 @@ func TestCAActivate_CANotFound(t *testing.T) {
 	)
 
 	assertError(t, err)
+}
+
+func TestCAActivate_V1_OriginalCA(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create and rotate CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Try to activate v1 (original CA - cannot be activated)
+	_, err = executeCommand(rootCmd, "ca", "activate",
+		"--ca-dir", caDir,
+		"--version", "v1",
+	)
+
+	assertError(t, err) // v1 cannot be activated
+}
+
+func TestCAActivate_V2_Success(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create and rotate CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Activate v2 (the first rotated version)
+	_, err = executeCommand(rootCmd, "ca", "activate",
+		"--ca-dir", caDir,
+		"--version", "v2",
+	)
+
+	assertNoError(t, err)
+}
+
+func TestCAActivate_AlreadyActive(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+
+	// Create and rotate CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--name", "Test CA",
+		"--profile", "ec/root-ca",
+		"--dir", caDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+	_, err = executeCommand(rootCmd, "ca", "rotate",
+		"--ca-dir", caDir,
+		"--profile", "ec/root-ca",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Activate v2
+	_, err = executeCommand(rootCmd, "ca", "activate",
+		"--ca-dir", caDir,
+		"--version", "v2",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Try to activate v2 again (already active)
+	_, err = executeCommand(rootCmd, "ca", "activate",
+		"--ca-dir", caDir,
+		"--version", "v2",
+	)
+
+	assertError(t, err) // Already active
 }
 
 // =============================================================================
