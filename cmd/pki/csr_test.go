@@ -273,3 +273,122 @@ func TestCSR_KeyFileNotFound(t *testing.T) {
 	)
 	assertError(t, err)
 }
+
+// =============================================================================
+// CSR Generation Tests (Hybrid)
+// =============================================================================
+
+func TestCSR_Hybrid_ECDSA_MLDSA(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	classicalKeyOut := tc.path("classical.key")
+	hybridKeyOut := tc.path("hybrid.key")
+	csrOut := tc.path("hybrid.csr")
+
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", classicalKeyOut,
+		"--hybrid", "ml-dsa-65",
+		"--hybrid-keyout", hybridKeyOut,
+		"--cn", "hybrid.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, classicalKeyOut)
+	assertFileExists(t, hybridKeyOut)
+	assertFileExists(t, csrOut)
+}
+
+func TestCSR_Hybrid_WithExistingKey(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	// First generate a classical key
+	existingKeyPath := tc.path("existing.key")
+	_, err := executeCommand(rootCmd, "key", "gen",
+		"--algorithm", "ecdsa-p256",
+		"--out", existingKeyPath,
+	)
+	assertNoError(t, err)
+
+	resetCSRFlags()
+
+	// Create hybrid CSR with existing classical key
+	hybridKeyOut := tc.path("hybrid.key")
+	csrOut := tc.path("hybrid.csr")
+
+	_, err = executeCommand(rootCmd, "cert", "csr",
+		"--key", existingKeyPath,
+		"--hybrid", "ml-dsa-65",
+		"--hybrid-keyout", hybridKeyOut,
+		"--cn", "hybrid.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, hybridKeyOut)
+	assertFileExists(t, csrOut)
+}
+
+func TestCSR_Hybrid_InvalidPQCAlgorithm(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", tc.path("classical.key"),
+		"--hybrid", "invalid-algo",
+		"--hybrid-keyout", tc.path("hybrid.key"),
+		"--cn", "hybrid.example.com",
+		"--out", tc.path("hybrid.csr"),
+	)
+	assertError(t, err)
+}
+
+func TestCSR_Hybrid_NonPQCAlgorithm(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	// Using a classical algorithm for --hybrid should fail
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", tc.path("classical.key"),
+		"--hybrid", "ecdsa-p384",
+		"--hybrid-keyout", tc.path("hybrid.key"),
+		"--cn", "hybrid.example.com",
+		"--out", tc.path("hybrid.csr"),
+	)
+	assertError(t, err)
+}
+
+func TestCSR_Hybrid_MissingHybridKeyout(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", tc.path("classical.key"),
+		"--hybrid", "ml-dsa-65",
+		"--cn", "hybrid.example.com",
+		"--out", tc.path("hybrid.csr"),
+	)
+	assertError(t, err)
+}
+
+// =============================================================================
+// CSR Generation Tests (KEM with Attestation)
+// =============================================================================
+
+func TestCSR_KEM_MissingAttestation(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	// ML-KEM requires attestation certificate
+	_, err := executeCommand(rootCmd, "cert", "csr",
+		"--algorithm", "ml-kem-768",
+		"--keyout", tc.path("kem.key"),
+		"--cn", "kem.example.com",
+		"--out", tc.path("kem.csr"),
+	)
+	assertError(t, err)
+}
