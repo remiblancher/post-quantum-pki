@@ -13,7 +13,7 @@ This document describes the technical design, component structure, and data flow
 │      │          │         │          │         │         │          │       │
 │  ┌───┴──────────┴─────────┴──────────┴─────────┴─────────┘          │       │
 │  │                                                      ┌───────────┴─────┐ │
-│  │                                                      │     bundle      │ │
+│  │                                                      │   credential    │ │
 │  │                                                      │ list/info/renew │ │
 │  │                                                      └────────┬────────┘ │
 └──┼───────────────────────────────────────────────────────────────┼──────────┘
@@ -24,8 +24,8 @@ This document describes the technical design, component structure, and data flow
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
 │  │                              CA                                      │    │
 │  │  • Initialize()      • Issue()           • Enroll()                 │    │
-│  │  • IssueCatalyst()   • IssueLinked()     • RenewBundle()           │    │
-│  │  • Revoke()          • RevokeBundle()    • GenerateCRL()           │    │
+│  │  • IssueCatalyst()   • IssueLinked()     • RenewCredential()       │    │
+│  │  • Revoke()          • RevokeCredential()• GenerateCRL()           │    │
 │  └────────────────────────────────┬────────────────────────────────────┘    │
 │                                   │                                          │
 │  ┌────────────────────────────────┴────────────────────────────────────┐    │
@@ -48,9 +48,9 @@ This document describes the technical design, component structure, and data flow
         │                    │                    │  │ HybridSigner    │    │
         v                    v                    │  │ PKCS11Signer    │    │
 ┌─────────────────────────────────────────────┐  │  └─────────────────┘    │
-│              Bundle Layer                    │  └─────────────────────────┘
+│            Credential Layer                  │  └─────────────────────────┘
 │  ┌─────────────────────────────────────┐    │
-│  │            Bundle                    │    │            │
+│  │          Credential                  │    │            │
 │  │  • Create()   • Revoke()            │    │            v
 │  │  • Renew()    • Status              │    │  ┌─────────────────────────┐
 │  └─────────────────┬───────────────────┘    │  │     X509Util Layer      │
@@ -78,14 +78,14 @@ pki/
 │       ├── list.go             # list command
 │       ├── profile.go            # profile command (list, info, validate, install)
 │       ├── enroll.go           # enroll command
-│       └── bundle.go           # bundle command (list, info, renew, revoke, export)
+│       └── credential.go       # credential command (list, info, renew, revoke, export)
 │
 ├── internal/
 │   ├── ca/                     # CA operations
 │   │   ├── ca.go               # CA type and core operations
 │   │   ├── store.go            # File-based storage
 │   │   ├── revocation.go       # Revocation and CRL
-│   │   ├── enrollment.go       # Bundle enrollment and renewal
+│   │   ├── enrollment.go       # Credential enrollment and renewal
 │   │   └── *_test.go           # Tests
 │   │
 │   ├── crypto/                 # Cryptographic primitives
@@ -118,10 +118,10 @@ pki/
 │   │   │   └── hybrid-full.yaml
 │   │   └── *_test.go           # Tests
 │   │
-│   ├── bundle/                 # Certificate bundles
-│   │   ├── bundle.go           # Bundle structure and lifecycle
-│   │   ├── pem.go              # PEM encoding/decoding for bundles
-│   │   ├── store.go            # FileStore for bundle persistence
+│   ├── credential/             # Certificate credentials
+│   │   ├── credential.go       # Credential structure and lifecycle
+│   │   ├── pem.go              # PEM encoding/decoding for credentials
+│   │   ├── store.go            # FileStore for credential persistence
 │   │   └── *_test.go           # Tests
 │   │
 │   └── x509util/               # X.509 utilities
@@ -136,7 +136,7 @@ pki/
 │   ├── USER_GUIDE.md           # CLI usage guide
 │   ├── PQC.md                  # Post-quantum cryptography
 │   ├── PROFILES.md               # Profile documentation
-│   ├── BUNDLES.md              # Bundle documentation
+│   ├── CREDENTIALS.md          # Credential documentation
 │   └── CATALYST.md             # Catalyst certificate documentation
 │
 └── test/                       # Integration tests

@@ -42,8 +42,8 @@ type EnrollmentRequest struct {
 
 // EnrollmentResult holds the result of an enrollment.
 type EnrollmentResult struct {
-	// Bundle is the created credential.
-	Bundle *credential.Bundle
+	// Credential is the created credential.
+	Credential *credential.Credential
 
 	// Certificates are the issued certificates.
 	Certificates []*x509.Certificate
@@ -54,7 +54,7 @@ type EnrollmentResult struct {
 
 // Enroll creates a certificate according to a single profile.
 // Design: 1 profile = 1 certificate.
-// For bundles with multiple certificates, use EnrollMulti.
+// For credentials with multiple certificates, use EnrollMulti.
 func (ca *CA) Enroll(req EnrollmentRequest, profileStore *profile.ProfileStore) (*EnrollmentResult, error) {
 	if ca.signer == nil {
 		return nil, fmt.Errorf("CA signer not loaded")
@@ -75,14 +75,14 @@ func (ca *CA) EnrollWithProfile(req EnrollmentRequest, prof *profile.Profile) (*
 		return nil, fmt.Errorf("CA signer not loaded")
 	}
 
-	// Create bundle ID
-	bundleID := generateBundleID(req.Subject.CommonName)
+	// Create credential ID
+	credentialID := generateCredentialID(req.Subject.CommonName)
 
-	// Create bundle
-	b := credential.NewBundle(bundleID, credential.SubjectFromPkixName(req.Subject), []string{prof.Name})
+	// Create credential
+	cred := credential.NewCredential(credentialID, credential.SubjectFromPkixName(req.Subject), []string{prof.Name})
 
 	result := &EnrollmentResult{
-		Bundle:       b,
+		Credential:   cred,
 		Certificates: make([]*x509.Certificate, 0),
 		Signers:      make([]pkicrypto.Signer, 0),
 	}
@@ -90,7 +90,7 @@ func (ca *CA) EnrollWithProfile(req EnrollmentRequest, prof *profile.Profile) (*
 	// Set validity
 	notBefore := time.Now()
 	notAfter := notBefore.Add(prof.Validity)
-	b.SetValidity(notBefore, notAfter)
+	cred.SetValidity(notBefore, notAfter)
 
 	// Issue certificate based on mode
 	var cert *x509.Certificate
@@ -116,7 +116,7 @@ func (ca *CA) EnrollWithProfile(req EnrollmentRequest, prof *profile.Profile) (*
 	result.Certificates = append(result.Certificates, cert)
 	result.Signers = append(result.Signers, signers...)
 
-	// Add to bundle
+	// Add to credential
 	role := credential.RoleSignature
 	if prof.IsKEM() {
 		role = credential.RoleEncryption
@@ -127,10 +127,10 @@ func (ca *CA) EnrollWithProfile(req EnrollmentRequest, prof *profile.Profile) (*
 	}
 	ref := credential.CertificateRefFromCert(cert, role, prof.IsCatalyst(), altAlg)
 	ref.Profile = prof.Name
-	b.AddCertificate(ref)
+	cred.AddCertificate(ref)
 
-	// Activate bundle
-	b.Activate()
+	// Activate credential
+	cred.Activate()
 
 	return result, nil
 }
@@ -143,14 +143,14 @@ func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.Compi
 		return nil, fmt.Errorf("CA signer not loaded")
 	}
 
-	// Create bundle ID
-	bundleID := generateBundleID(req.Subject.CommonName)
+	// Create credential ID
+	credentialID := generateCredentialID(req.Subject.CommonName)
 
-	// Create bundle
-	b := credential.NewBundle(bundleID, credential.SubjectFromPkixName(req.Subject), []string{cp.Profile.Name})
+	// Create credential
+	cred := credential.NewCredential(credentialID, credential.SubjectFromPkixName(req.Subject), []string{cp.Profile.Name})
 
 	result := &EnrollmentResult{
-		Bundle:       b,
+		Credential:   cred,
 		Certificates: make([]*x509.Certificate, 0),
 		Signers:      make([]pkicrypto.Signer, 0),
 	}
@@ -158,7 +158,7 @@ func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.Compi
 	// Set validity
 	notBefore := time.Now()
 	notAfter := notBefore.Add(cp.Profile.Validity)
-	b.SetValidity(notBefore, notAfter)
+	cred.SetValidity(notBefore, notAfter)
 
 	// Issue certificate using compiled profile
 	var cert *x509.Certificate
@@ -184,7 +184,7 @@ func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.Compi
 	result.Certificates = append(result.Certificates, cert)
 	result.Signers = append(result.Signers, signers...)
 
-	// Add to bundle
+	// Add to credential
 	role := credential.RoleSignature
 	if cp.Profile.IsKEM() {
 		role = credential.RoleEncryption
@@ -195,10 +195,10 @@ func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.Compi
 	}
 	ref := credential.CertificateRefFromCert(cert, role, cp.Profile.IsCatalyst(), altAlg)
 	ref.Profile = cp.Profile.Name
-	b.AddCertificate(ref)
+	cred.AddCertificate(ref)
 
-	// Activate bundle
-	b.Activate()
+	// Activate credential
+	cred.Activate()
 
 	return result, nil
 }
@@ -312,8 +312,8 @@ func (ca *CA) issueCompositeCertFromCompiledProfile(req EnrollmentRequest, cp *p
 	return cert, []pkicrypto.Signer{classicalSigner, pqcSigner}, nil
 }
 
-// EnrollMulti creates a bundle with multiple certificates from multiple profiles.
-// This is the main enrollment function for creating bundles.
+// EnrollMulti creates a credential with multiple certificates from multiple profiles.
+// This is the main enrollment function for creating credentials.
 // Profiles are processed in order. For KEM certificates, a signature
 // certificate must be issued first (per RFC 9883).
 func (ca *CA) EnrollMulti(req EnrollmentRequest, profiles []*profile.Profile) (*EnrollmentResult, error) {
@@ -325,20 +325,20 @@ func (ca *CA) EnrollMulti(req EnrollmentRequest, profiles []*profile.Profile) (*
 		return nil, fmt.Errorf("at least one profile is required")
 	}
 
-	// Create bundle ID
-	bundleID := generateBundleID(req.Subject.CommonName)
+	// Create credential ID
+	credentialID := generateCredentialID(req.Subject.CommonName)
 
-	// Use first profile name for bundle (could be enhanced to use all names)
+	// Use first profile name for credential (could be enhanced to use all names)
 	profileNames := make([]string, len(profiles))
 	for i, p := range profiles {
 		profileNames[i] = p.Name
 	}
 
-	// Create bundle
-	b := credential.NewBundle(bundleID, credential.SubjectFromPkixName(req.Subject), profileNames)
+	// Create credential
+	cred := credential.NewCredential(credentialID, credential.SubjectFromPkixName(req.Subject), profileNames)
 
 	result := &EnrollmentResult{
-		Bundle:       b,
+		Credential:   cred,
 		Certificates: make([]*x509.Certificate, 0),
 		Signers:      make([]pkicrypto.Signer, 0),
 	}
@@ -352,7 +352,7 @@ func (ca *CA) EnrollMulti(req EnrollmentRequest, profiles []*profile.Profile) (*
 		if i == 0 {
 			notBefore = time.Now()
 			notAfter = notBefore.Add(prof.Validity)
-			b.SetValidity(notBefore, notAfter)
+			cred.SetValidity(notBefore, notAfter)
 		}
 
 		// KEM requires a signature certificate first (RFC 9883)
@@ -389,7 +389,7 @@ func (ca *CA) EnrollMulti(req EnrollmentRequest, profiles []*profile.Profile) (*
 		result.Certificates = append(result.Certificates, cert)
 		result.Signers = append(result.Signers, signers...)
 
-		// Add to bundle
+		// Add to credential
 		role := credential.RoleSignature
 		if prof.IsKEM() {
 			role = credential.RoleEncryption
@@ -406,11 +406,11 @@ func (ca *CA) EnrollMulti(req EnrollmentRequest, profiles []*profile.Profile) (*
 			ref.RelatedSerial = fmt.Sprintf("0x%X", sigCert.SerialNumber.Bytes())
 		}
 
-		b.AddCertificate(ref)
+		cred.AddCertificate(ref)
 	}
 
-	// Activate bundle
-	b.Activate()
+	// Activate credential
+	cred.Activate()
 
 	return result, nil
 }
@@ -537,14 +537,14 @@ func (ca *CA) issueCompositeCertFromProfile(req EnrollmentRequest, prof *profile
 	return cert, []pkicrypto.Signer{classicalSigner, pqcSigner}, nil
 }
 
-// generateBundleID generates a unique bundle ID.
-func generateBundleID(commonName string) string {
+// generateCredentialID generates a unique credential ID.
+func generateCredentialID(commonName string) string {
 	// Use a timestamp and random suffix
 	timestamp := time.Now().Format("20060102-150405")
 
 	// Generate a short random suffix
-	b := make([]byte, 4)
-	_, _ = rand.Read(b)
+	randBytes := make([]byte, 4)
+	_, _ = rand.Read(randBytes)
 
 	// Clean common name for use in ID
 	cleanName := ""
@@ -557,27 +557,27 @@ func generateBundleID(commonName string) string {
 		cleanName = cleanName[:16]
 	}
 
-	return fmt.Sprintf("%s-%s-%x", cleanName, timestamp, b)
+	return fmt.Sprintf("%s-%s-%x", cleanName, timestamp, randBytes)
 }
 
 // RotateCredential rotates all certificates in a credential.
 // keyMode controls whether to generate new keys (KeyRotateNew) or reuse existing (KeyRotateKeep).
 // If newProfiles is provided, use those instead of existing profiles (crypto-agility).
-func (ca *CA) RotateCredential(bundleID string, bundleStore *credential.FileStore, profileStore *profile.ProfileStore, passphrase []byte, keyMode KeyRotationMode, newProfiles []string) (*EnrollmentResult, error) {
-	// Load existing bundle
-	existingBundle, err := bundleStore.Load(bundleID)
+func (ca *CA) RotateCredential(credentialID string, credentialStore *credential.FileStore, profileStore *profile.ProfileStore, passphrase []byte, keyMode KeyRotationMode, newProfiles []string) (*EnrollmentResult, error) {
+	// Load existing credential
+	existingCredential, err := credentialStore.Load(credentialID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load bundle: %w", err)
+		return nil, fmt.Errorf("failed to load credential: %w", err)
 	}
 
 	// Use new profiles if provided (crypto-agility), otherwise use existing
-	profileNames := existingBundle.Profiles
+	profileNames := existingCredential.Profiles
 	if len(newProfiles) > 0 {
 		profileNames = newProfiles
 	}
 
 	if len(profileNames) == 0 {
-		return nil, fmt.Errorf("no profiles found in bundle or provided")
+		return nil, fmt.Errorf("no profiles found in credential or provided")
 	}
 
 	// Load profiles
@@ -590,21 +590,21 @@ func (ca *CA) RotateCredential(bundleID string, bundleStore *credential.FileStor
 		profiles = append(profiles, prof)
 	}
 
-	// Create new enrollment request from bundle
+	// Create new enrollment request from credential
 	req := EnrollmentRequest{
-		Subject: existingBundle.Subject.ToPkixName(),
+		Subject: existingCredential.Subject.ToPkixName(),
 	}
 
 	var result *EnrollmentResult
 
 	if keyMode == KeyRotateKeep {
 		// Load existing keys to reuse
-		existingSigners, err := bundleStore.LoadKeys(bundleID, passphrase)
+		existingSigners, err := credentialStore.LoadKeys(credentialID, passphrase)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load existing keys: %w", err)
 		}
 		if len(existingSigners) == 0 {
-			return nil, fmt.Errorf("no keys found in bundle for --keep-keys")
+			return nil, fmt.Errorf("no keys found in credential for --keep-keys")
 		}
 
 		// Issue new certificates with existing keys
@@ -624,13 +624,13 @@ func (ca *CA) RotateCredential(bundleID string, bundleStore *credential.FileStor
 		}
 	}
 
-	// Save new bundle
-	if err := bundleStore.Save(result.Bundle, result.Certificates, result.Signers, passphrase); err != nil {
-		return nil, fmt.Errorf("failed to save bundle: %w", err)
+	// Save new credential
+	if err := credentialStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+		return nil, fmt.Errorf("failed to save credential: %w", err)
 	}
 
-	// Mark old bundle as expired (non-fatal if it fails)
-	_ = bundleStore.UpdateStatus(bundleID, credential.StatusExpired, "rotated")
+	// Mark old credential as expired (non-fatal if it fails)
+	_ = credentialStore.UpdateStatus(credentialID, credential.StatusExpired, "rotated")
 
 	return result, nil
 }
@@ -649,8 +649,8 @@ func (ca *CA) rotateWithExistingKeys(req EnrollmentRequest, profiles []*profile.
 		signersByAlg[alg] = append(signersByAlg[alg], s)
 	}
 
-	// Create bundle ID
-	bundleID := generateBundleID(req.Subject.CommonName)
+	// Create credential ID
+	credentialID := generateCredentialID(req.Subject.CommonName)
 
 	// Build profile names
 	profileNames := make([]string, len(profiles))
@@ -658,11 +658,11 @@ func (ca *CA) rotateWithExistingKeys(req EnrollmentRequest, profiles []*profile.
 		profileNames[i] = p.Name
 	}
 
-	// Create bundle
-	b := credential.NewBundle(bundleID, credential.SubjectFromPkixName(req.Subject), profileNames)
+	// Create credential
+	cred := credential.NewCredential(credentialID, credential.SubjectFromPkixName(req.Subject), profileNames)
 
 	result := &EnrollmentResult{
-		Bundle:       b,
+		Credential:   cred,
 		Certificates: make([]*x509.Certificate, 0),
 		Signers:      make([]pkicrypto.Signer, 0),
 	}
@@ -679,7 +679,7 @@ func (ca *CA) rotateWithExistingKeys(req EnrollmentRequest, profiles []*profile.
 		if i == 0 {
 			notBefore = time.Now()
 			notAfter = notBefore.Add(prof.Validity)
-			b.SetValidity(notBefore, notAfter)
+			cred.SetValidity(notBefore, notAfter)
 		}
 
 		// KEM requires a signature certificate first (RFC 9883)
@@ -716,7 +716,7 @@ func (ca *CA) rotateWithExistingKeys(req EnrollmentRequest, profiles []*profile.
 		result.Certificates = append(result.Certificates, cert)
 		result.Signers = append(result.Signers, signers...)
 
-		// Add to bundle
+		// Add to credential
 		role := credential.RoleSignature
 		if prof.IsKEM() {
 			role = credential.RoleEncryption
@@ -733,11 +733,11 @@ func (ca *CA) rotateWithExistingKeys(req EnrollmentRequest, profiles []*profile.
 			ref.RelatedSerial = fmt.Sprintf("0x%X", sigCert.SerialNumber.Bytes())
 		}
 
-		b.AddCertificate(ref)
+		cred.AddCertificate(ref)
 	}
 
-	// Activate bundle
-	b.Activate()
+	// Activate credential
+	cred.Activate()
 
 	return result, nil
 }
@@ -874,16 +874,16 @@ func (ca *CA) issueCompositeCertWithExistingKeys(req EnrollmentRequest, prof *pr
 	return cert, []pkicrypto.Signer{classicalSigner, pqcSigner}, nil
 }
 
-// RevokeBundle revokes all certificates in a credential.
-func (ca *CA) RevokeBundle(bundleID string, reason RevocationReason, bundleStore *credential.FileStore) error {
-	// Load bundle
-	b, err := bundleStore.Load(bundleID)
+// RevokeCredential revokes all certificates in a credential.
+func (ca *CA) RevokeCredential(credentialID string, reason RevocationReason, credentialStore *credential.FileStore) error {
+	// Load credential
+	cred, err := credentialStore.Load(credentialID)
 	if err != nil {
-		return fmt.Errorf("failed to load bundle: %w", err)
+		return fmt.Errorf("failed to load credential: %w", err)
 	}
 
 	// Revoke each certificate by serial number
-	for _, certRef := range b.Certificates {
+	for _, certRef := range cred.Certificates {
 		// Parse serial from hex string (e.g., "0x01" -> big.Int)
 		serial, ok := parseSerialHex(certRef.Serial)
 		if !ok {
@@ -897,9 +897,9 @@ func (ca *CA) RevokeBundle(bundleID string, reason RevocationReason, bundleStore
 		}
 	}
 
-	// Update bundle status
-	if err := bundleStore.UpdateStatus(bundleID, credential.StatusRevoked, reason.String()); err != nil {
-		return fmt.Errorf("failed to update bundle status: %w", err)
+	// Update credential status
+	if err := credentialStore.UpdateStatus(credentialID, credential.StatusRevoked, reason.String()); err != nil {
+		return fmt.Errorf("failed to update credential status: %w", err)
 	}
 
 	return nil

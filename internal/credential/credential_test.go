@@ -16,39 +16,39 @@ import (
 )
 
 // =============================================================================
-// Bundle Tests
+// Credential Tests
 // =============================================================================
 
-func TestNewBundle(t *testing.T) {
+func TestNewCredential(t *testing.T) {
 	subject := Subject{
 		CommonName:   "Test User",
 		Organization: []string{"Test Org"},
 	}
 
-	b := NewBundle("test-bundle-001", subject, []string{"classic"})
+	cred := NewCredential("test-credential-001", subject, []string{"classic"})
 
-	if b.ID != "test-bundle-001" {
-		t.Errorf("expected ID 'test-bundle-001', got '%s'", b.ID)
+	if cred.ID != "test-credential-001" {
+		t.Errorf("expected ID 'test-credential-001', got '%s'", cred.ID)
 	}
-	if b.Subject.CommonName != "Test User" {
-		t.Errorf("expected CommonName 'Test User', got '%s'", b.Subject.CommonName)
+	if cred.Subject.CommonName != "Test User" {
+		t.Errorf("expected CommonName 'Test User', got '%s'", cred.Subject.CommonName)
 	}
-	if len(b.Profiles) != 1 || b.Profiles[0] != "classic" {
-		t.Errorf("expected Profiles ['classic'], got '%v'", b.Profiles)
+	if len(cred.Profiles) != 1 || cred.Profiles[0] != "classic" {
+		t.Errorf("expected Profiles ['classic'], got '%v'", cred.Profiles)
 	}
-	if b.Status != StatusPending {
-		t.Errorf("expected Status StatusPending, got '%s'", b.Status)
+	if cred.Status != StatusPending {
+		t.Errorf("expected Status StatusPending, got '%s'", cred.Status)
 	}
-	if b.Created.IsZero() {
+	if cred.Created.IsZero() {
 		t.Error("Created should not be zero")
 	}
-	if len(b.Certificates) != 0 {
-		t.Errorf("expected 0 certificates, got %d", len(b.Certificates))
+	if len(cred.Certificates) != 0 {
+		t.Errorf("expected 0 certificates, got %d", len(cred.Certificates))
 	}
 }
 
-func TestBundle_AddCertificate(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_AddCertificate(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
 	ref := CertificateRef{
 		Serial:      "0x01",
@@ -57,128 +57,128 @@ func TestBundle_AddCertificate(t *testing.T) {
 		Fingerprint: "ABC123",
 	}
 
-	b.AddCertificate(ref)
+	cred.AddCertificate(ref)
 
-	if len(b.Certificates) != 1 {
-		t.Fatalf("expected 1 certificate, got %d", len(b.Certificates))
+	if len(cred.Certificates) != 1 {
+		t.Fatalf("expected 1 certificate, got %d", len(cred.Certificates))
 	}
-	if b.Certificates[0].Serial != "0x01" {
-		t.Errorf("expected serial '0x01', got '%s'", b.Certificates[0].Serial)
+	if cred.Certificates[0].Serial != "0x01" {
+		t.Errorf("expected serial '0x01', got '%s'", cred.Certificates[0].Serial)
 	}
 }
 
-func TestBundle_SetValidity(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_SetValidity(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 
-	b.SetValidity(notBefore, notAfter)
+	cred.SetValidity(notBefore, notAfter)
 
-	if !b.NotBefore.Equal(notBefore) {
+	if !cred.NotBefore.Equal(notBefore) {
 		t.Errorf("NotBefore mismatch")
 	}
-	if !b.NotAfter.Equal(notAfter) {
+	if !cred.NotAfter.Equal(notAfter) {
 		t.Errorf("NotAfter mismatch")
 	}
 }
 
-func TestBundle_Activate(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_Activate(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
-	if b.Status != StatusPending {
+	if cred.Status != StatusPending {
 		t.Errorf("expected StatusPending before Activate")
 	}
 
-	b.Activate()
+	cred.Activate()
 
-	if b.Status != StatusValid {
-		t.Errorf("expected StatusValid after Activate, got '%s'", b.Status)
+	if cred.Status != StatusValid {
+		t.Errorf("expected StatusValid after Activate, got '%s'", cred.Status)
 	}
 }
 
-func TestBundle_Revoke(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
-	b.Activate()
+func TestCredential_Revoke(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
+	cred.Activate()
 
-	b.Revoke("keyCompromise")
+	cred.Revoke("keyCompromise")
 
-	if b.Status != StatusRevoked {
-		t.Errorf("expected StatusRevoked, got '%s'", b.Status)
+	if cred.Status != StatusRevoked {
+		t.Errorf("expected StatusRevoked, got '%s'", cred.Status)
 	}
-	if b.RevokedAt == nil {
+	if cred.RevokedAt == nil {
 		t.Error("RevokedAt should not be nil")
 	}
-	if b.RevocationReason != "keyCompromise" {
-		t.Errorf("expected reason 'keyCompromise', got '%s'", b.RevocationReason)
+	if cred.RevocationReason != "keyCompromise" {
+		t.Errorf("expected reason 'keyCompromise', got '%s'", cred.RevocationReason)
 	}
 }
 
-func TestBundle_IsValid(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_IsValid(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
 	// Not valid before Activate
-	if b.IsValid() {
+	if cred.IsValid() {
 		t.Error("should not be valid before Activate")
 	}
 
 	// Activate and set validity
-	b.Activate()
-	b.SetValidity(time.Now().Add(-1*time.Hour), time.Now().Add(1*time.Hour))
+	cred.Activate()
+	cred.SetValidity(time.Now().Add(-1*time.Hour), time.Now().Add(1*time.Hour))
 
-	if !b.IsValid() {
+	if !cred.IsValid() {
 		t.Error("should be valid after Activate with current validity")
 	}
 
 	// Test with future validity
-	b.SetValidity(time.Now().Add(1*time.Hour), time.Now().Add(2*time.Hour))
-	if b.IsValid() {
+	cred.SetValidity(time.Now().Add(1*time.Hour), time.Now().Add(2*time.Hour))
+	if cred.IsValid() {
 		t.Error("should not be valid when NotBefore is in the future")
 	}
 }
 
-func TestBundle_IsExpired(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_IsExpired(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
 	// Set past validity
-	b.SetValidity(time.Now().Add(-2*time.Hour), time.Now().Add(-1*time.Hour))
+	cred.SetValidity(time.Now().Add(-2*time.Hour), time.Now().Add(-1*time.Hour))
 
-	if !b.IsExpired() {
+	if !cred.IsExpired() {
 		t.Error("should be expired when NotAfter is in the past")
 	}
 
 	// Set future validity
-	b.SetValidity(time.Now().Add(-1*time.Hour), time.Now().Add(1*time.Hour))
+	cred.SetValidity(time.Now().Add(-1*time.Hour), time.Now().Add(1*time.Hour))
 
-	if b.IsExpired() {
+	if cred.IsExpired() {
 		t.Error("should not be expired when NotAfter is in the future")
 	}
 }
 
-func TestBundle_ContainsCertificate(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_ContainsCertificate(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
-	b.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
-	b.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleEncryption})
+	cred.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
+	cred.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleEncryption})
 
-	if !b.ContainsCertificate("0x01") {
+	if !cred.ContainsCertificate("0x01") {
 		t.Error("should contain certificate 0x01")
 	}
-	if !b.ContainsCertificate("0x02") {
+	if !cred.ContainsCertificate("0x02") {
 		t.Error("should contain certificate 0x02")
 	}
-	if b.ContainsCertificate("0x03") {
+	if cred.ContainsCertificate("0x03") {
 		t.Error("should not contain certificate 0x03")
 	}
 }
 
-func TestBundle_GetCertificateByRole(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_GetCertificateByRole(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
-	b.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
-	b.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleEncryption})
+	cred.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
+	cred.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleEncryption})
 
-	sigRef := b.GetCertificateByRole(RoleSignature)
+	sigRef := cred.GetCertificateByRole(RoleSignature)
 	if sigRef == nil {
 		t.Fatal("expected to find signature certificate")
 	}
@@ -186,7 +186,7 @@ func TestBundle_GetCertificateByRole(t *testing.T) {
 		t.Errorf("expected serial '0x01', got '%s'", sigRef.Serial)
 	}
 
-	encRef := b.GetCertificateByRole(RoleEncryption)
+	encRef := cred.GetCertificateByRole(RoleEncryption)
 	if encRef == nil {
 		t.Fatal("expected to find encryption certificate")
 	}
@@ -194,36 +194,36 @@ func TestBundle_GetCertificateByRole(t *testing.T) {
 		t.Errorf("expected serial '0x02', got '%s'", encRef.Serial)
 	}
 
-	unknownRef := b.GetCertificateByRole(RoleSignaturePQC)
+	unknownRef := cred.GetCertificateByRole(RoleSignaturePQC)
 	if unknownRef != nil {
 		t.Error("should not find non-existent role")
 	}
 }
 
-func TestBundle_SignatureCertificates(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_SignatureCertificates(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
-	b.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
-	b.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleSignatureClassical})
-	b.AddCertificate(CertificateRef{Serial: "0x03", Role: RoleSignaturePQC})
-	b.AddCertificate(CertificateRef{Serial: "0x04", Role: RoleEncryption})
+	cred.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
+	cred.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleSignatureClassical})
+	cred.AddCertificate(CertificateRef{Serial: "0x03", Role: RoleSignaturePQC})
+	cred.AddCertificate(CertificateRef{Serial: "0x04", Role: RoleEncryption})
 
-	sigCerts := b.SignatureCertificates()
+	sigCerts := cred.SignatureCertificates()
 
 	if len(sigCerts) != 3 {
 		t.Errorf("expected 3 signature certificates, got %d", len(sigCerts))
 	}
 }
 
-func TestBundle_EncryptionCertificates(t *testing.T) {
-	b := NewBundle("test", Subject{CommonName: "Test"}, []string{"classic"})
+func TestCredential_EncryptionCertificates(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"}, []string{"classic"})
 
-	b.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
-	b.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleEncryption})
-	b.AddCertificate(CertificateRef{Serial: "0x03", Role: RoleEncryptionClassical})
-	b.AddCertificate(CertificateRef{Serial: "0x04", Role: RoleEncryptionPQC})
+	cred.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
+	cred.AddCertificate(CertificateRef{Serial: "0x02", Role: RoleEncryption})
+	cred.AddCertificate(CertificateRef{Serial: "0x03", Role: RoleEncryptionClassical})
+	cred.AddCertificate(CertificateRef{Serial: "0x04", Role: RoleEncryptionPQC})
 
-	encCerts := b.EncryptionCertificates()
+	encCerts := cred.EncryptionCertificates()
 
 	if len(encCerts) != 3 {
 		t.Errorf("expected 3 encryption certificates, got %d", len(encCerts))
@@ -266,8 +266,8 @@ func TestSubjectFromPkixName(t *testing.T) {
 	}
 }
 
-func TestBundle_JSONMarshalUnmarshal(t *testing.T) {
-	original := NewBundle("test-json", Subject{
+func TestCredential_JSONMarshalUnmarshal(t *testing.T) {
+	original := NewCredential("test-json", Subject{
 		CommonName:   "JSON Test",
 		Organization: []string{"Test Org"},
 	}, []string{"hybrid-catalyst"})
@@ -290,7 +290,7 @@ func TestBundle_JSONMarshalUnmarshal(t *testing.T) {
 	}
 
 	// Unmarshal
-	var loaded Bundle
+	var loaded Credential
 	if err := json.Unmarshal(data, &loaded); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -319,19 +319,19 @@ func TestBundle_JSONMarshalUnmarshal(t *testing.T) {
 	}
 }
 
-func TestBundle_Summary(t *testing.T) {
-	b := NewBundle("test-summary", Subject{CommonName: "Summary Test"}, []string{"classic"})
-	b.Activate()
-	b.SetValidity(time.Now(), time.Now().Add(365*24*time.Hour))
-	b.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
+func TestCredential_Summary(t *testing.T) {
+	cred := NewCredential("test-summary", Subject{CommonName: "Summary Test"}, []string{"classic"})
+	cred.Activate()
+	cred.SetValidity(time.Now(), time.Now().Add(365*24*time.Hour))
+	cred.AddCertificate(CertificateRef{Serial: "0x01", Role: RoleSignature})
 
-	summary := b.Summary()
+	summary := cred.Summary()
 
 	if summary == "" {
 		t.Error("Summary should not be empty")
 	}
 	if !contains(summary, "test-summary") {
-		t.Error("Summary should contain bundle ID")
+		t.Error("Summary should contain credential ID")
 	}
 	if !contains(summary, "Summary Test") {
 		t.Error("Summary should contain subject")
@@ -418,13 +418,13 @@ func TestFileStore_SaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	bundle := NewBundle("test-save", Subject{CommonName: "Save Test"}, []string{"classic"})
-	bundle.Activate()
-	bundle.SetValidity(time.Now(), time.Now().Add(365*24*time.Hour))
+	cred := NewCredential("test-save", Subject{CommonName: "Save Test"}, []string{"classic"})
+	cred.Activate()
+	cred.SetValidity(time.Now(), time.Now().Add(365*24*time.Hour))
 
 	// Generate test certificate
 	cert := generateTestCertificate(t)
-	bundle.AddCertificate(CertificateRef{
+	cred.AddCertificate(CertificateRef{
 		Serial:      "0x01",
 		Role:        RoleSignature,
 		Algorithm:   cert.SignatureAlgorithm.String(),
@@ -432,7 +432,7 @@ func TestFileStore_SaveAndLoad(t *testing.T) {
 	})
 
 	// Save
-	if err := store.Save(bundle, []*x509.Certificate{cert}, nil, nil); err != nil {
+	if err := store.Save(cred, []*x509.Certificate{cert}, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
@@ -442,10 +442,10 @@ func TestFileStore_SaveAndLoad(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if loaded.ID != bundle.ID {
-		t.Errorf("ID mismatch: %s vs %s", loaded.ID, bundle.ID)
+	if loaded.ID != cred.ID {
+		t.Errorf("ID mismatch: %s vs %s", loaded.ID, cred.ID)
 	}
-	if loaded.Subject.CommonName != bundle.Subject.CommonName {
+	if loaded.Subject.CommonName != cred.Subject.CommonName {
 		t.Errorf("Subject mismatch")
 	}
 }
@@ -454,10 +454,10 @@ func TestFileStore_LoadCertificates(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	bundle := NewBundle("test-certs", Subject{CommonName: "Certs Test"}, []string{"classic"})
+	cred := NewCredential("test-certs", Subject{CommonName: "Certs Test"}, []string{"classic"})
 	cert := generateTestCertificate(t)
 
-	if err := store.Save(bundle, []*x509.Certificate{cert}, nil, nil); err != nil {
+	if err := store.Save(cred, []*x509.Certificate{cert}, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
@@ -475,25 +475,25 @@ func TestFileStore_ListAll(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	// Create multiple bundles
+	// Create multiple credentials
 	for i := 1; i <= 3; i++ {
-		b := NewBundle(
-			"bundle-"+string(rune('a'+i-1)),
+		cred := NewCredential(
+			"credential-"+string(rune('a'+i-1)),
 			Subject{CommonName: "Test"},
 			[]string{"classic"},
 		)
-		if err := store.Save(b, nil, nil, nil); err != nil {
+		if err := store.Save(cred, nil, nil, nil); err != nil {
 			t.Fatalf("Save failed: %v", err)
 		}
 	}
 
-	bundles, err := store.ListAll()
+	credentials, err := store.ListAll()
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
 
-	if len(bundles) != 3 {
-		t.Errorf("expected 3 bundles, got %d", len(bundles))
+	if len(credentials) != 3 {
+		t.Errorf("expected 3 credentials, got %d", len(credentials))
 	}
 }
 
@@ -501,14 +501,14 @@ func TestFileStore_List(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	// Create bundles with different subjects
-	b1 := NewBundle("bundle-alice", Subject{CommonName: "Alice"}, []string{"classic"})
-	b2 := NewBundle("bundle-bob", Subject{CommonName: "Bob"}, []string{"classic"})
-	b3 := NewBundle("bundle-alice2", Subject{CommonName: "Alice Smith"}, []string{"classic"})
+	// Create credentials with different subjects
+	cred1 := NewCredential("credential-alice", Subject{CommonName: "Alice"}, []string{"classic"})
+	cred2 := NewCredential("credential-bob", Subject{CommonName: "Bob"}, []string{"classic"})
+	cred3 := NewCredential("credential-alice2", Subject{CommonName: "Alice Smith"}, []string{"classic"})
 
-	_ = store.Save(b1, nil, nil, nil)
-	_ = store.Save(b2, nil, nil, nil)
-	_ = store.Save(b3, nil, nil, nil)
+	_ = store.Save(cred1, nil, nil, nil)
+	_ = store.Save(cred2, nil, nil, nil)
+	_ = store.Save(cred3, nil, nil, nil)
 
 	// List with filter
 	ids, err := store.List("Alice")
@@ -517,7 +517,7 @@ func TestFileStore_List(t *testing.T) {
 	}
 
 	if len(ids) != 2 {
-		t.Errorf("expected 2 bundles matching 'Alice', got %d", len(ids))
+		t.Errorf("expected 2 credentials matching 'Alice', got %d", len(ids))
 	}
 
 	// List all
@@ -527,7 +527,7 @@ func TestFileStore_List(t *testing.T) {
 	}
 
 	if len(allIds) != 3 {
-		t.Errorf("expected 3 bundles, got %d", len(allIds))
+		t.Errorf("expected 3 credentials, got %d", len(allIds))
 	}
 }
 
@@ -535,10 +535,10 @@ func TestFileStore_UpdateStatus(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	bundle := NewBundle("test-status", Subject{CommonName: "Status Test"}, []string{"classic"})
-	bundle.Activate()
+	cred := NewCredential("test-status", Subject{CommonName: "Status Test"}, []string{"classic"})
+	cred.Activate()
 
-	if err := store.Save(bundle, nil, nil, nil); err != nil {
+	if err := store.Save(cred, nil, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
@@ -565,14 +565,14 @@ func TestFileStore_Delete(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	bundle := NewBundle("test-delete", Subject{CommonName: "Delete Test"}, []string{"classic"})
+	cred := NewCredential("test-delete", Subject{CommonName: "Delete Test"}, []string{"classic"})
 
-	if err := store.Save(bundle, nil, nil, nil); err != nil {
+	if err := store.Save(cred, nil, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
 	if !store.Exists("test-delete") {
-		t.Error("bundle should exist after save")
+		t.Error("credential should exist after save")
 	}
 
 	if err := store.Delete("test-delete"); err != nil {
@@ -580,7 +580,7 @@ func TestFileStore_Delete(t *testing.T) {
 	}
 
 	if store.Exists("test-delete") {
-		t.Error("bundle should not exist after delete")
+		t.Error("credential should not exist after delete")
 	}
 }
 
@@ -589,14 +589,14 @@ func TestFileStore_Exists(t *testing.T) {
 	store := NewFileStore(tmpDir)
 
 	if store.Exists("nonexistent") {
-		t.Error("should return false for nonexistent bundle")
+		t.Error("should return false for nonexistent credential")
 	}
 
-	bundle := NewBundle("test-exists", Subject{CommonName: "Exists Test"}, []string{"classic"})
-	_ = store.Save(bundle, nil, nil, nil)
+	cred := NewCredential("test-exists", Subject{CommonName: "Exists Test"}, []string{"classic"})
+	_ = store.Save(cred, nil, nil, nil)
 
 	if !store.Exists("test-exists") {
-		t.Error("should return true for existing bundle")
+		t.Error("should return true for existing credential")
 	}
 }
 
@@ -606,7 +606,7 @@ func TestFileStore_Load_NotFound(t *testing.T) {
 
 	_, err := store.Load("nonexistent")
 	if err == nil {
-		t.Error("expected error for nonexistent bundle")
+		t.Error("expected error for nonexistent credential")
 	}
 }
 
@@ -614,7 +614,7 @@ func TestFileStore_BasePath(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	expected := filepath.Join(tmpDir, "bundles")
+	expected := filepath.Join(tmpDir, "credentials")
 	if store.BasePath() != expected {
 		t.Errorf("expected basePath '%s', got '%s'", expected, store.BasePath())
 	}
@@ -624,11 +624,11 @@ func TestFileStore_Init(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	bundlesDir := filepath.Join(tmpDir, "bundles")
+	credentialsDir := filepath.Join(tmpDir, "credentials")
 
 	// Directory shouldn't exist yet
-	if _, err := os.Stat(bundlesDir); !os.IsNotExist(err) {
-		t.Error("bundles directory should not exist before Init")
+	if _, err := os.Stat(credentialsDir); !os.IsNotExist(err) {
+		t.Error("credentials directory should not exist before Init")
 	}
 
 	if err := store.Init(); err != nil {
@@ -636,8 +636,8 @@ func TestFileStore_Init(t *testing.T) {
 	}
 
 	// Directory should exist now
-	if _, err := os.Stat(bundlesDir); err != nil {
-		t.Error("bundles directory should exist after Init")
+	if _, err := os.Stat(credentialsDir); err != nil {
+		t.Error("credentials directory should exist after Init")
 	}
 }
 
@@ -645,13 +645,13 @@ func TestFileStore_ListAll_EmptyDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	bundles, err := store.ListAll()
+	credentials, err := store.ListAll()
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
 
-	if len(bundles) != 0 {
-		t.Errorf("expected 0 bundles for empty directory, got %d", len(bundles))
+	if len(credentials) != 0 {
+		t.Errorf("expected 0 credentials for empty directory, got %d", len(credentials))
 	}
 }
 
@@ -679,10 +679,10 @@ func TestCertificateRefFromCert(t *testing.T) {
 }
 
 // =============================================================================
-// GenerateBundleID Tests
+// GenerateCredentialID Tests
 // =============================================================================
 
-func TestGenerateBundleID(t *testing.T) {
+func TestGenerateCredentialID(t *testing.T) {
 	tests := []struct {
 		name     string
 		cn       string
@@ -693,14 +693,14 @@ func TestGenerateBundleID(t *testing.T) {
 		{"email style", "alice@example.com", "alice-example-com"},
 		{"uppercase", "ALICE", "alice"},
 		{"with numbers", "User123", "user123"},
-		{"empty", "", "bundle"},
+		{"empty", "", "cred"},
 		{"special chars", "User!@#$%^&*()", "user"},
 		{"long name", "This Is A Very Long Common Name That Exceeds The Limit", "this-is-a-very-long-"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id := GenerateBundleID(tt.cn)
+			id := GenerateCredentialID(tt.cn)
 
 			// Check format: {slug}-{YYYYMMDD}-{hash}
 			parts := strings.Split(id, "-")
@@ -729,11 +729,11 @@ func TestGenerateBundleID(t *testing.T) {
 	}
 }
 
-func TestGenerateBundleID_Unique(t *testing.T) {
+func TestGenerateCredentialID_Unique(t *testing.T) {
 	// Generate multiple IDs and ensure they're unique
 	ids := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		id := GenerateBundleID("Test")
+		id := GenerateCredentialID("Test")
 		if ids[id] {
 			t.Errorf("duplicate ID generated: %s", id)
 		}

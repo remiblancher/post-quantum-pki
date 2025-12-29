@@ -393,30 +393,30 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 
 	// Override credential ID if custom one provided
 	if credEnrollID != "" {
-		result.Bundle.ID = credEnrollID
+		result.Credential.ID = credEnrollID
 	}
 
 	// Save credential
 	credStore := credential.NewFileStore(caDir)
 	passphrase := []byte(credPassphrase)
-	if err := credStore.Save(result.Bundle, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
 	// Output
 	fmt.Println("Credential created successfully!")
 	fmt.Println()
-	fmt.Printf("Credential ID: %s\n", result.Bundle.ID)
-	fmt.Printf("Subject:   %s\n", result.Bundle.Subject.CommonName)
-	fmt.Printf("Profiles:  %s\n", strings.Join(result.Bundle.Profiles, ", "))
+	fmt.Printf("Credential ID: %s\n", result.Credential.ID)
+	fmt.Printf("Subject:   %s\n", result.Credential.Subject.CommonName)
+	fmt.Printf("Profiles:  %s\n", strings.Join(result.Credential.Profiles, ", "))
 	fmt.Printf("Valid:     %s to %s\n",
-		result.Bundle.NotBefore.Format("2006-01-02"),
-		result.Bundle.NotAfter.Format("2006-01-02"))
+		result.Credential.NotBefore.Format("2006-01-02"),
+		result.Credential.NotAfter.Format("2006-01-02"))
 	fmt.Println()
 
 	fmt.Println("Certificates:")
 	for i := range result.Certificates {
-		ref := result.Bundle.Certificates[i]
+		ref := result.Credential.Certificates[i]
 		fmt.Printf("  [%d] %s (%s) - Serial: %s\n", i+1, ref.Algorithm, ref.Role, ref.Serial)
 		if ref.Profile != "" {
 			fmt.Printf("      Profile: %s\n", ref.Profile)
@@ -605,15 +605,15 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Credential %s successfully (%s)!\n", action, keyInfo)
 	fmt.Println()
 	fmt.Printf("Old credential: %s (now expired)\n", credID)
-	fmt.Printf("New credential: %s\n", result.Bundle.ID)
+	fmt.Printf("New credential: %s\n", result.Credential.ID)
 	fmt.Printf("Valid:          %s to %s\n",
-		result.Bundle.NotBefore.Format("2006-01-02"),
-		result.Bundle.NotAfter.Format("2006-01-02"))
+		result.Credential.NotBefore.Format("2006-01-02"),
+		result.Credential.NotAfter.Format("2006-01-02"))
 	fmt.Println()
 
 	fmt.Println("New certificates:")
 	for i := range result.Certificates {
-		ref := result.Bundle.Certificates[i]
+		ref := result.Credential.Certificates[i]
 		fmt.Printf("  [%d] %s (%s) - Serial: %s\n", i+1, ref.Algorithm, ref.Role, ref.Serial)
 	}
 
@@ -678,7 +678,7 @@ func runCredRevoke(cmd *cobra.Command, args []string) error {
 	reason := parseRevocationReason(credRevokeReason)
 
 	// Revoke
-	if err := caInstance.RevokeBundle(credID, reason, credStore); err != nil {
+	if err := caInstance.RevokeCredential(credID, reason, credStore); err != nil {
 		return fmt.Errorf("failed to revoke credential: %w", err)
 	}
 
@@ -814,33 +814,33 @@ func runCredImport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("private key does not match certificate")
 	}
 
-	// Create bundle
-	bundleID := credImportID
-	if bundleID == "" {
-		bundleID = credential.GenerateBundleID(cert.Subject.CommonName)
+	// Create credential
+	credentialID := credImportID
+	if credentialID == "" {
+		credentialID = credential.GenerateCredentialID(cert.Subject.CommonName)
 	}
 
 	subject := credential.SubjectFromCertificate(cert)
-	bundle := credential.NewBundle(bundleID, subject, []string{"imported"})
-	bundle.SetValidity(cert.NotBefore, cert.NotAfter)
-	bundle.Activate()
-	bundle.Metadata["source"] = "imported"
-	bundle.Metadata["original_issuer"] = cert.Issuer.CommonName
+	cred := credential.NewCredential(credentialID, subject, []string{"imported"})
+	cred.SetValidity(cert.NotBefore, cert.NotAfter)
+	cred.Activate()
+	cred.Metadata["source"] = "imported"
+	cred.Metadata["original_issuer"] = cert.Issuer.CommonName
 
 	// Add certificate reference
 	certRef := credential.CertificateRefFromCert(cert, credential.RoleSignature, false, "")
 	certRef.Profile = "imported"
-	bundle.AddCertificate(certRef)
+	cred.AddCertificate(certRef)
 
 	// Save to store
 	credStore := credential.NewFileStore(caDir)
-	if err := credStore.Save(bundle, certs, []pkicrypto.Signer{signer}, passphrase); err != nil {
+	if err := credStore.Save(cred, certs, []pkicrypto.Signer{signer}, passphrase); err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
 	fmt.Println("Credential imported successfully!")
 	fmt.Println()
-	fmt.Printf("Credential ID: %s\n", bundle.ID)
+	fmt.Printf("Credential ID: %s\n", cred.ID)
 	fmt.Printf("Subject:       %s\n", cert.Subject.CommonName)
 	fmt.Printf("Issuer:        %s\n", cert.Issuer.CommonName)
 	fmt.Printf("Valid:         %s to %s\n",

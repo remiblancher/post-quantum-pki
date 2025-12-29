@@ -362,9 +362,9 @@ ca/
 │   ├── classic.yaml
 │   ├── hybrid-catalyst.yaml
 │   └── ...
-├── bundles/         # Certificate credentials
+├── credentials/     # Certificate credentials
 │   └── <credential-id>/
-│       ├── bundle.json
+│       ├── credential.json
 │       ├── certificates.pem
 │       └── private-keys.pem
 ├── index.txt        # Certificate database

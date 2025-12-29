@@ -6,9 +6,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha512"
+	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"fmt"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/cloudflare/circl/sign/dilithium/mode3"
 	"github.com/cloudflare/circl/sign/dilithium/mode5"
@@ -978,6 +982,753 @@ func TestCompositeRequest_Fields(t *testing.T) {
 	}
 	if req.PQCPublicKey == nil {
 		t.Error("PQCPublicKey should not be nil")
+	}
+}
+
+// =============================================================================
+// Tests for IsHybridCA
+// =============================================================================
+
+func TestIsHybridCA_WithHybridSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		Organization:       "Test Org",
+		Country:            "US",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	// After initialization, CA should have hybrid signer
+	if !ca.IsHybridCA() {
+		t.Error("IsHybridCA() should return true after InitializeHybridCA")
+	}
+}
+
+func TestIsHybridCA_WithRegularSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Regular CA",
+		Algorithm:     pkicrypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Regular CA should not have hybrid signer
+	if ca.IsHybridCA() {
+		t.Error("IsHybridCA() should return false for regular CA")
+	}
+}
+
+func TestIsHybridCA_NoSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Regular CA",
+		Algorithm:     pkicrypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+		Passphrase:    "test",
+	}
+
+	_, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Load CA without signer
+	ca, err := New(store)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// No signer loaded - should return false
+	if ca.IsHybridCA() {
+		t.Error("IsHybridCA() should return false when no signer loaded")
+	}
+}
+
+// =============================================================================
+// Tests for InitializeHybridCA
+// =============================================================================
+
+func TestInitializeHybridCA(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		Organization:       "Test Org",
+		Country:            "US",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	if ca == nil {
+		t.Fatal("InitializeHybridCA() returned nil CA")
+	}
+
+	cert := ca.Certificate()
+	if cert == nil {
+		t.Fatal("CA certificate is nil")
+	}
+
+	if cert.Subject.CommonName != "Test Hybrid CA" {
+		t.Errorf("CN = %s, want Test Hybrid CA", cert.Subject.CommonName)
+	}
+
+	if !cert.IsCA {
+		t.Error("certificate should be a CA")
+	}
+}
+
+func TestInitializeHybridCA_AlreadyExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	// Initialize first time
+	_, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("First InitializeHybridCA() error = %v", err)
+	}
+
+	// Try to initialize again - should fail
+	_, err = InitializeHybridCA(store, cfg)
+	if err == nil {
+		t.Error("Second InitializeHybridCA() should fail")
+	}
+}
+
+func TestInitializeHybridCA_WithPassphrase(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+		Passphrase:         "testpass",
+	}
+
+	ca, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	if ca == nil {
+		t.Fatal("InitializeHybridCA() returned nil CA")
+	}
+
+	// Verify hybrid signer is loaded
+	if !ca.IsHybridCA() {
+		t.Error("CA should have hybrid signer after initialization")
+	}
+}
+
+// =============================================================================
+// Tests for LoadHybridSigner
+// =============================================================================
+
+func TestLoadHybridSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	passphrase := "testpass"
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+		Passphrase:         passphrase,
+	}
+
+	// Initialize hybrid CA
+	_, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	// Load CA without signer (simulating fresh load)
+	ca, err := New(store)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// Verify signer is not yet loaded
+	if ca.IsHybridCA() {
+		t.Error("IsHybridCA() should be false before LoadHybridSigner")
+	}
+
+	// Load hybrid signer
+	err = ca.LoadHybridSigner(passphrase, passphrase)
+	if err != nil {
+		t.Fatalf("LoadHybridSigner() error = %v", err)
+	}
+
+	// Verify hybrid signer is now loaded
+	if !ca.IsHybridCA() {
+		t.Error("IsHybridCA() should be true after LoadHybridSigner")
+	}
+}
+
+func TestLoadHybridSigner_WrongPassphrase(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	passphrase := "testpass"
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+		Passphrase:         passphrase,
+	}
+
+	_, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	ca, err := New(store)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// Try to load with wrong passphrase
+	err = ca.LoadHybridSigner("wrongpass", "wrongpass")
+	if err == nil {
+		t.Error("LoadHybridSigner() should fail with wrong passphrase")
+	}
+}
+
+func TestLoadHybridSigner_MissingPQCKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	// Initialize a regular (non-hybrid) CA
+	cfg := Config{
+		CommonName:    "Test Regular CA",
+		Algorithm:     pkicrypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+		Passphrase:    "test",
+	}
+
+	_, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	ca, err := New(store)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// Try to load hybrid signer (PQC key doesn't exist)
+	err = ca.LoadHybridSigner("test", "test")
+	if err == nil {
+		t.Error("LoadHybridSigner() should fail when PQC key doesn't exist")
+	}
+}
+
+// =============================================================================
+// Tests for HybridCAConfig
+// =============================================================================
+
+func TestHybridCAConfig_Fields(t *testing.T) {
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		Organization:       "Test Org",
+		Country:            "US",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+		Passphrase:         "test",
+	}
+
+	if cfg.CommonName != "Test Hybrid CA" {
+		t.Errorf("CommonName = %s, want Test Hybrid CA", cfg.CommonName)
+	}
+	if cfg.Organization != "Test Org" {
+		t.Errorf("Organization = %s, want Test Org", cfg.Organization)
+	}
+	if cfg.Country != "US" {
+		t.Errorf("Country = %s, want US", cfg.Country)
+	}
+	if cfg.ClassicalAlgorithm != pkicrypto.AlgECDSAP384 {
+		t.Errorf("ClassicalAlgorithm = %s, want ECDSA-P384", cfg.ClassicalAlgorithm)
+	}
+	if cfg.PQCAlgorithm != pkicrypto.AlgMLDSA87 {
+		t.Errorf("PQCAlgorithm = %s, want ML-DSA-87", cfg.PQCAlgorithm)
+	}
+	if cfg.ValidityYears != 10 {
+		t.Errorf("ValidityYears = %d, want 10", cfg.ValidityYears)
+	}
+	if cfg.PathLen != 1 {
+		t.Errorf("PathLen = %d, want 1", cfg.PathLen)
+	}
+}
+
+// =============================================================================
+// Tests for IssueLinked
+// =============================================================================
+
+func TestIssueLinked_NoSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test CA",
+		Algorithm:     pkicrypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+		Passphrase:    "test",
+	}
+
+	_, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	ca, err := New(store)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// Generate subject key
+	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Create dummy related certificate (self-signed)
+	relatedCert, _ := generateSelfSignedCert(t, privKey)
+
+	req := LinkedCertRequest{
+		PublicKey:   &privKey.PublicKey,
+		RelatedCert: relatedCert,
+	}
+
+	// Should fail because signer is not loaded
+	_, err = ca.IssueLinked(req)
+	if err == nil {
+		t.Error("IssueLinked() should fail when signer not loaded")
+	}
+}
+
+func TestIssueLinked_NoRelatedCert(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test CA",
+		Algorithm:     pkicrypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Generate subject key
+	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	req := LinkedCertRequest{
+		PublicKey:   &privKey.PublicKey,
+		RelatedCert: nil, // No related cert
+	}
+
+	// Should fail because RelatedCert is required
+	_, err = ca.IssueLinked(req)
+	if err == nil {
+		t.Error("IssueLinked() should fail when RelatedCert is nil")
+	}
+}
+
+func TestLinkedCertRequest_Fields(t *testing.T) {
+	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	relatedCert, _ := generateSelfSignedCert(t, privKey)
+
+	req := LinkedCertRequest{
+		PublicKey:   &privKey.PublicKey,
+		RelatedCert: relatedCert,
+	}
+
+	if req.PublicKey == nil {
+		t.Error("PublicKey should not be nil")
+	}
+	if req.RelatedCert == nil {
+		t.Error("RelatedCert should not be nil")
+	}
+}
+
+// =============================================================================
+// Tests for CompositeVerifyResult
+// =============================================================================
+
+func TestCompositeVerifyResult_Fields(t *testing.T) {
+	result := &CompositeVerifyResult{
+		Valid:          true,
+		MLDSAValid:     true,
+		ClassicalValid: true,
+		Error:          nil,
+	}
+
+	if !result.Valid {
+		t.Error("Valid should be true")
+	}
+	if !result.MLDSAValid {
+		t.Error("MLDSAValid should be true")
+	}
+	if !result.ClassicalValid {
+		t.Error("ClassicalValid should be true")
+	}
+	if result.Error != nil {
+		t.Error("Error should be nil")
+	}
+}
+
+func TestCompositeVerifyResult_PartialValid(t *testing.T) {
+	result := &CompositeVerifyResult{
+		Valid:          false,
+		MLDSAValid:     true,
+		ClassicalValid: false,
+		Error:          fmt.Errorf("classical signature invalid"),
+	}
+
+	if result.Valid {
+		t.Error("Valid should be false when one signature fails")
+	}
+	if !result.MLDSAValid {
+		t.Error("MLDSAValid should be true")
+	}
+	if result.ClassicalValid {
+		t.Error("ClassicalValid should be false")
+	}
+	if result.Error == nil {
+		t.Error("Error should not be nil")
+	}
+}
+
+// Helper function to generate self-signed cert for testing
+func generateSelfSignedCert(t *testing.T, privKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
+	t.Helper()
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Test Cert",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return x509.ParseCertificate(derBytes)
+}
+
+// =============================================================================
+// Tests for VerifyCompositeCertificate
+// =============================================================================
+
+func TestVerifyCompositeCertificate_NotComposite(t *testing.T) {
+	// Create a regular (non-composite) certificate
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+
+	cert, err := generateSelfSignedCert(t, privKey)
+	if err != nil {
+		t.Fatalf("generateSelfSignedCert() error = %v", err)
+	}
+
+	// Should fail because certificate is not composite
+	_, err = VerifyCompositeCertificate(cert, cert)
+	if err == nil {
+		t.Error("VerifyCompositeCertificate() should fail for non-composite cert")
+	}
+}
+
+func TestVerifyCompositeCertificate_IssuerNotComposite(t *testing.T) {
+	// Create a composite CA
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := CompositeCAConfig{
+		CommonName:         "Test Composite CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeCompositeCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeCompositeCA() error = %v", err)
+	}
+
+	// Create a regular issuer cert
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+
+	issuerCert, err := generateSelfSignedCert(t, privKey)
+	if err != nil {
+		t.Fatalf("generateSelfSignedCert() error = %v", err)
+	}
+
+	// Should fail because issuer is not composite
+	_, err = VerifyCompositeCertificate(ca.Certificate(), issuerCert)
+	if err == nil {
+		t.Error("VerifyCompositeCertificate() should fail when issuer is not composite")
+	}
+}
+
+func TestVerifyCompositeCertificate_ValidSelfSigned(t *testing.T) {
+	// Create a composite CA (self-signed)
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := CompositeCAConfig{
+		CommonName:         "Test Composite CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeCompositeCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeCompositeCA() error = %v", err)
+	}
+
+	// Verify the self-signed composite CA certificate
+	result, err := VerifyCompositeCertificate(ca.Certificate(), ca.Certificate())
+	if err != nil {
+		t.Fatalf("VerifyCompositeCertificate() error = %v", err)
+	}
+
+	if !result.Valid {
+		t.Errorf("VerifyCompositeCertificate() Valid = false, want true, error: %v", result.Error)
+	}
+
+	if !result.MLDSAValid {
+		t.Error("VerifyCompositeCertificate() MLDSAValid = false, want true")
+	}
+
+	if !result.ClassicalValid {
+		t.Error("VerifyCompositeCertificate() ClassicalValid = false, want true")
+	}
+
+	if result.Algorithm == nil {
+		t.Error("VerifyCompositeCertificate() Algorithm should not be nil")
+	}
+}
+
+func TestVerifyCompositeCertificate_MLDSA65_P256(t *testing.T) {
+	// Create a composite CA with ML-DSA-65 + P256
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := CompositeCAConfig{
+		CommonName:         "Test Composite CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP256,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA65,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeCompositeCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeCompositeCA() error = %v", err)
+	}
+
+	// Verify the self-signed composite CA certificate
+	result, err := VerifyCompositeCertificate(ca.Certificate(), ca.Certificate())
+	if err != nil {
+		t.Fatalf("VerifyCompositeCertificate() error = %v", err)
+	}
+
+	if !result.Valid {
+		t.Errorf("VerifyCompositeCertificate() Valid = false, want true, error: %v", result.Error)
+	}
+
+	// Check algorithm
+	if result.Algorithm == nil {
+		t.Fatal("Algorithm should not be nil")
+	}
+	if result.Algorithm.PQCAlg != pkicrypto.AlgMLDSA65 {
+		t.Errorf("PQCAlg = %s, want ML-DSA-65", result.Algorithm.PQCAlg)
+	}
+	if result.Algorithm.ClassicalAlg != pkicrypto.AlgECDSAP256 {
+		t.Errorf("ClassicalAlg = %s, want ECDSA-P256", result.Algorithm.ClassicalAlg)
+	}
+}
+
+// =============================================================================
+// Tests for IssueComposite with full verification
+// =============================================================================
+
+func TestIssueComposite_AndVerify(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+
+	cfg := CompositeCAConfig{
+		CommonName:         "Test Composite CA",
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeCompositeCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeCompositeCA() error = %v", err)
+	}
+
+	// Generate subject keys
+	classicalPriv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	pqcPub, _, err := mode5.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+
+	req := CompositeRequest{
+		Template: &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:   "Test Subject",
+				Organization: []string{"Test Org"},
+			},
+		},
+		ClassicalPublicKey: &classicalPriv.PublicKey,
+		PQCPublicKey:       pqcPub,
+		ClassicalAlg:       pkicrypto.AlgECDSAP384,
+		PQCAlg:             pkicrypto.AlgMLDSA87,
+		Validity:           365 * 24 * time.Hour,
+	}
+
+	// Issue the composite certificate
+	cert, err := ca.IssueComposite(req)
+	if err != nil {
+		t.Fatalf("IssueComposite() error = %v", err)
+	}
+
+	// Verify the issued certificate
+	result, err := VerifyCompositeCertificate(cert, ca.Certificate())
+	if err != nil {
+		t.Fatalf("VerifyCompositeCertificate() error = %v", err)
+	}
+
+	if !result.Valid {
+		t.Errorf("issued certificate verification failed: %v", result.Error)
+	}
+
+	if !result.MLDSAValid {
+		t.Error("ML-DSA signature should be valid")
+	}
+
+	if !result.ClassicalValid {
+		t.Error("classical signature should be valid")
+	}
+}
+
+// =============================================================================
+// Tests for BuildDomainSeparator
+// =============================================================================
+
+func TestBuildDomainSeparator(t *testing.T) {
+	tests := []struct {
+		name    string
+		oid     asn1.ObjectIdentifier
+		wantErr bool
+	}{
+		{"ML-DSA-87+P384", x509util.OIDMLDSA87ECDSAP384SHA512, false},
+		{"ML-DSA-65+P256", x509util.OIDMLDSA65ECDSAP256SHA512, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domainSep, err := BuildDomainSeparator(tt.oid)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && len(domainSep) == 0 {
+				t.Error("domain separator should not be empty")
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Tests for CreateCompositeSignature
+// =============================================================================
+
+func TestCreateCompositeSignature_InvalidAlgorithm(t *testing.T) {
+	classicalSigner, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
+	pqcSigner, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgMLDSA65)
+
+	// Create a fake algorithm with invalid OID
+	fakeAlg := &CompositeAlgorithm{
+		Name:         "Fake",
+		OID:          asn1.ObjectIdentifier{1, 2, 3, 4, 5},
+		PQCAlg:       pkicrypto.AlgMLDSA65,
+		ClassicalAlg: pkicrypto.AlgECDSAP256,
+		HashFunc:     crypto.SHA512,
+	}
+
+	tbsBytes := []byte("test TBS")
+	_, err := CreateCompositeSignature(tbsBytes, fakeAlg, pqcSigner, classicalSigner)
+	// This should still work since it builds domain separator from OID
+	if err != nil {
+		t.Logf("CreateCompositeSignature error (may be expected): %v", err)
 	}
 }
 

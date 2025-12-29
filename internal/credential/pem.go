@@ -208,8 +208,8 @@ func classicalKeyInfo(priv crypto.PrivateKey) (pkicrypto.AlgorithmID, crypto.Pub
 	}
 }
 
-// SaveBundlePEM saves a bundle's certificates and keys to PEM files.
-func SaveBundlePEM(certsPath, keysPath string, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
+// SaveCredentialPEM saves a credential's certificates and keys to PEM files.
+func SaveCredentialPEM(certsPath, keysPath string, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
 	// Save certificates
 	certsPEM, err := EncodeCertificatesPEM(certs)
 	if err != nil {
@@ -235,8 +235,8 @@ func SaveBundlePEM(certsPath, keysPath string, certs []*x509.Certificate, signer
 	return nil
 }
 
-// LoadBundlePEM loads certificates and keys from PEM files.
-func LoadBundlePEM(certsPath, keysPath string, passphrase []byte) ([]*x509.Certificate, []pkicrypto.Signer, error) {
+// LoadCredentialPEM loads certificates and keys from PEM files.
+func LoadCredentialPEM(certsPath, keysPath string, passphrase []byte) ([]*x509.Certificate, []pkicrypto.Signer, error) {
 	// Load certificates
 	certsData, err := os.ReadFile(certsPath)
 	if err != nil {

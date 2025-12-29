@@ -25,7 +25,7 @@ var issueCmd = &cobra.Command{
 	Long: `Issue a new certificate from a Certificate Signing Request (CSR).
 
 This command requires a CSR file (--csr). For direct issuance with
-automatic key generation, use 'pki bundle enroll' instead.
+automatic key generation, use 'pki credential enroll' instead.
 
 Profiles are organized by category:
   ec/          - ECDSA profiles (modern classical)

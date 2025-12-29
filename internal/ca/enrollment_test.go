@@ -69,8 +69,8 @@ func TestCA_Enroll_Simple(t *testing.T) {
 	if result == nil {
 		t.Fatal("Enroll() returned nil result")
 	}
-	if result.Bundle == nil {
-		t.Error("Enroll() result has nil Bundle")
+	if result.Credential == nil {
+		t.Error("Enroll() result has nil Credential")
 	}
 	if len(result.Certificates) != 1 {
 		t.Errorf("Enroll() returned %d certificates, want 1", len(result.Certificates))
@@ -186,8 +186,8 @@ func TestCA_EnrollWithProfile_Simple(t *testing.T) {
 		t.Fatalf("EnrollWithProfile() error = %v", err)
 	}
 
-	if result.Bundle == nil {
-		t.Error("EnrollWithProfile() result has nil Bundle")
+	if result.Credential == nil {
+		t.Error("EnrollWithProfile() result has nil Credential")
 	}
 	if len(result.Certificates) != 1 {
 		t.Errorf("EnrollWithProfile() returned %d certificates, want 1", len(result.Certificates))
@@ -196,9 +196,9 @@ func TestCA_EnrollWithProfile_Simple(t *testing.T) {
 		t.Errorf("EnrollWithProfile() returned %d signers, want 1", len(result.Signers))
 	}
 
-	// Verify bundle is activated (status may be "valid" or "active" depending on implementation)
-	if result.Bundle.Status != "valid" && result.Bundle.Status != "active" {
-		t.Errorf("Bundle status = %s, want valid or active", result.Bundle.Status)
+	// Verify credential is activated (status may be "valid" or "active" depending on implementation)
+	if result.Credential.Status != "valid" && result.Credential.Status != "active" {
+		t.Errorf("Credential status = %s, want valid or active", result.Credential.Status)
 	}
 }
 
@@ -273,8 +273,8 @@ func TestCA_EnrollMulti_SingleProfile(t *testing.T) {
 		t.Fatalf("EnrollMulti() error = %v", err)
 	}
 
-	if result.Bundle == nil {
-		t.Error("EnrollMulti() result has nil Bundle")
+	if result.Credential == nil {
+		t.Error("EnrollMulti() result has nil Credential")
 	}
 	if len(result.Certificates) != 1 {
 		t.Errorf("EnrollMulti() returned %d certificates, want 1", len(result.Certificates))
@@ -351,29 +351,29 @@ func TestCA_EnrollMulti_NoSigner(t *testing.T) {
 // Helper Function Tests
 // =============================================================================
 
-func TestGenerateBundleID(t *testing.T) {
+func TestGenerateCredentialID(t *testing.T) {
 	// Test with regular common name
-	id1 := generateBundleID("Test User")
+	id1 := generateCredentialID("Test User")
 	if id1 == "" {
-		t.Error("generateBundleID() returned empty string")
+		t.Error("generateCredentialID() returned empty string")
 	}
 
 	// Test with common name that needs cleaning
-	id2 := generateBundleID("Test.User@example.com")
+	id2 := generateCredentialID("Test.User@example.com")
 	if id2 == "" {
-		t.Error("generateBundleID() returned empty string for email")
+		t.Error("generateCredentialID() returned empty string for email")
 	}
 
 	// Test with long common name (should be truncated)
-	id3 := generateBundleID("VeryLongCommonNameThatExceedsSixteenCharacters")
+	id3 := generateCredentialID("VeryLongCommonNameThatExceedsSixteenCharacters")
 	if id3 == "" {
-		t.Error("generateBundleID() returned empty string for long name")
+		t.Error("generateCredentialID() returned empty string for long name")
 	}
 
 	// Two calls should generate different IDs (due to random suffix)
-	id4 := generateBundleID("Test User")
+	id4 := generateCredentialID("Test User")
 	if id1 == id4 {
-		t.Log("Warning: two calls to generateBundleID may occasionally produce the same ID (rare)")
+		t.Log("Warning: two calls to generateCredentialID may occasionally produce the same ID (rare)")
 	}
 }
 
@@ -543,8 +543,8 @@ func TestCA_EnrollWithCompiledProfile_Simple(t *testing.T) {
 		t.Fatalf("EnrollWithCompiledProfile() error = %v", err)
 	}
 
-	if result.Bundle == nil {
-		t.Error("EnrollWithCompiledProfile() result has nil Bundle")
+	if result.Credential == nil {
+		t.Error("EnrollWithCompiledProfile() result has nil Credential")
 	}
 	if len(result.Certificates) != 1 {
 		t.Errorf("EnrollWithCompiledProfile() returned %d certificates, want 1", len(result.Certificates))

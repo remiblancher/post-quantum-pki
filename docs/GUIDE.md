@@ -621,8 +621,8 @@ Credentials group related certificates with a **coupled lifecycle** - all certif
 ### 3.1 Credential Structure
 
 ```
-bundles/<credential-id>/
-├── bundle.json           # Metadata (status, certificates, validity)
+credentials/<credential-id>/
+├── credential.json       # Metadata (status, certificates, validity)
 ├── certificates.pem      # All certificates (PEM, concatenated)
 └── private-keys.pem      # All private keys (PEM, encrypted)
 ```
