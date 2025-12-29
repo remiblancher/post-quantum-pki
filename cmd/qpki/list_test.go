@@ -219,8 +219,8 @@ func TestCertList_WithRevokedCert(t *testing.T) {
 	assertNoError(t, err)
 
 	// Find the credential ID
-	bundlesDir := caDir + "/bundles"
-	entries, _ := filepath.Glob(bundlesDir + "/*")
+	credentialsDir := caDir + "/credentials"
+	entries, _ := filepath.Glob(credentialsDir + "/*")
 	if len(entries) == 0 {
 		t.Fatal("no credential found")
 	}
@@ -272,8 +272,8 @@ func TestCertList_WithRevokedFilteredByValid(t *testing.T) {
 	)
 
 	// Find and revoke the second credential
-	bundlesDir := caDir + "/bundles"
-	entries, _ := filepath.Glob(bundlesDir + "/*")
+	credentialsDir := caDir + "/credentials"
+	entries, _ := filepath.Glob(credentialsDir + "/*")
 	if len(entries) >= 2 {
 		credID := filepath.Base(entries[1])
 		resetCredentialFlags()
@@ -325,8 +325,8 @@ func TestCertList_VerboseWithRevoked(t *testing.T) {
 	)
 	assertNoError(t, err)
 
-	bundlesDir := caDir + "/bundles"
-	entries, _ := filepath.Glob(bundlesDir + "/*")
+	credentialsDir := caDir + "/credentials"
+	entries, _ := filepath.Glob(credentialsDir + "/*")
 	if len(entries) > 0 {
 		credID := filepath.Base(entries[0])
 		resetCredentialFlags()

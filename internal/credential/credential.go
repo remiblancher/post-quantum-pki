@@ -22,24 +22,24 @@ import (
 	"time"
 )
 
-// Status represents the status of a bundle.
+// Status represents the status of a credential.
 type Status string
 
 const (
-	// StatusValid indicates the bundle is active and valid.
+	// StatusValid indicates the credential is active and valid.
 	StatusValid Status = "valid"
 
-	// StatusRevoked indicates the bundle has been revoked.
+	// StatusRevoked indicates the credential has been revoked.
 	StatusRevoked Status = "revoked"
 
-	// StatusExpired indicates the bundle has expired.
+	// StatusExpired indicates the credential has expired.
 	StatusExpired Status = "expired"
 
-	// StatusPending indicates the bundle is pending issuance.
+	// StatusPending indicates the credential is pending issuance.
 	StatusPending Status = "pending"
 )
 
-// CertRole identifies the role of a certificate in a bundle.
+// CertRole identifies the role of a certificate in a credential.
 type CertRole string
 
 const (
@@ -62,7 +62,7 @@ const (
 	RoleEncryptionPQC CertRole = "encryption-pqc"
 )
 
-// CertificateRef is a reference to a certificate in a bundle.
+// CertificateRef is a reference to a certificate in a credential.
 type CertificateRef struct {
 	// Serial is the certificate serial number (hex string).
 	Serial string `json:"serial"`
@@ -89,21 +89,21 @@ type CertificateRef struct {
 	RelatedSerial string `json:"related_serial,omitempty"`
 }
 
-// Bundle represents a group of related certificates with coupled lifecycle.
-type Bundle struct {
-	// ID is the unique identifier for this bundle.
+// Credential represents a group of related certificates with coupled lifecycle.
+type Credential struct {
+	// ID is the unique identifier for this credential.
 	ID string `json:"id"`
 
 	// Subject is the certificate subject.
 	Subject Subject `json:"subject"`
 
-	// Profiles is the list of profiles used to create this bundle.
+	// Profiles is the list of profiles used to create this credential.
 	Profiles []string `json:"profiles"`
 
-	// Status is the current status of the bundle.
+	// Status is the current status of the credential.
 	Status Status `json:"status"`
 
-	// Created is when the bundle was created.
+	// Created is when the credential was created.
 	Created time.Time `json:"created"`
 
 	// NotBefore is the start of the validity period.
@@ -112,13 +112,13 @@ type Bundle struct {
 	// NotAfter is the end of the validity period.
 	NotAfter time.Time `json:"not_after"`
 
-	// Certificates are references to the certificates in this bundle.
+	// Certificates are references to the certificates in this credential.
 	Certificates []CertificateRef `json:"certificates"`
 
-	// RevokedAt is when the bundle was revoked (if applicable).
+	// RevokedAt is when the credential was revoked (if applicable).
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
 
-	// RevocationReason is why the bundle was revoked.
+	// RevocationReason is why the credential was revoked.
 	RevocationReason string `json:"revocation_reason,omitempty"`
 
 	// Metadata holds additional custom data.
@@ -134,10 +134,10 @@ type Subject struct {
 	Locality     []string `json:"locality,omitempty"`
 }
 
-// NewBundle creates a new bundle with the given parameters.
-func NewBundle(id string, subject Subject, profiles []string) *Bundle {
+// NewCredential creates a new credential with the given parameters.
+func NewCredential(id string, subject Subject, profiles []string) *Credential {
 	now := time.Now()
-	return &Bundle{
+	return &Credential{
 		ID:           id,
 		Subject:      subject,
 		Profiles:     profiles,
@@ -148,10 +148,10 @@ func NewBundle(id string, subject Subject, profiles []string) *Bundle {
 	}
 }
 
-// GenerateBundleID creates a unique bundle ID from a common name.
+// GenerateCredentialID creates a unique credential ID from a common name.
 // Format: {cn-slug}-{YYYYMMDD}-{6-char-hash}
 // Example: alice-20250115-a1b2c3
-func GenerateBundleID(cn string) string {
+func GenerateCredentialID(cn string) string {
 	// Slugify the common name
 	slug := strings.ToLower(cn)
 	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "-")
@@ -160,7 +160,7 @@ func GenerateBundleID(cn string) string {
 		slug = slug[:20]
 	}
 	if slug == "" {
-		slug = "bundle"
+		slug = "cred"
 	}
 
 	// Add date
@@ -174,48 +174,48 @@ func GenerateBundleID(cn string) string {
 	return fmt.Sprintf("%s-%s-%s", slug, date, suffix)
 }
 
-// AddCertificate adds a certificate reference to the bundle.
-func (b *Bundle) AddCertificate(ref CertificateRef) {
-	b.Certificates = append(b.Certificates, ref)
+// AddCertificate adds a certificate reference to the credential.
+func (c *Credential) AddCertificate(ref CertificateRef) {
+	c.Certificates = append(c.Certificates, ref)
 }
 
-// SetValidity sets the validity period for the bundle.
-func (b *Bundle) SetValidity(notBefore, notAfter time.Time) {
-	b.NotBefore = notBefore
-	b.NotAfter = notAfter
+// SetValidity sets the validity period for the credential.
+func (c *Credential) SetValidity(notBefore, notAfter time.Time) {
+	c.NotBefore = notBefore
+	c.NotAfter = notAfter
 }
 
-// Activate marks the bundle as valid/active.
-func (b *Bundle) Activate() {
-	b.Status = StatusValid
+// Activate marks the credential as valid/active.
+func (c *Credential) Activate() {
+	c.Status = StatusValid
 }
 
-// Revoke marks the bundle as revoked.
-func (b *Bundle) Revoke(reason string) {
+// Revoke marks the credential as revoked.
+func (c *Credential) Revoke(reason string) {
 	now := time.Now()
-	b.Status = StatusRevoked
-	b.RevokedAt = &now
-	b.RevocationReason = reason
+	c.Status = StatusRevoked
+	c.RevokedAt = &now
+	c.RevocationReason = reason
 }
 
-// IsValid returns true if the bundle is currently valid.
-func (b *Bundle) IsValid() bool {
-	if b.Status != StatusValid {
+// IsValid returns true if the credential is currently valid.
+func (c *Credential) IsValid() bool {
+	if c.Status != StatusValid {
 		return false
 	}
 
 	now := time.Now()
-	return now.After(b.NotBefore) && now.Before(b.NotAfter)
+	return now.After(c.NotBefore) && now.Before(c.NotAfter)
 }
 
-// IsExpired returns true if the bundle has expired.
-func (b *Bundle) IsExpired() bool {
-	return time.Now().After(b.NotAfter)
+// IsExpired returns true if the credential has expired.
+func (c *Credential) IsExpired() bool {
+	return time.Now().After(c.NotAfter)
 }
 
-// ContainsCertificate returns true if the bundle contains the given serial.
-func (b *Bundle) ContainsCertificate(serial string) bool {
-	for _, cert := range b.Certificates {
+// ContainsCertificate returns true if the credential contains the given serial.
+func (c *Credential) ContainsCertificate(serial string) bool {
+	for _, cert := range c.Certificates {
 		if cert.Serial == serial {
 			return true
 		}
@@ -224,19 +224,19 @@ func (b *Bundle) ContainsCertificate(serial string) bool {
 }
 
 // GetCertificateByRole returns the certificate reference with the given role.
-func (b *Bundle) GetCertificateByRole(role CertRole) *CertificateRef {
-	for i, cert := range b.Certificates {
+func (c *Credential) GetCertificateByRole(role CertRole) *CertificateRef {
+	for i, cert := range c.Certificates {
 		if cert.Role == role {
-			return &b.Certificates[i]
+			return &c.Certificates[i]
 		}
 	}
 	return nil
 }
 
 // SignatureCertificates returns all signature-related certificates.
-func (b *Bundle) SignatureCertificates() []CertificateRef {
+func (c *Credential) SignatureCertificates() []CertificateRef {
 	var certs []CertificateRef
-	for _, cert := range b.Certificates {
+	for _, cert := range c.Certificates {
 		switch cert.Role {
 		case RoleSignature, RoleSignatureClassical, RoleSignaturePQC:
 			certs = append(certs, cert)
@@ -246,9 +246,9 @@ func (b *Bundle) SignatureCertificates() []CertificateRef {
 }
 
 // EncryptionCertificates returns all encryption-related certificates.
-func (b *Bundle) EncryptionCertificates() []CertificateRef {
+func (c *Credential) EncryptionCertificates() []CertificateRef {
 	var certs []CertificateRef
-	for _, cert := range b.Certificates {
+	for _, cert := range c.Certificates {
 		switch cert.Role {
 		case RoleEncryption, RoleEncryptionClassical, RoleEncryptionPQC:
 			certs = append(certs, cert)
@@ -302,34 +302,34 @@ func CertificateRefFromCert(cert *x509.Certificate, role CertRole, isCatalyst bo
 	}
 }
 
-// MarshalJSON implements json.Marshaler for Bundle.
-func (b *Bundle) MarshalJSON() ([]byte, error) {
-	type bundleAlias Bundle
-	return json.Marshal((*bundleAlias)(b))
+// MarshalJSON implements json.Marshaler for Credential.
+func (c *Credential) MarshalJSON() ([]byte, error) {
+	type credentialAlias Credential
+	return json.Marshal((*credentialAlias)(c))
 }
 
-// UnmarshalJSON implements json.Unmarshaler for Bundle.
-func (b *Bundle) UnmarshalJSON(data []byte) error {
-	type bundleAlias Bundle
-	if err := json.Unmarshal(data, (*bundleAlias)(b)); err != nil {
+// UnmarshalJSON implements json.Unmarshaler for Credential.
+func (c *Credential) UnmarshalJSON(data []byte) error {
+	type credentialAlias Credential
+	if err := json.Unmarshal(data, (*credentialAlias)(c)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Summary returns a human-readable summary of the bundle.
-func (b *Bundle) Summary() string {
-	status := string(b.Status)
-	if b.IsExpired() && b.Status == StatusValid {
+// Summary returns a human-readable summary of the credential.
+func (c *Credential) Summary() string {
+	status := string(c.Status)
+	if c.IsExpired() && c.Status == StatusValid {
 		status = "expired"
 	}
 
-	return fmt.Sprintf("Bundle[%s]: subject=%s, profiles=%v, status=%s, certs=%d, valid=%s to %s",
-		b.ID,
-		b.Subject.CommonName,
-		b.Profiles,
+	return fmt.Sprintf("Credential[%s]: subject=%s, profiles=%v, status=%s, certs=%d, valid=%s to %s",
+		c.ID,
+		c.Subject.CommonName,
+		c.Profiles,
 		status,
-		len(b.Certificates),
-		b.NotBefore.Format("2006-01-02"),
-		b.NotAfter.Format("2006-01-02"))
+		len(c.Certificates),
+		c.NotBefore.Format("2006-01-02"),
+		c.NotAfter.Format("2006-01-02"))
 }

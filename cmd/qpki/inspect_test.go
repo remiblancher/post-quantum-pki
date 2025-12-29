@@ -232,8 +232,8 @@ func TestInspect_CertificateWithExtKeyUsage(t *testing.T) {
 	assertNoError(t, err)
 
 	// Find and inspect the credential certificate
-	bundlesDir := filepath.Join(caDir, "bundles")
-	entries, _ := filepath.Glob(filepath.Join(bundlesDir, "*", "certificates.pem"))
+	credentialsDir := filepath.Join(caDir, "credentials")
+	entries, _ := filepath.Glob(filepath.Join(credentialsDir, "*", "certificates.pem"))
 	if len(entries) > 0 {
 		_, err = executeCommand(rootCmd, "inspect", entries[0])
 		assertNoError(t, err)
@@ -265,8 +265,8 @@ func TestInspect_CertificateWithClientAuth(t *testing.T) {
 	assertNoError(t, err)
 
 	// Find and inspect the credential certificate
-	bundlesDir := filepath.Join(caDir, "bundles")
-	entries, _ := filepath.Glob(filepath.Join(bundlesDir, "*", "certificates.pem"))
+	credentialsDir := filepath.Join(caDir, "credentials")
+	entries, _ := filepath.Glob(filepath.Join(credentialsDir, "*", "certificates.pem"))
 	if len(entries) > 0 {
 		_, err = executeCommand(rootCmd, "inspect", entries[0])
 		assertNoError(t, err)
@@ -354,8 +354,8 @@ func TestInspect_CRL_WithRevokedCerts(t *testing.T) {
 	assertNoError(t, err)
 
 	// Find credential ID
-	bundlesDir := filepath.Join(caDir, "bundles")
-	entries, _ := filepath.Glob(filepath.Join(bundlesDir, "*"))
+	credentialsDir := filepath.Join(caDir, "credentials")
+	entries, _ := filepath.Glob(filepath.Join(credentialsDir, "*"))
 	if len(entries) == 0 {
 		t.Fatal("no credential found")
 	}
