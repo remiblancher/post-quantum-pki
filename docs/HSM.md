@@ -73,17 +73,18 @@ qpki cert issue --ca-dir ./hsm-ca \
 
 The following table shows HSM compatibility and QPKI integration status.
 
+> ⚠️ **Note**: QPKI HSM integration is under development. No HSM has been validated yet.
+
+### Production HSMs
+
 | Vendor | Model | Vendor PQC | QPKI Status | Notes |
 |--------|-------|------------|-------------|-------|
-| SoftHSM2 | - | No | Planned | Development only |
 | Eviden | Trustway Proteccio | [Yes](https://eviden.com/insights/press-releases/eviden-supports-post-quantum-algorithms-with-its-trustway-proteccio-hsm/) | Planned | ANSSI QR certified |
 | Thales | Luna Network HSM | [v7.9+](https://cpl.thalesgroup.com/blog/encryption/luna-hsm-pqc-quantum-safe-encryption) | Planned | FIPS 140-3 Level 3 |
 | Utimaco | SecurityServer | Roadmap | Planned | |
 | AWS | CloudHSM | No | Planned | Cloud-native |
 
-> ⚠️ **Note**: QPKI HSM integration is under development. No HSM has been validated yet.
-
-### Development with SoftHSM2
+### Development
 
 SoftHSM2 can be used for development and testing:
 
