@@ -272,13 +272,23 @@ qpki cert gen-crl --ca-dir ./myca --days 30
 
 Profiles define certificate enrollment policies in YAML. **1 profile = 1 certificate**.
 
+QPKI includes **50+ built-in profiles** covering common use cases. All examples in this README use these built-in profiles for simplicity.
+
 ```bash
-# List available profiles
+# List all built-in profiles
 qpki profile list
 
 # View profile details
 qpki profile info hybrid/catalyst/tls-server
+
+# Export a profile to customize it
+qpki profile export ec/tls-server ./my-tls-server.yaml
+
+# Export all profiles for reference
+qpki profile export --all ./templates/
 ```
+
+You can also create custom profiles from scratch. See [docs/PROFILES.md](docs/PROFILES.md) for the full YAML specification.
 
 **Profile Categories:**
 
