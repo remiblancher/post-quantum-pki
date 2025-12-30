@@ -15,6 +15,7 @@ import (
 	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	"github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/profile"
+	"github.com/remiblancher/post-quantum-pki/internal/x509util"
 )
 
 // caCmd is the parent command for CA operations.
@@ -613,7 +614,7 @@ func runCAInfo(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Serial:        %X\n", cert.SerialNumber.Bytes())
 	fmt.Printf("Not Before:    %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Not After:     %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Algorithm:     %s\n", cert.SignatureAlgorithm.String())
+	fmt.Printf("Algorithm:     %s\n", getSignatureAlgorithmName(cert))
 
 	// Basic constraints
 	if cert.IsCA {
@@ -943,7 +944,7 @@ func runCAList(cmd *cobra.Command, args []string) error {
 		cas = append(cas, caInfo{
 			Name:      entry.Name(),
 			Type:      caType,
-			Algorithm: cert.SignatureAlgorithm.String(),
+			Algorithm: getSignatureAlgorithmName(cert),
 			Expires:   cert.NotAfter,
 		})
 	}
@@ -966,4 +967,22 @@ func runCAList(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// getSignatureAlgorithmName returns a human-readable name for the certificate's signature algorithm.
+// For PQC algorithms (ML-DSA, SLH-DSA) that Go's x509 doesn't recognize, it extracts the OID
+// from the raw certificate and looks up the name.
+func getSignatureAlgorithmName(cert *x509.Certificate) string {
+	// If Go's x509 recognizes the algorithm, use its name
+	if cert.SignatureAlgorithm != x509.UnknownSignatureAlgorithm {
+		return cert.SignatureAlgorithm.String()
+	}
+
+	// For unknown algorithms (PQC), extract OID from raw certificate
+	oid, err := x509util.ExtractSignatureAlgorithmOID(cert.Raw)
+	if err != nil {
+		return "Unknown"
+	}
+
+	return x509util.AlgorithmName(oid)
 }
