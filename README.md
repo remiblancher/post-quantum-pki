@@ -321,16 +321,24 @@ See [docs/PROFILES.md](docs/PROFILES.md) for details.
 
 ## Credentials
 
-Credentials provide coupled lifecycle management (renewal, revocation) for certificates issued together. Common use cases:
-- **Single certificate**: Catalyst (dual keys), classical, or PQC
-- **Multiple certificates**: Signature + encryption (using multiple profiles)
+A credential is a managed bundle of **private key(s) + certificate(s)** with coupled lifecycle management (enrollment, renewal, revocation).
 
-Use `qpki credential enroll` to create credentials:
+`credential enroll` generates everything in one command:
 
 ```bash
-# Create credential with a single profile
 qpki credential enroll --profile ec/tls-client --var cn=Alice --ca-dir ./ca
 
+# Output: ca/credentials/<id>/
+#   ├── credential.json     # Metadata
+#   ├── certificates.pem    # Certificate(s)
+#   └── private-keys.pem    # Private key(s)
+```
+
+**Why use credentials?**
+- **Coupled lifecycle**: Renew or revoke all certificates at once
+- **Multi-certificate**: Use multiple `--profile` flags for crypto-agility (classical + PQC)
+
+```bash
 # Create credential with multiple profiles (crypto-agility)
 qpki credential enroll --profile ec/client --profile ml/client \
     --var cn=Alice --ca-dir ./ca
