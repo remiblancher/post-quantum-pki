@@ -105,10 +105,10 @@ jobs:
           openssl x509 -in /tmp/test-ca/ca.crt -text -noout
           # Verify subordinate CA chain
           openssl verify -CAfile /tmp/test-ca/ca.crt /tmp/issuing-ca/ca.crt
-          # Verify a bundle certificate (find first bundle)
-          BUNDLE_DIR=$(ls -d /tmp/test-ca/bundles/*/ | head -1)
-          openssl x509 -in "${BUNDLE_DIR}certificates.pem" -text -noout
-          openssl verify -CAfile /tmp/test-ca/ca.crt "${BUNDLE_DIR}certificates.pem"
+          # Verify a credential certificate (find first credential)
+          CRED_DIR=$(ls -d /tmp/test-ca/credentials/*/ | head -1)
+          openssl x509 -in "${CRED_DIR}certificates.pem" -text -noout
+          openssl verify -CAfile /tmp/test-ca/ca.crt "${CRED_DIR}certificates.pem"
 
       - name: PQC smoke test (ML-DSA-87)
         run: |
@@ -118,10 +118,10 @@ jobs:
           ./qpki credential enroll --ca-dir /tmp/pqc-ca --profile ml-dsa-kem/tls-server-sign \
             --var cn=pqc.test.local --var dns_names=pqc.test.local
           # Get credential certificate path
-          PQC_BUNDLE=$(ls -d /tmp/pqc-ca/bundles/*/ | head -1)
+          PQC_CRED=$(ls -d /tmp/pqc-ca/credentials/*/ | head -1)
           # Verify with qpki tool (OpenSSL doesn't support PQC yet)
-          ./qpki verify --cert "${PQC_BUNDLE}certificates.pem" --ca /tmp/pqc-ca/ca.crt
-          ./qpki inspect "${PQC_BUNDLE}certificates.pem"
+          ./qpki verify --cert "${PQC_CRED}certificates.pem" --ca /tmp/pqc-ca/ca.crt
+          ./qpki inspect "${PQC_CRED}certificates.pem"
 
       - name: PQC smoke test (SLH-DSA-256f)
         run: |
@@ -131,10 +131,10 @@ jobs:
           ./qpki credential enroll --ca-dir /tmp/slhdsa-ca --profile slh-dsa/tls-server \
             --var cn=slhdsa.test.local --var dns_names=slhdsa.test.local
           # Get credential certificate path
-          SLHDSA_BUNDLE=$(ls -d /tmp/slhdsa-ca/bundles/*/ | head -1)
+          SLHDSA_CRED=$(ls -d /tmp/slhdsa-ca/credentials/*/ | head -1)
           # Verify with qpki tool
-          ./qpki verify --cert "${SLHDSA_BUNDLE}certificates.pem" --ca /tmp/slhdsa-ca/ca.crt
-          ./qpki inspect "${SLHDSA_BUNDLE}certificates.pem"
+          ./qpki verify --cert "${SLHDSA_CRED}certificates.pem" --ca /tmp/slhdsa-ca/ca.crt
+          ./qpki inspect "${SLHDSA_CRED}certificates.pem"
 
       - name: Catalyst hybrid smoke test (ECDSA + ML-DSA)
         run: |
@@ -145,13 +145,13 @@ jobs:
           ./qpki credential enroll --ca-dir /tmp/catalyst-ca --profile hybrid/catalyst/tls-server \
             --var cn=catalyst.test.local --var dns_names=catalyst.test.local
           # Get credential certificate path
-          CATALYST_BUNDLE=$(ls -d /tmp/catalyst-ca/bundles/*/ | head -1)
+          CATALYST_CRED=$(ls -d /tmp/catalyst-ca/credentials/*/ | head -1)
           # Verify both signatures with qpki tool
-          ./qpki verify --cert "${CATALYST_BUNDLE}certificates.pem" --ca /tmp/catalyst-ca/ca.crt
+          ./qpki verify --cert "${CATALYST_CRED}certificates.pem" --ca /tmp/catalyst-ca/ca.crt
           # Verify classical signature still works with OpenSSL
-          openssl verify -CAfile /tmp/catalyst-ca/ca.crt "${CATALYST_BUNDLE}certificates.pem"
+          openssl verify -CAfile /tmp/catalyst-ca/ca.crt "${CATALYST_CRED}certificates.pem"
           # Show certificate with Catalyst extensions
-          ./qpki inspect "${CATALYST_BUNDLE}certificates.pem"
+          ./qpki inspect "${CATALYST_CRED}certificates.pem"
 
       - name: Composite hybrid smoke test (IETF ECDSA + ML-DSA)
         run: |
@@ -162,11 +162,11 @@ jobs:
           ./qpki credential enroll --ca-dir /tmp/composite-ca --profile hybrid/composite/tls-server \
             --var cn=composite.test.local --var dns_names=composite.test.local
           # Get credential certificate path
-          COMPOSITE_BUNDLE=$(ls -d /tmp/composite-ca/bundles/*/ | head -1)
+          COMPOSITE_CRED=$(ls -d /tmp/composite-ca/credentials/*/ | head -1)
           # Verify both component signatures with qpki tool
-          ./qpki verify --cert "${COMPOSITE_BUNDLE}certificates.pem" --ca /tmp/composite-ca/ca.crt
+          ./qpki verify --cert "${COMPOSITE_CRED}certificates.pem" --ca /tmp/composite-ca/ca.crt
           # Show certificate info
-          ./qpki inspect "${COMPOSITE_BUNDLE}certificates.pem"
+          ./qpki inspect "${COMPOSITE_CRED}certificates.pem"
           ./qpki inspect /tmp/composite-ca/ca.crt
 
   crosstest-openssl:
