@@ -22,20 +22,20 @@ if [ ! -d "$FIXTURES/ca" ]; then
     exit 1
 fi
 
-# Find the bundle certificate
-BUNDLE_CERT=$(find "$FIXTURES/ca/bundles" -name "certificates.pem" -type f 2>/dev/null | head -1)
-if [ -z "$BUNDLE_CERT" ]; then
-    echo "ERROR: Bundle certificate not found."
+# Find the credential certificate
+CRED_CERT=$(find "$FIXTURES/ca/credentials" -name "certificates.pem" -type f 2>/dev/null | head -1)
+if [ -z "$CRED_CERT" ]; then
+    echo "ERROR: Credential certificate not found."
     exit 1
 fi
 
 echo "CA Certificate: $FIXTURES/ca/ca.crt"
-echo "EE Certificate: $BUNDLE_CERT"
+echo "EE Certificate: $CRED_CERT"
 echo ""
 
 # Verify chain
 echo ">>> Verifying certificate chain..."
-openssl verify -CAfile "$FIXTURES/ca/ca.crt" "$BUNDLE_CERT"
+openssl verify -CAfile "$FIXTURES/ca/ca.crt" "$CRED_CERT"
 echo ""
 
 # Display CA certificate details
@@ -46,7 +46,7 @@ echo ""
 
 # Display EE certificate details
 echo ">>> End-Entity Certificate details:"
-openssl x509 -in "$BUNDLE_CERT" -text -noout | \
+openssl x509 -in "$CRED_CERT" -text -noout | \
     grep -E "(Subject:|Issuer:|Signature Algorithm:|Public Key Algorithm:)" | head -10
 echo ""
 

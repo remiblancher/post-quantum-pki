@@ -26,20 +26,20 @@ if [ ! -d "$FIXTURES/ca" ]; then
     exit 1
 fi
 
-# Find the bundle certificate
-BUNDLE_CERT=$(find "$FIXTURES/ca/bundles" -name "certificates.pem" -type f 2>/dev/null | head -1)
-if [ -z "$BUNDLE_CERT" ]; then
-    echo "ERROR: Bundle certificate not found."
+# Find the credential certificate
+CRED_CERT=$(find "$FIXTURES/ca/credentials" -name "certificates.pem" -type f 2>/dev/null | head -1)
+if [ -z "$CRED_CERT" ]; then
+    echo "ERROR: Credential certificate not found."
     exit 1
 fi
 
 echo "CA Certificate: $FIXTURES/ca/ca.crt"
-echo "EE Certificate: $BUNDLE_CERT"
+echo "EE Certificate: $CRED_CERT"
 echo ""
 
 # Verify chain (classical signature only)
 echo ">>> Verifying certificate chain (classical signature)..."
-openssl verify -CAfile "$FIXTURES/ca/ca.crt" "$BUNDLE_CERT"
+openssl verify -CAfile "$FIXTURES/ca/ca.crt" "$CRED_CERT"
 echo ""
 
 # Display CA certificate details
@@ -50,13 +50,13 @@ echo ""
 
 # Show extensions (AltSignatureValue should be visible)
 echo ">>> X.509v3 Extensions (showing Catalyst-specific extensions):"
-openssl x509 -in "$BUNDLE_CERT" -text -noout | \
+openssl x509 -in "$CRED_CERT" -text -noout | \
     grep -A 3 "X509v3 extensions:" || echo "    (extensions section)"
 
 # Look for unknown extensions (Catalyst OIDs)
 echo ""
 echo ">>> Catalyst extensions (may appear as 'unknown'):"
-openssl x509 -in "$BUNDLE_CERT" -text -noout | \
+openssl x509 -in "$CRED_CERT" -text -noout | \
     grep -E "(2\.5\.29\.72|2\.5\.29\.73|2\.5\.29\.74)" || echo "    (OIDs not displayed by name)"
 echo ""
 
