@@ -477,7 +477,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for details on the testing strate
 | Profiles (certificate templates) | 🧪 Experimental |
 | Credentials (certificate groups) | 🧪 Experimental |
 | Audit logging | ✅ Production |
-| HSM via PKCS#11 | 🚧 Not implemented |
+| HSM via PKCS#11 | ✅ Production |
 
 ## About
 

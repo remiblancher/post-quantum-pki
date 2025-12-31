@@ -261,11 +261,9 @@ See `examples/hsm/` for vendor-specific configurations:
 - [x] Generate keys inside HSM (`qpki key gen --hsm-config`)
 - [x] List keys in HSM (`qpki key list --hsm-config`)
 - [x] Generate key during CA initialization (`--generate-key`)
-- [ ] Key backup/restore
 
 ### Phase 3: Advanced Features
 - [ ] Session pooling for high-throughput
-- [ ] Multi-slot support
 
 ### Phase 4: PQC Support
 - [ ] ML-DSA support (when HSMs support it)

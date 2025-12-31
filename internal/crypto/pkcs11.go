@@ -89,7 +89,7 @@ func NewPKCS11Signer(cfg PKCS11Config) (*PKCS11Signer, error) {
 	// Find the slot
 	slotID, err := findSlot(ctx, cfg)
 	if err != nil {
-		ctx.Finalize()
+		_ = ctx.Finalize()
 		ctx.Destroy()
 		return nil, fmt.Errorf("failed to find slot: %w", err)
 	}
@@ -97,7 +97,7 @@ func NewPKCS11Signer(cfg PKCS11Config) (*PKCS11Signer, error) {
 	// Open a session
 	session, err := ctx.OpenSession(slotID, pkcs11.CKF_SERIAL_SESSION)
 	if err != nil {
-		ctx.Finalize()
+		_ = ctx.Finalize()
 		ctx.Destroy()
 		return nil, fmt.Errorf("failed to open session: %w", err)
 	}
@@ -106,8 +106,8 @@ func NewPKCS11Signer(cfg PKCS11Config) (*PKCS11Signer, error) {
 	if err := ctx.Login(session, pkcs11.CKU_USER, cfg.PIN); err != nil {
 		// CKR_USER_ALREADY_LOGGED_IN is acceptable
 		if e, ok := err.(pkcs11.Error); !ok || e != pkcs11.CKR_USER_ALREADY_LOGGED_IN {
-			ctx.CloseSession(session)
-			ctx.Finalize()
+			_ = ctx.CloseSession(session)
+			_ = ctx.Finalize()
 			ctx.Destroy()
 			return nil, fmt.Errorf("failed to login: %w", err)
 		}
@@ -116,9 +116,9 @@ func NewPKCS11Signer(cfg PKCS11Config) (*PKCS11Signer, error) {
 	// Find the private key
 	keyHandle, err := findPrivateKey(ctx, session, cfg)
 	if err != nil {
-		ctx.Logout(session)
-		ctx.CloseSession(session)
-		ctx.Finalize()
+		_ = ctx.Logout(session)
+		_ = ctx.CloseSession(session)
+		_ = ctx.Finalize()
 		ctx.Destroy()
 		return nil, fmt.Errorf("failed to find private key: %w", err)
 	}
@@ -126,9 +126,9 @@ func NewPKCS11Signer(cfg PKCS11Config) (*PKCS11Signer, error) {
 	// Get the public key
 	pub, alg, err := extractPublicKey(ctx, session, keyHandle)
 	if err != nil {
-		ctx.Logout(session)
-		ctx.CloseSession(session)
-		ctx.Finalize()
+		_ = ctx.Logout(session)
+		_ = ctx.CloseSession(session)
+		_ = ctx.Finalize()
 		ctx.Destroy()
 		return nil, fmt.Errorf("failed to extract public key: %w", err)
 	}
@@ -209,7 +209,7 @@ func findPrivateKey(ctx *pkcs11.Ctx, session pkcs11.SessionHandle, cfg PKCS11Con
 	if err := ctx.FindObjectsInit(session, template); err != nil {
 		return 0, fmt.Errorf("failed to init find objects: %w", err)
 	}
-	defer ctx.FindObjectsFinal(session)
+	defer func() { _ = ctx.FindObjectsFinal(session) }()
 
 	objs, _, err := ctx.FindObjects(session, 2)
 	if err != nil {
@@ -357,7 +357,7 @@ func findPublicKeyForPrivate(ctx *pkcs11.Ctx, session pkcs11.SessionHandle, priv
 	if err := ctx.FindObjectsInit(session, template); err != nil {
 		return 0, fmt.Errorf("failed to init find public key: %w", err)
 	}
-	defer ctx.FindObjectsFinal(session)
+	defer func() { _ = ctx.FindObjectsFinal(session) }()
 
 	objs, _, err := ctx.FindObjects(session, 1)
 	if err != nil {
@@ -858,7 +858,7 @@ func ListHSMKeys(modulePath, tokenLabel, pin string) ([]KeyInfo, error) {
 	for {
 		objs, _, err := ctx.FindObjects(session, 10)
 		if err != nil {
-			ctx.FindObjectsFinal(session)
+			_ = ctx.FindObjectsFinal(session)
 			return nil, fmt.Errorf("failed to find objects: %w", err)
 		}
 		if len(objs) == 0 {
@@ -895,7 +895,7 @@ func ListHSMKeys(modulePath, tokenLabel, pin string) ([]KeyInfo, error) {
 			keys = append(keys, ki)
 		}
 	}
-	ctx.FindObjectsFinal(session)
+	_ = ctx.FindObjectsFinal(session)
 
 	return keys, nil
 }
