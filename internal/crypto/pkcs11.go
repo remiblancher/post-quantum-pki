@@ -397,9 +397,10 @@ func parseECParams(params []byte) (elliptic.Curve, AlgorithmID, error) {
 
 // bytesToUint converts a byte slice to uint.
 func bytesToUint(b []byte) uint {
+	// PKCS#11 CK_ULONG values are stored in native byte order (little-endian on most platforms)
 	var result uint
-	for _, v := range b {
-		result = result<<8 | uint(v)
+	for i := len(b) - 1; i >= 0; i-- {
+		result = result<<8 | uint(b[i])
 	}
 	return result
 }
