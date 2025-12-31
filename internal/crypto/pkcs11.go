@@ -442,14 +442,19 @@ func (s *PKCS11Signer) Sign(random io.Reader, digest []byte, opts crypto.SignerO
 		return nil, fmt.Errorf("signer is closed")
 	}
 
-	// Determine mechanism based on key type
+	// Determine mechanism and prepare data based on key type
 	var mech *pkcs11.Mechanism
+	dataToSign := digest
+
 	switch s.pub.(type) {
 	case *ecdsa.PublicKey:
 		mech = pkcs11.NewMechanism(pkcs11.CKM_ECDSA, nil)
 	case *rsa.PublicKey:
 		// Use RSA-PKCS for signing
+		// CKM_RSA_PKCS requires DigestInfo prefix (PKCS#1 v1.5)
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)
+		// Add DigestInfo prefix for the hash algorithm
+		dataToSign = addDigestInfoPrefix(digest, opts.HashFunc())
 	default:
 		return nil, fmt.Errorf("unsupported key type for signing")
 	}
@@ -458,7 +463,7 @@ func (s *PKCS11Signer) Sign(random io.Reader, digest []byte, opts crypto.SignerO
 		return nil, fmt.Errorf("failed to init sign: %w", err)
 	}
 
-	sig, err := s.ctx.Sign(s.session, digest)
+	sig, err := s.ctx.Sign(s.session, dataToSign)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign: %w", err)
 	}
@@ -472,6 +477,26 @@ func (s *PKCS11Signer) Sign(random io.Reader, digest []byte, opts crypto.SignerO
 	}
 
 	return sig, nil
+}
+
+// DigestInfo prefixes for PKCS#1 v1.5 signatures (RFC 8017)
+var digestInfoPrefixes = map[crypto.Hash][]byte{
+	crypto.SHA256: {0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
+	crypto.SHA384: {0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
+	crypto.SHA512: {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
+}
+
+// addDigestInfoPrefix adds the DigestInfo ASN.1 prefix for PKCS#1 v1.5 RSA signatures.
+func addDigestInfoPrefix(digest []byte, hash crypto.Hash) []byte {
+	prefix, ok := digestInfoPrefixes[hash]
+	if !ok {
+		// Unknown hash, return digest as-is (will likely fail verification)
+		return digest
+	}
+	result := make([]byte, len(prefix)+len(digest))
+	copy(result, prefix)
+	copy(result[len(prefix):], digest)
+	return result
 }
 
 // convertECDSASignature converts raw ECDSA signature (r||s) to ASN.1 DER format.
