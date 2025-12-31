@@ -261,9 +261,6 @@ jobs:
           - os: macos-latest
             goos: darwin
             goarch: arm64
-          - os: macos-13
-            goos: darwin
-            goarch: amd64
           - os: windows-latest
             goos: windows
             goarch: amd64
@@ -330,14 +327,6 @@ jobs:
           export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
           softhsm2-util --init-token --slot 0 --label "QPKI-Test" --pin 1234 --so-pin 12345678
 
-      - name: Generate EC key in HSM
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          pkcs11-tool --module /usr/lib/softhsm/libsofthsm2.so \
-            --token-label "QPKI-Test" --login --pin 1234 \
-            --keypairgen --key-type EC:secp384r1 \
-            --label "test-ca-key" --id 01
-
       - name: Create HSM config
         run: |
           cat > /tmp/hsm-test.yaml << 'EOF'
@@ -351,6 +340,14 @@ jobs:
           security:
             verify_key_cert_binding: true
           EOF
+
+      - name: Generate EC key in HSM (qpki)
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki key gen --algorithm ecdsa-p384 \
+            --hsm-config /tmp/hsm-test.yaml \
+            --key-label "test-ca-key"
 
       - name: Test HSM list command
         run: |
@@ -406,6 +403,27 @@ jobs:
         run: |
           openssl x509 -in /tmp/hsm-ca/ca.crt -text -noout
           ls -la /tmp/hsm-ca/
+
+      - name: Generate RSA key in HSM (qpki)
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki key gen --algorithm rsa-3072 \
+            --hsm-config /tmp/hsm-test.yaml \
+            --key-label "rsa-test-key"
+
+      - name: Initialize RSA CA with HSM key
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
+            --key-label "rsa-test-key" \
+            --profile rsa/root-ca \
+            --name "RSA HSM Test CA" \
+            --dir /tmp/hsm-ca-rsa
+
+      - name: Verify RSA CA certificate
+        run: openssl x509 -in /tmp/hsm-ca-rsa/ca.crt -text -noout | grep "RSA"
 
   fuzz:
     name: Fuzz Testing
