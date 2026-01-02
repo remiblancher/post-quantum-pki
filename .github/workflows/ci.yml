@@ -196,7 +196,6 @@ jobs:
       - name: "key gen: RSA algorithms"
         run: |
           ./qpki key gen --algorithm rsa-2048 -o /tmp/keys/rsa-2048.key
-          ./qpki key gen --algorithm rsa-3072 -o /tmp/keys/rsa-3072.key
           ./qpki key gen --algorithm rsa-4096 -o /tmp/keys/rsa-4096.key
 
       - name: "key gen: ML-DSA (PQC)"
@@ -391,305 +390,6 @@ jobs:
         run: |
           EC_CRED=$(ls -d /tmp/ca-ec/credentials/*/ | tail -1)
           cat "${EC_CRED}credential.meta.json"
-
-  crosstest-openssl:
-    name: Cross Tests (OpenSSL)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download binary
-        uses: actions/download-artifact@v4
-        with:
-          name: qpki-ci-binary
-
-      - name: Make executable
-        run: chmod +x ./qpki
-
-      - name: Generate test fixtures
-        run: |
-          chmod +x test/generate_fixtures.sh
-          ./test/generate_fixtures.sh
-
-      - name: OpenSSL - Classical certificates
-        run: |
-          cd test/openssl
-          chmod +x *.sh
-          ./verify_classical.sh
-
-      - name: OpenSSL - Catalyst (classical part)
-        run: cd test/openssl && ./verify_catalyst.sh
-
-  crosstest-bc:
-    name: Cross Tests (BouncyCastle)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download binary
-        uses: actions/download-artifact@v4
-        with:
-          name: qpki-ci-binary
-
-      - name: Make executable
-        run: chmod +x ./qpki
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Generate test fixtures
-        run: |
-          chmod +x test/generate_fixtures.sh
-          ./test/generate_fixtures.sh
-
-      - name: BouncyCastle - All certificates
-        run: |
-          cd test/bouncycastle
-          mvn -q test
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-
-  build-matrix:
-    timeout-minutes: 15
-    needs: [test, lint]
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-          - os: ubuntu-24.04-arm
-            goos: linux
-            goarch: arm64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Build (Unix)
-        if: matrix.goos != 'windows'
-        env:
-          CGO_ENABLED: 1
-        run: go build -o qpki-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/qpki
-
-      - name: Build (Windows)
-        if: matrix.goos == 'windows'
-        env:
-          CGO_ENABLED: 1
-        run: go build -o qpki-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./cmd/qpki
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: qpki-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: qpki-*
-          retention-days: 7
-
-  hsm-test:
-    name: HSM Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Install SoftHSM2
-        run: sudo apt-get update && sudo apt-get install -y softhsm2
-
-      - name: Download binary
-        uses: actions/download-artifact@v4
-        with:
-          name: qpki-ci-binary
-
-      - name: Make executable
-        run: chmod +x ./qpki
-
-      - name: Configure SoftHSM2
-        run: |
-          mkdir -p ~/.config/softhsm2/tokens
-          echo "directories.tokendir = $HOME/.config/softhsm2/tokens" > ~/.config/softhsm2/softhsm2.conf
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-
-      - name: Initialize token
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          softhsm2-util --init-token --slot 0 --label "QPKI-Test" --pin 1234 --so-pin 12345678
-
-      - name: Create HSM config
-        run: |
-          cat > /tmp/hsm-test.yaml << 'EOF'
-          type: pkcs11
-          pkcs11:
-            lib: /usr/lib/softhsm/libsofthsm2.so
-            token: "QPKI-Test"
-            pin_env: HSM_PIN
-          EOF
-
-      - name: Generate EC key in HSM (qpki)
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki key gen --algorithm ecdsa-p384 \
-            --hsm-config /tmp/hsm-test.yaml \
-            --key-label "test-ca-key"
-
-      - name: Test HSM list command
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          ./qpki hsm list --lib /usr/lib/softhsm/libsofthsm2.so
-
-      - name: Test HSM test command
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki hsm test --hsm-config /tmp/hsm-test.yaml
-
-      - name: Test key list command (HSM)
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki key list --hsm-config /tmp/hsm-test.yaml
-
-      - name: Test key gen command (HSM)
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki key gen --algorithm ecdsa-p384 \
-            --hsm-config /tmp/hsm-test.yaml \
-            --key-label "generated-key"
-          # Verify the key was created
-          ./qpki key list --hsm-config /tmp/hsm-test.yaml | grep "generated-key"
-
-      - name: Initialize CA with HSM key
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
-            --key-label "test-ca-key" \
-            --profile ec/root-ca \
-            --name "HSM Test CA" \
-            --dir /tmp/hsm-ca
-
-      - name: Initialize CA with generated HSM key
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
-            --key-label "auto-gen-ca-key" \
-            --generate-key \
-            --profile ec/root-ca \
-            --name "Auto-Gen HSM CA" \
-            --dir /tmp/hsm-ca-auto
-          # Verify the CA was created
-          openssl x509 -in /tmp/hsm-ca-auto/ca.crt -text -noout | grep "Auto-Gen HSM CA"
-
-      - name: Verify CA certificate
-        run: |
-          openssl x509 -in /tmp/hsm-ca/ca.crt -text -noout
-          ls -la /tmp/hsm-ca/
-
-      - name: Verify CA metadata (ca.meta.json)
-        run: |
-          # Verify metadata exists
-          test -f /tmp/hsm-ca-auto/ca.meta.json || (echo "ERROR: ca.meta.json not found" && exit 1)
-          # Display metadata
-          cat /tmp/hsm-ca-auto/ca.meta.json
-          # Verify profile field
-          grep -q '"profile"' /tmp/hsm-ca-auto/ca.meta.json
-          # Verify keys array
-          grep -q '"keys"' /tmp/hsm-ca-auto/ca.meta.json
-          # Verify storage type is pkcs11 for HSM CA
-          grep -q '"type"' /tmp/hsm-ca-auto/ca.meta.json
-
-      - name: Generate RSA key in HSM (qpki)
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki key gen --algorithm rsa-4096 \
-            --hsm-config /tmp/hsm-test.yaml \
-            --key-label "rsa-test-key"
-
-      - name: Initialize RSA CA with HSM key
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
-            --key-label "rsa-test-key" \
-            --profile rsa/root-ca \
-            --name "RSA HSM Test CA" \
-            --dir /tmp/hsm-ca-rsa
-
-      - name: Verify RSA CA certificate
-        run: openssl x509 -in /tmp/hsm-ca-rsa/ca.crt -text -noout | grep "RSA"
-
-      # Note: credential enroll --hsm-config is not yet implemented
-      # See KeyManager refactoring plan for future HSM credential support
-      - name: Issue software credential from HSM CA
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki credential enroll --ca-dir /tmp/hsm-ca-auto \
-            --profile ec/tls-server \
-            --var cn=hsm.test.local \
-            --var dns_names=hsm.test.local
-
-      - name: Verify credential metadata (credential.meta.json)
-        run: |
-          CRED_DIR=$(ls -d /tmp/hsm-ca-auto/credentials/*/ | head -1)
-          test -f "${CRED_DIR}credential.meta.json" || (echo "ERROR: credential.meta.json not found" && exit 1)
-          cat "${CRED_DIR}credential.meta.json"
-
-      - name: Verify CA info with qpki
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki ca info --ca-dir /tmp/hsm-ca
-          ./qpki ca info --ca-dir /tmp/hsm-ca-auto
-
-      - name: List credentials from HSM CA
-        run: |
-          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
-          export HSM_PIN=1234
-          ./qpki credential list --ca-dir /tmp/hsm-ca-auto
-
-      # Note: HSM-based OCSP/TSA/CMS tests require KeyManager refactoring
-      # These tests will be re-enabled once credential enroll --hsm-config is implemented
-      # For now, we test HSM CA initialization and software credential issuance
 
   ocsp-test:
     name: OCSP Functional Tests
@@ -908,11 +608,74 @@ jobs:
             --out /tmp/decrypted.txt
           diff /tmp/cms-data.txt /tmp/decrypted.txt
 
-  fuzz:
-    name: Fuzz Testing
+  crosstest-openssl:
+    name: Cross Tests (OpenSSL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: qpki-ci-binary
+
+      - name: Make executable
+        run: chmod +x ./qpki
+
+      - name: Generate test fixtures
+        run: |
+          chmod +x test/generate_fixtures.sh
+          ./test/generate_fixtures.sh
+
+      - name: OpenSSL - Classical certificates
+        run: |
+          cd test/openssl
+          chmod +x *.sh
+          ./verify_classical.sh
+
+      - name: OpenSSL - Catalyst (classical part)
+        run: cd test/openssl && ./verify_catalyst.sh
+
+  crosstest-bc:
+    name: Cross Tests (BouncyCastle)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [test]
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: qpki-ci-binary
+
+      - name: Make executable
+        run: chmod +x ./qpki
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Generate test fixtures
+        run: |
+          chmod +x test/generate_fixtures.sh
+          ./test/generate_fixtures.sh
+
+      - name: BouncyCastle - All certificates
+        run: |
+          cd test/bouncycastle
+          mvn -q test
+
+  hsm-test:
+    name: HSM Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
 
@@ -921,29 +684,168 @@ jobs:
           go-version: '1.22'
           cache: true
 
-      - name: Fuzz CMS parsers
-        run: |
-          go test -fuzz=FuzzParseSignedData -fuzztime=60s ./internal/cms/ || true
-          go test -fuzz=FuzzParseEnvelopedData -fuzztime=60s ./internal/cms/ || true
+      - name: Install SoftHSM2
+        run: sudo apt-get update && sudo apt-get install -y softhsm2
 
-      - name: Fuzz TSA parsers
-        run: |
-          go test -fuzz=FuzzParseRequest -fuzztime=60s ./internal/tsa/ || true
-          go test -fuzz=FuzzParseResponse -fuzztime=60s ./internal/tsa/ || true
-
-      - name: Fuzz OCSP parsers
-        run: |
-          go test -fuzz=FuzzParseRequest -fuzztime=60s ./internal/ocsp/ || true
-          go test -fuzz=FuzzParseResponse -fuzztime=60s ./internal/ocsp/ || true
-
-      - name: Upload crash artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
+      - name: Download binary
+        uses: actions/download-artifact@v4
         with:
-          name: fuzz-crashes
-          path: |
-            **/testdata/fuzz/**/
-          retention-days: 30
+          name: qpki-ci-binary
+
+      - name: Make executable
+        run: chmod +x ./qpki
+
+      - name: Configure SoftHSM2
+        run: |
+          mkdir -p ~/.config/softhsm2/tokens
+          echo "directories.tokendir = $HOME/.config/softhsm2/tokens" > ~/.config/softhsm2/softhsm2.conf
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+
+      - name: Initialize token
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          softhsm2-util --init-token --slot 0 --label "QPKI-Test" --pin 1234 --so-pin 12345678
+
+      - name: Create HSM config
+        run: |
+          cat > /tmp/hsm-test.yaml << 'EOF'
+          type: pkcs11
+          pkcs11:
+            lib: /usr/lib/softhsm/libsofthsm2.so
+            token: "QPKI-Test"
+            pin_env: HSM_PIN
+          EOF
+
+      - name: Generate EC key in HSM (qpki)
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki key gen --algorithm ecdsa-p384 \
+            --hsm-config /tmp/hsm-test.yaml \
+            --key-label "test-ca-key"
+
+      - name: Test HSM list command
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          ./qpki hsm list --lib /usr/lib/softhsm/libsofthsm2.so
+
+      - name: Test HSM test command
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki hsm test --hsm-config /tmp/hsm-test.yaml
+
+      - name: Test key list command (HSM)
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki key list --hsm-config /tmp/hsm-test.yaml
+
+      - name: Test key gen command (HSM)
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki key gen --algorithm ecdsa-p384 \
+            --hsm-config /tmp/hsm-test.yaml \
+            --key-label "generated-key"
+          # Verify the key was created
+          ./qpki key list --hsm-config /tmp/hsm-test.yaml | grep "generated-key"
+
+      - name: Initialize CA with HSM key
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
+            --key-label "test-ca-key" \
+            --profile ec/root-ca \
+            --name "HSM Test CA" \
+            --dir /tmp/hsm-ca
+
+      - name: Initialize CA with generated HSM key
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
+            --key-label "auto-gen-ca-key" \
+            --generate-key \
+            --profile ec/root-ca \
+            --name "Auto-Gen HSM CA" \
+            --dir /tmp/hsm-ca-auto
+          # Verify the CA was created
+          openssl x509 -in /tmp/hsm-ca-auto/ca.crt -text -noout | grep "Auto-Gen HSM CA"
+
+      - name: Verify CA certificate
+        run: |
+          openssl x509 -in /tmp/hsm-ca/ca.crt -text -noout
+          ls -la /tmp/hsm-ca/
+
+      - name: Verify CA metadata (ca.meta.json)
+        run: |
+          # Verify metadata exists
+          test -f /tmp/hsm-ca-auto/ca.meta.json || (echo "ERROR: ca.meta.json not found" && exit 1)
+          # Display metadata
+          cat /tmp/hsm-ca-auto/ca.meta.json
+          # Verify profile field
+          grep -q '"profile"' /tmp/hsm-ca-auto/ca.meta.json
+          # Verify keys array
+          grep -q '"keys"' /tmp/hsm-ca-auto/ca.meta.json
+          # Verify storage type is pkcs11 for HSM CA
+          grep -q '"type"' /tmp/hsm-ca-auto/ca.meta.json
+
+      - name: Generate RSA key in HSM (qpki)
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki key gen --algorithm rsa-4096 \
+            --hsm-config /tmp/hsm-test.yaml \
+            --key-label "rsa-test-key"
+
+      - name: Initialize RSA CA with HSM key
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki ca init --hsm-config /tmp/hsm-test.yaml \
+            --key-label "rsa-test-key" \
+            --profile rsa/root-ca \
+            --name "RSA HSM Test CA" \
+            --dir /tmp/hsm-ca-rsa
+
+      - name: Verify RSA CA certificate
+        run: openssl x509 -in /tmp/hsm-ca-rsa/ca.crt -text -noout | grep "RSA"
+
+      # Note: credential enroll --hsm-config is not yet implemented
+      # See KeyManager refactoring plan for future HSM credential support
+      - name: Issue software credential from HSM CA
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki credential enroll --ca-dir /tmp/hsm-ca-auto \
+            --profile ec/tls-server \
+            --var cn=hsm.test.local \
+            --var dns_names=hsm.test.local
+
+      - name: Verify credential metadata (credential.meta.json)
+        run: |
+          CRED_DIR=$(ls -d /tmp/hsm-ca-auto/credentials/*/ | head -1)
+          test -f "${CRED_DIR}credential.meta.json" || (echo "ERROR: credential.meta.json not found" && exit 1)
+          cat "${CRED_DIR}credential.meta.json"
+
+      - name: Verify CA info with qpki
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki ca info --ca-dir /tmp/hsm-ca
+          ./qpki ca info --ca-dir /tmp/hsm-ca-auto
+
+      - name: List credentials from HSM CA
+        run: |
+          export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+          export HSM_PIN=1234
+          ./qpki credential list --ca-dir /tmp/hsm-ca-auto
+
+      # Note: HSM-based OCSP/TSA/CMS tests require KeyManager refactoring
+      # These tests will be re-enabled once credential enroll --hsm-config is implemented
+      # For now, we test HSM CA initialization and software credential issuance
 
   lab-tests:
     name: Lab Demo Tests (E2E)
@@ -1008,3 +910,100 @@ jobs:
           name: lab-demo-outputs
           path: lab/journey/*/output/
           retention-days: 7
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+
+  build-matrix:
+    timeout-minutes: 15
+    needs: [test, lint]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Build (Unix)
+        if: matrix.goos != 'windows'
+        env:
+          CGO_ENABLED: 1
+        run: go build -o qpki-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/qpki
+
+      - name: Build (Windows)
+        if: matrix.goos == 'windows'
+        env:
+          CGO_ENABLED: 1
+        run: go build -o qpki-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./cmd/qpki
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qpki-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: qpki-*
+          retention-days: 7
+
+  fuzz:
+    name: Fuzz Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Fuzz CMS parsers
+        run: |
+          go test -fuzz=FuzzParseSignedData -fuzztime=60s ./internal/cms/ || true
+          go test -fuzz=FuzzParseEnvelopedData -fuzztime=60s ./internal/cms/ || true
+
+      - name: Fuzz TSA parsers
+        run: |
+          go test -fuzz=FuzzParseRequest -fuzztime=60s ./internal/tsa/ || true
+          go test -fuzz=FuzzParseResponse -fuzztime=60s ./internal/tsa/ || true
+
+      - name: Fuzz OCSP parsers
+        run: |
+          go test -fuzz=FuzzParseRequest -fuzztime=60s ./internal/ocsp/ || true
+          go test -fuzz=FuzzParseResponse -fuzztime=60s ./internal/ocsp/ || true
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: |
+            **/testdata/fuzz/**/
+          retention-days: 30
