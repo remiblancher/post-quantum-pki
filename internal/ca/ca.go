@@ -927,9 +927,11 @@ func InitializeHybridCA(store *Store, cfg HybridCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("failed to generate hybrid CA key: %w", err)
 	}
 
-	// Save both private keys
+	// Save both private keys using algorithm-based naming convention
 	passphrase := []byte(cfg.Passphrase)
-	if err := hybridSigner.SaveHybridKeys(store.CAKeyPath(), store.CAKeyPath()+".pqc", passphrase); err != nil {
+	classicalKeyPath := CAKeyPathForAlgorithm(store.BasePath(), cfg.ClassicalAlgorithm)
+	pqcKeyPath := CAKeyPathForAlgorithm(store.BasePath(), cfg.PQCAlgorithm)
+	if err := hybridSigner.SaveHybridKeys(classicalKeyPath, pqcKeyPath, passphrase); err != nil {
 		return nil, fmt.Errorf("failed to save CA keys: %w", err)
 	}
 
@@ -1021,6 +1023,22 @@ func InitializeHybridCA(store *Store, cfg HybridCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
 	}
 
+	// Create and save CA metadata
+	metadata := NewCAMetadata("catalyst")
+	metadata.AddKey(KeyRef{
+		ID:        "classical",
+		Algorithm: cfg.ClassicalAlgorithm,
+		Storage:   CreateSoftwareKeyRef(RelativeCAKeyPathForAlgorithm(cfg.ClassicalAlgorithm)),
+	})
+	metadata.AddKey(KeyRef{
+		ID:        "pqc",
+		Algorithm: cfg.PQCAlgorithm,
+		Storage:   CreateSoftwareKeyRef(RelativeCAKeyPathForAlgorithm(cfg.PQCAlgorithm)),
+	})
+	if err := metadata.Save(store); err != nil {
+		return nil, fmt.Errorf("failed to save CA metadata: %w", err)
+	}
+
 	// Audit: Hybrid CA created
 	if err := audit.LogCACreated(
 		store.BasePath(),
@@ -1032,9 +1050,10 @@ func InitializeHybridCA(store *Store, cfg HybridCAConfig) (*CA, error) {
 	}
 
 	return &CA{
-		store:  store,
-		cert:   cert,
-		signer: hybridSigner,
+		store:    store,
+		cert:     cert,
+		signer:   hybridSigner,
+		metadata: metadata,
 	}, nil
 }
 
