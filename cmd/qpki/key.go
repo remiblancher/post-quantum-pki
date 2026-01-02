@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -302,28 +301,6 @@ func runKeyList(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// parseHexKeyID parses a hex-encoded key ID.
-func parseHexKeyID(s string) ([]byte, error) {
-	// Remove any spaces or colons
-	s = strings.ReplaceAll(s, " ", "")
-	s = strings.ReplaceAll(s, ":", "")
-
-	if len(s)%2 != 0 {
-		return nil, fmt.Errorf("hex string must have even length")
-	}
-
-	result := make([]byte, len(s)/2)
-	for i := 0; i < len(s); i += 2 {
-		var b byte
-		_, err := fmt.Sscanf(s[i:i+2], "%02x", &b)
-		if err != nil {
-			return nil, fmt.Errorf("invalid hex at position %d: %w", i, err)
-		}
-		result[i/2] = b
-	}
-	return result, nil
 }
 
 func runKeyInfo(cmd *cobra.Command, args []string) error {
