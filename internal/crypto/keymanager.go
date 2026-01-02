@@ -120,7 +120,7 @@ func ResolvePassphrase(passphrase string) []byte {
 }
 
 // StorageRef describes how a key is stored.
-// This is used in metadata files (ca.meta.json, credential.json).
+// This is used in metadata files (ca.meta.json, credential.meta.json).
 type StorageRef struct {
 	// Type is "software" or "pkcs11"
 	Type string `json:"type"`

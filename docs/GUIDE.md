@@ -473,9 +473,9 @@ A credential is a managed bundle of **private key(s) + certificate(s)** with cou
 qpki credential enroll --profile ec/tls-client --var cn=Alice --ca-dir ./ca
 
 # Output: ca/credentials/<id>/
-#   ├── credential.json     # Metadata
-#   ├── certificates.pem    # Certificate(s)
-#   └── private-keys.pem    # Private key(s)
+#   ├── credential.meta.json  # Metadata
+#   ├── certificates.pem      # Certificate(s)
+#   └── private-keys.pem      # Private key(s)
 ```
 
 ```bash
@@ -638,7 +638,7 @@ Credentials group related certificates with a **coupled lifecycle** - all certif
 
 ```
 credentials/<credential-id>/
-├── credential.json       # Metadata (status, certificates, validity)
+├── credential.meta.json  # Metadata (status, certificates, validity)
 ├── certificates.pem      # All certificates (PEM, concatenated)
 └── private-keys.pem      # All private keys (PEM, encrypted)
 ```
