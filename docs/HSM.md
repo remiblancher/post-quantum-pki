@@ -56,9 +56,6 @@ pkcs11:
 
 session:
   logout_after_use: true       # Logout after each operation
-
-security:
-  verify_key_cert_binding: true  # Verify key matches certificate
 ```
 
 ### Key Identification

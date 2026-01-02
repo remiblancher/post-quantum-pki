@@ -337,8 +337,6 @@ jobs:
             pin_env: HSM_PIN
           session:
             logout_after_use: true
-          security:
-            verify_key_cert_binding: true
           EOF
 
       - name: Generate EC key in HSM (qpki)
