@@ -19,9 +19,8 @@ type PKCS11Config struct {
 	PIN                  string
 	KeyLabel             string
 	KeyID                string
-	SlotID               *uint
-	LogoutAfterUse       bool
-	VerifyKeyCertBinding bool
+	SlotID         *uint
+	LogoutAfterUse bool
 }
 
 // PKCS11Signer implements the Signer interface using PKCS#11.

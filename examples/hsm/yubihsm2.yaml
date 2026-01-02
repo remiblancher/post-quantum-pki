@@ -30,6 +30,3 @@ pkcs11:
 
 session:
   logout_after_use: true
-
-security:
-  verify_key_cert_binding: true

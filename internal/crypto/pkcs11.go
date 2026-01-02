@@ -44,9 +44,6 @@ type PKCS11Config struct {
 
 	// LogoutAfterUse closes the session after each operation
 	LogoutAfterUse bool
-
-	// VerifyKeyCertBinding ensures the HSM key matches the CA certificate
-	VerifyKeyCertBinding bool
 }
 
 // PKCS11Signer implements the Signer interface using PKCS#11.

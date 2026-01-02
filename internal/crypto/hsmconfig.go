@@ -11,10 +11,9 @@ import (
 
 // HSMConfig represents the YAML configuration for HSM.
 type HSMConfig struct {
-	Type     string          `yaml:"type"`
-	PKCS11   PKCS11Settings  `yaml:"pkcs11"`
-	Session  SessionSettings `yaml:"session"`
-	Security SecuritySettings `yaml:"security"`
+	Type    string          `yaml:"type"`
+	PKCS11  PKCS11Settings  `yaml:"pkcs11"`
+	Session SessionSettings `yaml:"session"`
 }
 
 // PKCS11Settings holds PKCS#11 specific configuration.
@@ -39,12 +38,6 @@ type PKCS11Settings struct {
 type SessionSettings struct {
 	// LogoutAfterUse closes the session after each operation
 	LogoutAfterUse bool `yaml:"logout_after_use"`
-}
-
-// SecuritySettings holds security-related configuration.
-type SecuritySettings struct {
-	// VerifyKeyCertBinding ensures the HSM key matches the CA certificate
-	VerifyKeyCertBinding bool `yaml:"verify_key_cert_binding"`
 }
 
 // LoadHSMConfig loads HSM configuration from a YAML file.
@@ -115,9 +108,6 @@ func (c *HSMConfig) ToPKCS11Config(keyLabel, keyID string) (*PKCS11Config, error
 
 		// Session settings
 		LogoutAfterUse: c.Session.LogoutAfterUse,
-
-		// Security settings
-		VerifyKeyCertBinding: c.Security.VerifyKeyCertBinding,
 	}
 
 	return cfg, nil
