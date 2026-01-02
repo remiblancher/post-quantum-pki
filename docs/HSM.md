@@ -185,25 +185,27 @@ HSM mode does not support PQC or hybrid profiles because current HSMs do not sup
 
 ## Supported HSMs
 
-QPKI uses PKCS#11 for HSM integration. The table below shows compatibility and validation status.
+QPKI uses PKCS#11 for HSM integration. The table below shows compatibility, validation status, and vendor PQC capabilities.
 
-| HSM | Interface | PQC | Status | Notes |
-|-----|-----------|-----|--------|-------|
+| HSM | Interface | PQC (Vendor) | Status | Notes |
+|-----|-----------|--------------|--------|-------|
 | SoftHSM2 | PKCS#11 | ❌ | ✅ Validated | Tested in CI (ECDSA-P384, RSA-4096) |
 | YubiHSM2 | PKCS#11 | ❌ | 📋 Example | ~$650, accessible for small deployments |
-| Thales Luna 7.9+ | PKCS#11 | ✅ | 🎯 Target | ML-DSA, ML-KEM support |
-| Entrust nShield | PKCS#11 | ✅ | 🎯 Target | ML-DSA, ML-KEM, SLH-DSA (CAVP certified) |
-| Securosys Primus | PKCS#11 | ✅ | 🎯 Target | ML-DSA, ML-KEM, SLH-DSA |
+| Thales Luna 7.9+ | PKCS#11 | ✅ | 🎯 Planned | ML-DSA, ML-KEM (vendor roadmap) |
+| Entrust nShield | PKCS#11 | ✅ | 🎯 Planned | ML-DSA, ML-KEM, SLH-DSA (CAVP) |
+| Securosys Primus | PKCS#11 | ✅ | 🎯 Planned | ML-DSA, ML-KEM, SLH-DSA |
 | Eviden Trustway | PKCS#11 | ❌ | 📋 Example | ANSSI certified |
 | Utimaco | PKCS#11 | ❌ | 📋 Example | Enterprise |
 | AWS CloudHSM | PKCS#11 | ❌ | 📋 Example | Cloud-native |
 | Azure Key Vault | REST only | ❌ | ❌ N/A | Not compatible (no PKCS#11) |
 
 **Legend:**
-- ✅ Validated: Tested in CI/CD
-- 🎯 Target: Priority for future PQC integration
+- ✅ Validated: Tested in CI/CD with QPKI
+- 🎯 Planned: Priority target for future support, not yet implemented
 - 📋 Example: Configuration provided, not validated
 - ❌ N/A: Not compatible with QPKI
+
+**Note:** PQC (Vendor) refers to vendor-provided HSM capabilities. Actual availability depends on firmware versions and licensing. Validated means tested with QPKI in the specified scope; it does not imply vendor certification or production endorsement.
 
 ### Development with SoftHSM2
 
