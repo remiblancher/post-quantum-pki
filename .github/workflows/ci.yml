@@ -516,7 +516,7 @@ jobs:
           retention-days: 7
 
   hsm-test:
-    name: HSM Integration Tests (SoftHSMv2)
+    name: HSM Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build]
