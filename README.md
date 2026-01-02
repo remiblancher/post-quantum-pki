@@ -335,9 +335,9 @@ A credential is a managed bundle of **private key(s) + certificate(s)** with cou
 qpki credential enroll --profile ec/tls-client --var cn=Alice --ca-dir ./ca
 
 # Output: ca/credentials/<id>/
-#   ├── credential.json     # Metadata
-#   ├── certificates.pem    # Certificate(s)
-#   └── private-keys.pem    # Private key(s)
+#   ├── credential.meta.json  # Metadata
+#   ├── certificates.pem      # Certificate(s)
+#   └── private-keys.pem      # Private key(s)
 ```
 
 **Why use credentials?**
@@ -395,7 +395,7 @@ ca/
 │   └── ...
 ├── credentials/     # Certificate credentials
 │   └── <credential-id>/
-│       ├── credential.json
+│       ├── credential.meta.json
 │       ├── certificates.pem
 │       └── private-keys.pem
 ├── index.txt        # Certificate database
