@@ -607,6 +607,17 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save HSM reference: %w", err)
 	}
 
+	// Create and save CA metadata for HSM key
+	metadata := ca.NewCAMetadata(caInitProfile)
+	metadata.AddKey(ca.KeyRef{
+		ID:        "default",
+		Algorithm: signerAlg,
+		Storage:   ca.CreatePKCS11KeyRef("hsm.yaml", keyLabel, keyID),
+	})
+	if err := ca.SaveCAMetadata(store.BasePath(), metadata); err != nil {
+		return fmt.Errorf("failed to save CA metadata: %w", err)
+	}
+
 	cert := newCA.Certificate()
 	fmt.Printf("\nCA initialized successfully!\n")
 	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
