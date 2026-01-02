@@ -47,9 +47,9 @@ type Store interface {
 // Credential layout:
 //
 //	{basePath}/credentials/{credentialID}/
-//	    credential.json     # Metadata
-//	    certificates.pem    # All certificates
-//	    private-keys.pem    # All private keys (encrypted)
+//	    credential.meta.json     # Metadata
+//	    certificates.pem         # All certificates
+//	    private-keys.pem         # All private keys (encrypted)
 type FileStore struct {
 	basePath string
 	mu       sync.RWMutex
@@ -69,7 +69,7 @@ func (s *FileStore) credentialPath(credentialID string) string {
 
 // metadataPath returns the path to the credential metadata file.
 func (s *FileStore) metadataPath(credentialID string) string {
-	return filepath.Join(s.credentialPath(credentialID), "credential.json")
+	return filepath.Join(s.credentialPath(credentialID), "credential.meta.json")
 }
 
 // certsPath returns the path to the certificates PEM file.
