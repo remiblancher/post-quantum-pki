@@ -112,6 +112,7 @@ func Verify(responseData []byte, config *VerifyConfig) (*VerifyResult, error) {
 
 	// Extract responder certificate
 	var responderCert *x509.Certificate
+	var isCAResponder bool
 	if config.ResponderCert != nil {
 		responderCert = config.ResponderCert
 	} else if len(basicResp.Certs) > 0 {
@@ -123,6 +124,18 @@ func Verify(responseData []byte, config *VerifyConfig) (*VerifyResult, error) {
 	} else if config.IssuerCert != nil {
 		// CA-signed response
 		responderCert = config.IssuerCert
+		isCAResponder = true
+	}
+
+	// Verify responder authorization (RFC 6960 Section 4.2.2.2)
+	// A delegated OCSP responder must have the id-kp-OCSPSigning EKU
+	if responderCert != nil && !isCAResponder && config.IssuerCert != nil {
+		// Check if this is a delegated responder (not the CA itself)
+		if !bytes.Equal(responderCert.Raw, config.IssuerCert.Raw) {
+			if err := verifyResponderAuthorization(responderCert); err != nil {
+				return nil, fmt.Errorf("responder authorization failed: %w", err)
+			}
+		}
 	}
 
 	// Verify signature
@@ -203,6 +216,28 @@ func parseCertStatus(raw asn1.RawValue) (CertStatus, time.Time, RevocationReason
 	default:
 		return 0, time.Time{}, 0, fmt.Errorf("unknown cert status tag: %d", raw.Tag)
 	}
+}
+
+// verifyResponderAuthorization checks that a delegated OCSP responder has the
+// required id-kp-OCSPSigning extended key usage (RFC 6960 Section 4.2.2.2).
+func verifyResponderAuthorization(cert *x509.Certificate) error {
+	// Check for ExtKeyUsageOCSPSigning in the standard EKU field
+	for _, eku := range cert.ExtKeyUsage {
+		if eku == x509.ExtKeyUsageOCSPSigning {
+			return nil
+		}
+	}
+
+	// Also check in UnknownExtKeyUsage for PQC certificates where Go might not parse the EKU
+	// OID for id-kp-OCSPSigning is 1.3.6.1.5.5.7.3.9
+	ocspSigningOID := asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 9}
+	for _, oid := range cert.UnknownExtKeyUsage {
+		if oid.Equal(ocspSigningOID) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("responder certificate does not have id-kp-OCSPSigning EKU")
 }
 
 // verifySignature verifies the signature on the response.
