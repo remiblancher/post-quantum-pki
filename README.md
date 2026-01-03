@@ -434,19 +434,6 @@ All artifacts are verified by **at least 2 independent implementations**:
 | Catalyst Hybrid | ✅ both sigs | ✅ ECDSA only | ✅ both sigs |
 | Composite (IETF) | ✅ both sigs | ❌ | ⚠️ parse only* |
 
-### CSR, CRL, OCSP, TSA, CMS
-
-| Component | Classical | PQC (ML-DSA/SLH-DSA) | Hybrid (Catalyst) |
-|-----------|-----------|----------------------|-------------------|
-| CSR | ✅ OpenSSL + BC | ✅ OpenSSL 3.6 + BC | ✅ ECDSA (OpenSSL) |
-| CRL | ✅ OpenSSL + BC | ✅ OpenSSL 3.6 + BC | ✅ ECDSA (OpenSSL) |
-| OCSP | ✅ OpenSSL + BC | ✅ OpenSSL 3.6 + BC | ✅ ECDSA (OpenSSL) |
-| TSA | ✅ OpenSSL + BC | ✅ OpenSSL 3.6 + BC | ✅ ECDSA (OpenSSL) |
-| CMS | ✅ OpenSSL + BC | ✅ OpenSSL 3.6 + BC | ✅ ECDSA (OpenSSL) |
-
-> **Note**: For Catalyst hybrid, OpenSSL verifies only the primary ECDSA signature.
-> The ML-DSA alternate signature is verified by BouncyCastle.
-
 **Version requirements:**
 - **OpenSSL 3.6+**: Full PQC support (ML-DSA, SLH-DSA, ML-KEM)
 - **BouncyCastle 1.83+**: Full PQC support
