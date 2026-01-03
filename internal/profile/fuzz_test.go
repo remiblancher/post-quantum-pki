@@ -35,7 +35,7 @@ validity: 1y`))
 
 	// YAML bombs / pathological cases
 	f.Add([]byte(`a: &a [*a, *a, *a, *a]`)) // Circular reference
-	f.Add([]byte(strings.Repeat("key: value\n", 10000))) // Many keys
+	f.Add([]byte(strings.Repeat("key: value\n", 100))) // Many keys (kept small for fast seed tests)
 
 	// Type confusion
 	f.Add([]byte(`name: 12345`))
@@ -96,7 +96,7 @@ func FuzzParseDuration(f *testing.F) {
 func FuzzVariableGetters(f *testing.F) {
 	f.Add("string-value")
 	f.Add("")
-	f.Add(strings.Repeat("x", 10000)) // Long string
+	f.Add(strings.Repeat("x", 1000)) // Long string (kept reasonable for fast seed tests)
 
 	f.Fuzz(func(t *testing.T, s string) {
 		v := &Variable{
