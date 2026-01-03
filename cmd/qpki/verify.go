@@ -137,6 +137,9 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		opts := x509.VerifyOptions{
 			Roots:       roots,
 			CurrentTime: time.Now(),
+			// Accept any extended key usage - we're verifying chain validity,
+			// not checking if the cert is suitable for a specific purpose
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 		}
 		_, chainErr = cert.Verify(opts)
 	}
