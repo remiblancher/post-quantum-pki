@@ -16,6 +16,8 @@ import (
 	"hash"
 	"sort"
 	"time"
+
+	"github.com/cloudflare/circl/sign/slhdsa"
 )
 
 // SignerConfig contains options for signing.
@@ -283,12 +285,26 @@ func getSignatureAlgorithmIdentifier(signer crypto.Signer, digestAlg crypto.Hash
 }
 
 func detectPQCAlgorithm(pub interface{}) (pkix.AlgorithmIdentifier, error) {
-	// Check if the public key type name contains ML-DSA or SLH-DSA
-	typeName := fmt.Sprintf("%T", pub)
+	// Check for SLH-DSA (can be value or pointer type)
+	switch slhPub := pub.(type) {
+	case *slhdsa.PublicKey:
+		oid := slhdsaIDToOID(slhPub.ID)
+		if oid == nil {
+			return pkix.AlgorithmIdentifier{}, fmt.Errorf("unknown SLH-DSA ID: %v", slhPub.ID)
+		}
+		return pkix.AlgorithmIdentifier{Algorithm: oid}, nil
+	case slhdsa.PublicKey:
+		oid := slhdsaIDToOID(slhPub.ID)
+		if oid == nil {
+			return pkix.AlgorithmIdentifier{}, fmt.Errorf("unknown SLH-DSA ID: %v", slhPub.ID)
+		}
+		return pkix.AlgorithmIdentifier{Algorithm: oid}, nil
+	}
 
-	// ML-DSA detection based on public key size or type
+	// Check if the public key type name contains ML-DSA
 	// This is implementation-specific and depends on the circl library
 	// The circl library uses mode2, mode3, mode5 for ML-DSA-44, ML-DSA-65, ML-DSA-87
+	typeName := fmt.Sprintf("%T", pub)
 	switch typeName {
 	case "*mode2.PublicKey":
 		return pkix.AlgorithmIdentifier{Algorithm: OIDMLDSA44}, nil
@@ -297,8 +313,27 @@ func detectPQCAlgorithm(pub interface{}) (pkix.AlgorithmIdentifier, error) {
 	case "*mode5.PublicKey":
 		return pkix.AlgorithmIdentifier{Algorithm: OIDMLDSA87}, nil
 	default:
-		// For unknown types, try to use the algorithm from the certificate if available
 		return pkix.AlgorithmIdentifier{}, fmt.Errorf("unsupported public key type: %T", pub)
+	}
+}
+
+// slhdsaIDToOID maps SLH-DSA ID to the corresponding OID.
+func slhdsaIDToOID(id slhdsa.ID) asn1.ObjectIdentifier {
+	switch id {
+	case slhdsa.SHA2_128s:
+		return OIDSLHDSA128s
+	case slhdsa.SHA2_128f:
+		return OIDSLHDSA128f
+	case slhdsa.SHA2_192s:
+		return OIDSLHDSA192s
+	case slhdsa.SHA2_192f:
+		return OIDSLHDSA192f
+	case slhdsa.SHA2_256s:
+		return OIDSLHDSA256s
+	case slhdsa.SHA2_256f:
+		return OIDSLHDSA256f
+	default:
+		return nil
 	}
 }
 
