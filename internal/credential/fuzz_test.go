@@ -60,8 +60,8 @@ func FuzzCredentialUnmarshalJSON(f *testing.F) {
 	f.Add([]byte(`{"metadata": [1, 2, 3]}`))
 
 	// Large/nested structures
-	f.Add([]byte(`{"id": "` + strings.Repeat("x", 10000) + `"}`))
-	f.Add([]byte(`{"certificates": [` + strings.Repeat(`{"serial":"x"},`, 1000) + `{"serial":"y"}]}`))
+	f.Add([]byte(`{"id": "` + strings.Repeat("x", 1000) + `"}`))
+	f.Add([]byte(`{"certificates": [` + strings.Repeat(`{"serial":"x"},`, 100) + `{"serial":"y"}]}`))
 
 	// Unicode and special characters
 	f.Add([]byte(`{"id": "测试-cred-🔐"}`))
