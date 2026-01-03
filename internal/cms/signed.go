@@ -2,6 +2,7 @@ package cms
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"math/big"
@@ -88,6 +89,75 @@ func NewMessageDigestAttr(digest []byte) (Attribute, error) {
 // NewSigningTimeAttr creates a signing-time attribute.
 func NewSigningTimeAttr(t time.Time) (Attribute, error) {
 	return NewAttribute(OIDSigningTime, t.UTC())
+}
+
+// ESSCertIDv2 represents the ESSCertIDv2 structure (RFC 5035).
+// Used for the signing-certificate-v2 attribute required by RFC 5816 for TSA.
+type ESSCertIDv2 struct {
+	HashAlgorithm pkix.AlgorithmIdentifier `asn1:"optional"`
+	CertHash      []byte
+	IssuerSerial  ESSIssuerSerial `asn1:"optional"`
+}
+
+// ESSIssuerSerial identifies a certificate by issuer and serial for ESSCertIDv2.
+type ESSIssuerSerial struct {
+	Issuer       asn1.RawValue // GeneralNames
+	SerialNumber *big.Int
+}
+
+// SigningCertificateV2 represents the SigningCertificateV2 attribute value (RFC 5035).
+type SigningCertificateV2 struct {
+	Certs []ESSCertIDv2
+	// Policies omitted - optional and rarely used
+}
+
+// NewSigningCertificateV2Attr creates a signing-certificate-v2 attribute (RFC 5035).
+// This attribute is required by RFC 5816 for timestamp tokens.
+func NewSigningCertificateV2Attr(certDER []byte, issuerRaw []byte, serialNumber *big.Int) (Attribute, error) {
+	// Compute SHA-256 hash of the certificate
+	h := sha256.Sum256(certDER)
+
+	// Build IssuerSerial with GeneralNames containing directoryName
+	// GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
+	// GeneralName ::= CHOICE { directoryName [4] Name }
+	directoryName := asn1.RawValue{
+		Class:      asn1.ClassContextSpecific,
+		Tag:        4,
+		IsCompound: true,
+		Bytes:      issuerRaw,
+	}
+	generalNamesBytes, err := asn1.Marshal(directoryName)
+	if err != nil {
+		return Attribute{}, err
+	}
+	// Wrap in SEQUENCE for GeneralNames
+	generalNames := asn1.RawValue{
+		Class:      asn1.ClassUniversal,
+		Tag:        asn1.TagSequence,
+		IsCompound: true,
+		Bytes:      generalNamesBytes,
+	}
+	generalNamesFullBytes, err := asn1.Marshal(generalNames)
+	if err != nil {
+		return Attribute{}, err
+	}
+
+	issuerSerial := ESSIssuerSerial{
+		Issuer:       asn1.RawValue{FullBytes: generalNamesFullBytes},
+		SerialNumber: serialNumber,
+	}
+
+	essCertID := ESSCertIDv2{
+		// HashAlgorithm omitted = default SHA-256 per RFC 5035
+		CertHash:     h[:],
+		IssuerSerial: issuerSerial,
+	}
+
+	signingCert := SigningCertificateV2{
+		Certs: []ESSCertIDv2{essCertID},
+	}
+
+	return NewAttribute(OIDSigningCertificateV2, signingCert)
 }
 
 // MarshalSignedAttrs marshals signed attributes for signing.
