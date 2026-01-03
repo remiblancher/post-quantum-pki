@@ -676,7 +676,11 @@ func TestU_BuildSignedAttrs(t *testing.T) {
 	digest := []byte{0x01, 0x02, 0x03, 0x04}
 	signingTime := time.Now().UTC()
 
-	attrs, err := buildSignedAttrs(contentType, digest, signingTime)
+	attrs, err := buildSignedAttrs(&buildSignedAttrsConfig{
+		ContentType: contentType,
+		Digest:      digest,
+		SigningTime: signingTime,
+	})
 	if err != nil {
 		t.Fatalf("buildSignedAttrs failed: %v", err)
 	}

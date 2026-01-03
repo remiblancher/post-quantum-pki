@@ -137,12 +137,14 @@ func CreateToken(req *TimeStampReq, config *TokenConfig, serialGen SerialGenerat
 	// even if not explicitly requested (req.CertReq).
 	// RFC 3161 Section 2.4.2: "The TSA SHOULD include signing certificate
 	// identifier attribute in the SignerInfo."
+	// RFC 5816: ESSCertIDv2 (signing-certificate-v2) attribute MUST be present.
 	signedData, err := cms.Sign(tstInfoDER, &cms.SignerConfig{
-		Certificate:  config.Certificate,
-		Signer:       config.Signer,
-		DigestAlg:    hashAlg,
-		IncludeCerts: true, // Always include for RFC 3161 compliance
-		ContentType:  cms.OIDTSTInfo,
+		Certificate:          config.Certificate,
+		Signer:               config.Signer,
+		DigestAlg:            hashAlg,
+		IncludeCerts:         true, // Always include for RFC 3161 compliance
+		ContentType:          cms.OIDTSTInfo,
+		IncludeSigningCertV2: true, // RFC 5816: ESSCertIDv2 required for TSA
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SignedData: %w", err)
