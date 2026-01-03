@@ -356,6 +356,302 @@ func modifyMessageDigest(t *testing.T, signedDataDER []byte) []byte {
 }
 
 // =============================================================================
+// ML-DSA Test Helpers
+// =============================================================================
+
+// generateMLDSAKeyPair generates an ML-DSA key pair for testing.
+func generateMLDSAKeyPair(t *testing.T, alg pkicrypto.AlgorithmID) *testKeyPair {
+	t.Helper()
+	kp, err := pkicrypto.GenerateKeyPair(alg)
+	if err != nil {
+		t.Fatalf("Failed to generate ML-DSA key pair: %v", err)
+	}
+	signer, ok := kp.PrivateKey.(crypto.Signer)
+	if !ok {
+		t.Fatalf("ML-DSA private key does not implement crypto.Signer")
+	}
+	return &testKeyPair{
+		PrivateKey: signer,
+		PublicKey:  kp.PublicKey,
+		Algorithm:  string(alg),
+	}
+}
+
+// generateMLDSACertificate creates a self-signed certificate using ML-DSA.
+func generateMLDSACertificate(t *testing.T, kp *testKeyPair, alg pkicrypto.AlgorithmID) *x509.Certificate {
+	t.Helper()
+
+	// Get the ML-DSA OID
+	var sigOID asn1.ObjectIdentifier
+	switch alg {
+	case pkicrypto.AlgMLDSA44:
+		sigOID = OIDMLDSA44
+	case pkicrypto.AlgMLDSA65:
+		sigOID = OIDMLDSA65
+	case pkicrypto.AlgMLDSA87:
+		sigOID = OIDMLDSA87
+	default:
+		t.Fatalf("Unsupported ML-DSA algorithm: %s", alg)
+	}
+
+	// Marshal ML-DSA public key bytes
+	pubBytes, err := pkicrypto.PublicKeyBytes(kp.PublicKey)
+	if err != nil {
+		t.Fatalf("Failed to marshal ML-DSA public key: %v", err)
+	}
+
+	// Build SubjectPublicKeyInfo with ML-DSA
+	spki := struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}{
+		Algorithm: pkix.AlgorithmIdentifier{
+			Algorithm: sigOID,
+		},
+		PublicKey: asn1.BitString{
+			Bytes:     pubBytes,
+			BitLength: len(pubBytes) * 8,
+		},
+	}
+
+	spkiBytes, err := asn1.Marshal(spki)
+	if err != nil {
+		t.Fatalf("Failed to marshal SPKI: %v", err)
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	// Build TBSCertificate manually for ML-DSA
+	tbs := struct {
+		Version            int `asn1:"optional,explicit,default:0,tag:0"`
+		SerialNumber       *big.Int
+		SignatureAlgorithm pkix.AlgorithmIdentifier
+		Issuer             pkix.RDNSequence
+		Validity           struct {
+			NotBefore, NotAfter time.Time
+		}
+		Subject               pkix.RDNSequence
+		SubjectPublicKeyInfo  asn1.RawValue
+		BasicConstraintsValid bool `asn1:"optional"`
+	}{
+		Version:            2, // v3
+		SerialNumber:       serialNumber,
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: sigOID},
+		Issuer: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3}, Value: "ML-DSA Test Certificate"},
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 10}, Value: "Test Org"},
+			},
+		},
+		Validity: struct {
+			NotBefore, NotAfter time.Time
+		}{
+			NotBefore: time.Now().Add(-1 * time.Hour),
+			NotAfter:  time.Now().Add(24 * time.Hour),
+		},
+		Subject: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3}, Value: "ML-DSA Test Certificate"},
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 10}, Value: "Test Org"},
+			},
+		},
+		SubjectPublicKeyInfo: asn1.RawValue{FullBytes: spkiBytes},
+	}
+
+	tbsBytes, err := asn1.Marshal(tbs)
+	if err != nil {
+		t.Fatalf("Failed to marshal TBSCertificate: %v", err)
+	}
+
+	// Sign TBS with ML-DSA (must pass crypto.Hash(0) not nil)
+	signature, err := kp.PrivateKey.Sign(rand.Reader, tbsBytes, crypto.Hash(0))
+	if err != nil {
+		t.Fatalf("Failed to sign TBSCertificate: %v", err)
+	}
+
+	// Build full certificate
+	certStruct := struct {
+		TBSCertificate     asn1.RawValue
+		SignatureAlgorithm pkix.AlgorithmIdentifier
+		SignatureValue     asn1.BitString
+	}{
+		TBSCertificate:     asn1.RawValue{FullBytes: tbsBytes},
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: sigOID},
+		SignatureValue: asn1.BitString{
+			Bytes:     signature,
+			BitLength: len(signature) * 8,
+		},
+	}
+
+	certDER, err := asn1.Marshal(certStruct)
+	if err != nil {
+		t.Fatalf("Failed to marshal certificate: %v", err)
+	}
+
+	// Parse it back (Go's x509 will parse it but won't verify ML-DSA)
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	return cert
+}
+
+// =============================================================================
+// SLH-DSA Test Helpers
+// =============================================================================
+
+// generateSLHDSAKeyPair generates an SLH-DSA key pair for testing.
+func generateSLHDSAKeyPair(t *testing.T, alg pkicrypto.AlgorithmID) *testKeyPair {
+	t.Helper()
+	kp, err := pkicrypto.GenerateKeyPair(alg)
+	if err != nil {
+		t.Fatalf("Failed to generate SLH-DSA key pair: %v", err)
+	}
+	signer, ok := kp.PrivateKey.(crypto.Signer)
+	if !ok {
+		t.Fatalf("SLH-DSA private key does not implement crypto.Signer")
+	}
+	return &testKeyPair{
+		PrivateKey: signer,
+		PublicKey:  kp.PublicKey,
+		Algorithm:  string(alg),
+	}
+}
+
+// generateSLHDSACertificate creates a self-signed certificate using SLH-DSA.
+func generateSLHDSACertificate(t *testing.T, kp *testKeyPair, alg pkicrypto.AlgorithmID) *x509.Certificate {
+	t.Helper()
+
+	// Get the SLH-DSA OID
+	var sigOID asn1.ObjectIdentifier
+	switch alg {
+	case pkicrypto.AlgSLHDSA128s:
+		sigOID = OIDSLHDSA128s
+	case pkicrypto.AlgSLHDSA128f:
+		sigOID = OIDSLHDSA128f
+	case pkicrypto.AlgSLHDSA192s:
+		sigOID = OIDSLHDSA192s
+	case pkicrypto.AlgSLHDSA192f:
+		sigOID = OIDSLHDSA192f
+	case pkicrypto.AlgSLHDSA256s:
+		sigOID = OIDSLHDSA256s
+	case pkicrypto.AlgSLHDSA256f:
+		sigOID = OIDSLHDSA256f
+	default:
+		t.Fatalf("Unsupported SLH-DSA algorithm: %s", alg)
+	}
+
+	// Marshal SLH-DSA public key bytes
+	pubBytes, err := pkicrypto.PublicKeyBytes(kp.PublicKey)
+	if err != nil {
+		t.Fatalf("Failed to marshal SLH-DSA public key: %v", err)
+	}
+
+	// Build SubjectPublicKeyInfo with SLH-DSA
+	spki := struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}{
+		Algorithm: pkix.AlgorithmIdentifier{
+			Algorithm: sigOID,
+		},
+		PublicKey: asn1.BitString{
+			Bytes:     pubBytes,
+			BitLength: len(pubBytes) * 8,
+		},
+	}
+
+	spkiBytes, err := asn1.Marshal(spki)
+	if err != nil {
+		t.Fatalf("Failed to marshal SPKI: %v", err)
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	// Build TBSCertificate manually for SLH-DSA
+	tbs := struct {
+		Version            int `asn1:"optional,explicit,default:0,tag:0"`
+		SerialNumber       *big.Int
+		SignatureAlgorithm pkix.AlgorithmIdentifier
+		Issuer             pkix.RDNSequence
+		Validity           struct {
+			NotBefore, NotAfter time.Time
+		}
+		Subject               pkix.RDNSequence
+		SubjectPublicKeyInfo  asn1.RawValue
+		BasicConstraintsValid bool `asn1:"optional"`
+	}{
+		Version:            2, // v3
+		SerialNumber:       serialNumber,
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: sigOID},
+		Issuer: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3}, Value: "SLH-DSA Test Certificate"},
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 10}, Value: "Test Org"},
+			},
+		},
+		Validity: struct {
+			NotBefore, NotAfter time.Time
+		}{
+			NotBefore: time.Now().Add(-1 * time.Hour),
+			NotAfter:  time.Now().Add(24 * time.Hour),
+		},
+		Subject: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3}, Value: "SLH-DSA Test Certificate"},
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 10}, Value: "Test Org"},
+			},
+		},
+		SubjectPublicKeyInfo: asn1.RawValue{FullBytes: spkiBytes},
+	}
+
+	tbsBytes, err := asn1.Marshal(tbs)
+	if err != nil {
+		t.Fatalf("Failed to marshal TBSCertificate: %v", err)
+	}
+
+	// Sign TBS with SLH-DSA
+	signature, err := kp.PrivateKey.Sign(rand.Reader, tbsBytes, nil)
+	if err != nil {
+		t.Fatalf("Failed to sign TBSCertificate: %v", err)
+	}
+
+	// Build full certificate
+	certStruct := struct {
+		TBSCertificate     asn1.RawValue
+		SignatureAlgorithm pkix.AlgorithmIdentifier
+		SignatureValue     asn1.BitString
+	}{
+		TBSCertificate:     asn1.RawValue{FullBytes: tbsBytes},
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: sigOID},
+		SignatureValue: asn1.BitString{
+			Bytes:     signature,
+			BitLength: len(signature) * 8,
+		},
+	}
+
+	certDER, err := asn1.Marshal(certStruct)
+	if err != nil {
+		t.Fatalf("Failed to marshal certificate: %v", err)
+	}
+
+	// Parse it back (Go's x509 will parse it but won't verify SLH-DSA)
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	return cert
+}
+
+// =============================================================================
 // ML-KEM Test Helpers
 // =============================================================================
 

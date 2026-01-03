@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"testing"
 	"time"
+
+	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
 // =============================================================================
@@ -706,5 +708,189 @@ func TestU_RevocationReasons_AllCodes(t *testing.T) {
 				t.Errorf("Expected reason %d, got %d", tc.reason, result.RevocationReason)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// Additional Algorithm Tests
+// =============================================================================
+
+// TestU_ResponseBuilder_ECDSA_P521 tests response building with ECDSA P-521.
+func TestU_ResponseBuilder_ECDSA_P521(t *testing.T) {
+	caCert, caKey := generateTestCA(t)
+
+	p521KP := generateECDSAKeyPair(t, elliptic.P521())
+	responderCert := generateOCSPResponderCert(t, caCert, caKey, p521KP)
+
+	kp := generateECDSAKeyPair(t, elliptic.P256())
+	cert := issueTestCertificate(t, caCert, caKey, kp)
+
+	certID, err := NewCertID(crypto.SHA512, caCert, cert)
+	if err != nil {
+		t.Fatalf("NewCertID failed: %v", err)
+	}
+
+	now := time.Now().UTC()
+	builder := NewResponseBuilder(responderCert, p521KP.PrivateKey)
+	builder.AddGood(certID, now, now.Add(1*time.Hour))
+
+	data, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	// Verify ECDSA P-521 signature algorithm OID
+	info, err := GetResponseInfo(data)
+	if err != nil {
+		t.Fatalf("GetResponseInfo failed: %v", err)
+	}
+
+	expectedOID := OIDECDSAWithSHA512.String()
+	if info.SignatureAlg != expectedOID {
+		t.Errorf("Expected ECDSA-SHA512 OID %s, got %s", expectedOID, info.SignatureAlg)
+	}
+}
+
+// =============================================================================
+// Post-Quantum Algorithm Tests
+// =============================================================================
+
+// TestU_ResponseBuilder_MLDSA tests response building with ML-DSA algorithms.
+func TestU_ResponseBuilder_MLDSA(t *testing.T) {
+	algorithms := []struct {
+		name        string
+		alg         pkicrypto.AlgorithmID
+		expectedOID string
+	}{
+		{"ML-DSA-44", pkicrypto.AlgMLDSA44, OIDMLDSA44.String()},
+		{"ML-DSA-65", pkicrypto.AlgMLDSA65, OIDMLDSA65.String()},
+		{"ML-DSA-87", pkicrypto.AlgMLDSA87, OIDMLDSA87.String()},
+	}
+
+	caCert, caKey := generateTestCA(t)
+	kp := generateECDSAKeyPair(t, elliptic.P256())
+	cert := issueTestCertificate(t, caCert, caKey, kp)
+
+	for _, tc := range algorithms {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate ML-DSA responder key pair
+			responderKP := generateMLDSAKeyPair(t, tc.alg)
+			responderCert := generatePQCOCSPResponderCert(t, caCert, caKey, responderKP, tc.alg)
+
+			certID, err := NewCertID(crypto.SHA256, caCert, cert)
+			if err != nil {
+				t.Fatalf("NewCertID failed: %v", err)
+			}
+
+			now := time.Now().UTC()
+			builder := NewResponseBuilder(responderCert, responderKP.PrivateKey)
+			builder.AddGood(certID, now, now.Add(1*time.Hour))
+
+			data, err := builder.Build()
+			if err != nil {
+				t.Fatalf("Build failed: %v", err)
+			}
+
+			// Verify signature algorithm OID
+			info, err := GetResponseInfo(data)
+			if err != nil {
+				t.Fatalf("GetResponseInfo failed: %v", err)
+			}
+
+			if info.SignatureAlg != tc.expectedOID {
+				t.Errorf("Expected OID %s, got %s", tc.expectedOID, info.SignatureAlg)
+			}
+		})
+	}
+}
+
+// TestU_ResponseBuilder_SLHDSA tests response building with SLH-DSA algorithms.
+func TestU_ResponseBuilder_SLHDSA(t *testing.T) {
+	algorithms := []struct {
+		name        string
+		alg         pkicrypto.AlgorithmID
+		expectedOID string
+	}{
+		{"SLH-DSA-128f", pkicrypto.AlgSLHDSA128f, OIDSLHDSA128f.String()},
+		{"SLH-DSA-192f", pkicrypto.AlgSLHDSA192f, OIDSLHDSA192f.String()},
+		{"SLH-DSA-256f", pkicrypto.AlgSLHDSA256f, OIDSLHDSA256f.String()},
+	}
+
+	caCert, caKey := generateTestCA(t)
+	kp := generateECDSAKeyPair(t, elliptic.P256())
+	cert := issueTestCertificate(t, caCert, caKey, kp)
+
+	for _, tc := range algorithms {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate SLH-DSA responder key pair
+			responderKP := generateSLHDSAKeyPair(t, tc.alg)
+			responderCert := generatePQCOCSPResponderCert(t, caCert, caKey, responderKP, tc.alg)
+
+			certID, err := NewCertID(crypto.SHA256, caCert, cert)
+			if err != nil {
+				t.Fatalf("NewCertID failed: %v", err)
+			}
+
+			now := time.Now().UTC()
+			builder := NewResponseBuilder(responderCert, responderKP.PrivateKey)
+			builder.AddGood(certID, now, now.Add(1*time.Hour))
+
+			data, err := builder.Build()
+			if err != nil {
+				t.Fatalf("Build failed: %v", err)
+			}
+
+			// Verify signature algorithm OID
+			info, err := GetResponseInfo(data)
+			if err != nil {
+				t.Fatalf("GetResponseInfo failed: %v", err)
+			}
+
+			if info.SignatureAlg != tc.expectedOID {
+				t.Errorf("Expected OID %s, got %s", tc.expectedOID, info.SignatureAlg)
+			}
+		})
+	}
+}
+
+// TestU_ResponseBuilder_MLDSA_Revoked tests ML-DSA signature on revoked response.
+func TestU_ResponseBuilder_MLDSA_Revoked(t *testing.T) {
+	caCert, caKey := generateTestCA(t)
+	kp := generateECDSAKeyPair(t, elliptic.P256())
+	cert := issueTestCertificate(t, caCert, caKey, kp)
+
+	responderKP := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA65)
+	responderCert := generatePQCOCSPResponderCert(t, caCert, caKey, responderKP, pkicrypto.AlgMLDSA65)
+
+	certID, err := NewCertID(crypto.SHA256, caCert, cert)
+	if err != nil {
+		t.Fatalf("NewCertID failed: %v", err)
+	}
+
+	now := time.Now().UTC()
+	revocationTime := now.Add(-24 * time.Hour)
+	builder := NewResponseBuilder(responderCert, responderKP.PrivateKey)
+	builder.AddRevoked(certID, now, now.Add(1*time.Hour), revocationTime, ReasonKeyCompromise)
+
+	data, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	info, err := GetResponseInfo(data)
+	if err != nil {
+		t.Fatalf("GetResponseInfo failed: %v", err)
+	}
+
+	if info.SignatureAlg != OIDMLDSA65.String() {
+		t.Errorf("Expected ML-DSA-65 OID, got %s", info.SignatureAlg)
+	}
+
+	if len(info.CertStatuses) != 1 {
+		t.Fatalf("Expected 1 cert status, got %d", len(info.CertStatuses))
+	}
+
+	if info.CertStatuses[0].Status != CertStatusRevoked {
+		t.Errorf("Expected revoked status, got %v", info.CertStatuses[0].Status)
 	}
 }
