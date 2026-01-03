@@ -27,7 +27,7 @@ func resetIssueFlags() {
 // Issue from CSR Tests
 // =============================================================================
 
-func TestIssue_FromCSR(t *testing.T) {
+func TestF_Cert_Issue_FromCSR(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -70,7 +70,7 @@ func TestIssue_FromCSR(t *testing.T) {
 	assertFileExists(t, certOut)
 }
 
-func TestIssue_WithCommonNameOverride(t *testing.T) {
+func TestF_Cert_Issue_WithCommonNameOverride(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -116,7 +116,7 @@ func TestIssue_WithCommonNameOverride(t *testing.T) {
 // Issue Error Cases
 // =============================================================================
 
-func TestIssue_MissingProfile(t *testing.T) {
+func TestF_Cert_Issue_MissingProfile(t *testing.T) {
 	tc := newTestContext(t)
 	resetIssueFlags()
 
@@ -127,7 +127,7 @@ func TestIssue_MissingProfile(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestIssue_MissingCSR(t *testing.T) {
+func TestF_Cert_Issue_MissingCSR(t *testing.T) {
 	tc := newTestContext(t)
 	resetIssueFlags()
 
@@ -138,7 +138,7 @@ func TestIssue_MissingCSR(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestIssue_CANotFound(t *testing.T) {
+func TestF_Cert_Issue_CANotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetIssueFlags()
 
@@ -153,7 +153,7 @@ func TestIssue_CANotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestIssue_InvalidCSRFile(t *testing.T) {
+func TestF_Cert_Issue_InvalidCSRFile(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -179,7 +179,7 @@ func TestIssue_InvalidCSRFile(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestIssue_CSRFileNotFound(t *testing.T) {
+func TestF_Cert_Issue_CSRFileNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -202,7 +202,7 @@ func TestIssue_CSRFileNotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestIssue_InvalidProfile(t *testing.T) {
+func TestF_Cert_Issue_InvalidProfile(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -241,7 +241,7 @@ func TestIssue_InvalidProfile(t *testing.T) {
 // Issue with IP Addresses
 // =============================================================================
 
-func TestIssue_WithIPAddresses(t *testing.T) {
+func TestF_Cert_Issue_WithIPAddresses(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -287,7 +287,7 @@ func TestIssue_WithIPAddresses(t *testing.T) {
 	assertFileExists(t, certOut)
 }
 
-func TestIssue_WithIPv6Addresses(t *testing.T) {
+func TestF_Cert_Issue_WithIPv6Addresses(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -333,7 +333,7 @@ func TestIssue_WithIPv6Addresses(t *testing.T) {
 	assertFileExists(t, certOut)
 }
 
-func TestIssue_InvalidIPAddress(t *testing.T) {
+func TestF_Cert_Issue_InvalidIPAddress(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 

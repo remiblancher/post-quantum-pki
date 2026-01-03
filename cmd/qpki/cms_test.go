@@ -13,7 +13,7 @@ import (
 // CMS Sign Tests (Table-Driven)
 // =============================================================================
 
-func TestF_CMSSign(t *testing.T) {
+func TestF_CMS_Sign(t *testing.T) {
 	tests := []struct {
 		name      string
 		hash      string
@@ -101,7 +101,7 @@ func TestF_CMSSign(t *testing.T) {
 	}
 }
 
-func TestF_CMSSign_MissingFiles(t *testing.T) {
+func TestF_CMS_Sign_MissingFiles(t *testing.T) {
 	tests := []struct {
 		name        string
 		missingFile string // "data", "cert", or "key"
@@ -148,7 +148,7 @@ func TestF_CMSSign_MissingFiles(t *testing.T) {
 // CMS Verify Tests (Table-Driven)
 // =============================================================================
 
-func TestF_CMSVerify(t *testing.T) {
+func TestF_CMS_Verify(t *testing.T) {
 	tests := []struct {
 		name        string
 		detached    bool
@@ -223,7 +223,7 @@ func TestF_CMSVerify(t *testing.T) {
 	}
 }
 
-func TestF_CMSVerify_Errors(t *testing.T) {
+func TestF_CMS_Verify_Errors(t *testing.T) {
 	tests := []struct {
 		name      string
 		setupFunc func(*testContext) (sigPath, dataPath string)
@@ -282,7 +282,7 @@ func TestF_CMSVerify_Errors(t *testing.T) {
 // CMS Round Trip Tests (Table-Driven)
 // =============================================================================
 
-func TestF_CMSRoundTrip(t *testing.T) {
+func TestF_CMS_RoundTrip(t *testing.T) {
 	tests := []struct {
 		name     string
 		keyType  string // "ecdsa" or "rsa"
@@ -365,7 +365,7 @@ func TestF_CMSRoundTrip(t *testing.T) {
 // CMS Encrypt Tests (Table-Driven)
 // =============================================================================
 
-func TestF_CMSEncrypt(t *testing.T) {
+func TestF_CMS_Encrypt(t *testing.T) {
 	tests := []struct {
 		name       string
 		contentEnc string
@@ -432,7 +432,7 @@ func TestF_CMSEncrypt(t *testing.T) {
 	}
 }
 
-func TestF_CMSEncrypt_MissingFlags(t *testing.T) {
+func TestF_CMS_Encrypt_MissingFlags(t *testing.T) {
 	tests := []struct {
 		name    string
 		missing string // "recipient", "in", or "out"
@@ -473,7 +473,7 @@ func TestF_CMSEncrypt_MissingFlags(t *testing.T) {
 	}
 }
 
-func TestF_CMSEncrypt_RecipientNotFound(t *testing.T) {
+func TestF_CMS_Encrypt_RecipientNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCMSFlags()
 
@@ -487,7 +487,7 @@ func TestF_CMSEncrypt_RecipientNotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestF_CMSEncrypt_InputNotFound(t *testing.T) {
+func TestF_CMS_Encrypt_InputNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCMSFlags()
 
@@ -503,7 +503,7 @@ func TestF_CMSEncrypt_InputNotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestF_CMSEncrypt_MultipleRecipients(t *testing.T) {
+func TestF_CMS_Encrypt_MultipleRecipients(t *testing.T) {
 	tc := newTestContext(t)
 	resetCMSFlags()
 
@@ -533,7 +533,7 @@ func TestF_CMSEncrypt_MultipleRecipients(t *testing.T) {
 // CMS Decrypt Tests (Table-Driven)
 // =============================================================================
 
-func TestF_CMSDecrypt_MissingFlags(t *testing.T) {
+func TestF_CMS_Decrypt_MissingFlags(t *testing.T) {
 	tests := []struct {
 		name    string
 		missing string // "key", "in", or "out"
@@ -575,7 +575,7 @@ func TestF_CMSDecrypt_MissingFlags(t *testing.T) {
 	}
 }
 
-func TestF_CMSDecrypt_KeyNotFound(t *testing.T) {
+func TestF_CMS_Decrypt_KeyNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCMSFlags()
 
@@ -589,7 +589,7 @@ func TestF_CMSDecrypt_KeyNotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestF_CMSDecrypt_InputNotFound(t *testing.T) {
+func TestF_CMS_Decrypt_InputNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCMSFlags()
 
@@ -606,7 +606,7 @@ func TestF_CMSDecrypt_InputNotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestF_CMSDecrypt_InvalidInput(t *testing.T) {
+func TestF_CMS_Decrypt_InvalidInput(t *testing.T) {
 	tc := newTestContext(t)
 	resetCMSFlags()
 
@@ -669,7 +669,7 @@ func setupCAWithKEMCredential(tc *testContext) (string, string, string) {
 	return caDir, recipientCert, recipientKey
 }
 
-func TestF_CMSEncryptDecrypt_RoundTrip(t *testing.T) {
+func TestF_CMS_EncryptDecrypt_RoundTrip(t *testing.T) {
 	tc := newTestContext(t)
 
 	// Setup CA and recipient credential with proper extensions
@@ -743,7 +743,7 @@ func TestF_CMSEncryptDecrypt_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestF_CMSEncryptDecrypt_WithCert(t *testing.T) {
+func TestF_CMS_EncryptDecrypt_WithCert(t *testing.T) {
 	tc := newTestContext(t)
 
 	// Setup CA and recipient credential

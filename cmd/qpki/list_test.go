@@ -16,7 +16,7 @@ func resetListFlags() {
 // Cert List Tests (pki cert list)
 // =============================================================================
 
-func TestCertList_Empty(t *testing.T) {
+func TestF_Cert_List_Empty(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -36,7 +36,7 @@ func TestCertList_Empty(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_WithCertificates(t *testing.T) {
+func TestF_Cert_List_WithCertificates(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -67,7 +67,7 @@ func TestCertList_WithCertificates(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_FilterValid(t *testing.T) {
+func TestF_Cert_List_FilterValid(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -97,7 +97,7 @@ func TestCertList_FilterValid(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_FilterRevoked(t *testing.T) {
+func TestF_Cert_List_FilterRevoked(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -116,7 +116,7 @@ func TestCertList_FilterRevoked(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_FilterExpired(t *testing.T) {
+func TestF_Cert_List_FilterExpired(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -135,7 +135,7 @@ func TestCertList_FilterExpired(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_InvalidFilter(t *testing.T) {
+func TestF_Cert_List_InvalidFilter(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -163,7 +163,7 @@ func TestCertList_InvalidFilter(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCertList_Verbose(t *testing.T) {
+func TestF_Cert_List_Verbose(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -183,7 +183,7 @@ func TestCertList_Verbose(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_CANotFound(t *testing.T) {
+func TestF_Cert_List_CANotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetListFlags()
 
@@ -195,7 +195,7 @@ func TestCertList_CANotFound(t *testing.T) {
 // Cert List with Revoked Certificate
 // =============================================================================
 
-func TestCertList_WithRevokedCert(t *testing.T) {
+func TestF_Cert_List_WithRevokedCert(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -241,7 +241,7 @@ func TestCertList_WithRevokedCert(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_WithRevokedFilteredByValid(t *testing.T) {
+func TestF_Cert_List_WithRevokedFilteredByValid(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -302,7 +302,7 @@ func TestCertList_WithRevokedFilteredByValid(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertList_VerboseWithRevoked(t *testing.T) {
+func TestF_Cert_List_VerboseWithRevoked(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 

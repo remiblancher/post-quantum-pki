@@ -13,7 +13,7 @@ func resetCertInfoFlags() {
 // Cert Info Tests
 // =============================================================================
 
-func TestCertInfo_Basic(t *testing.T) {
+func TestF_Cert_Info_Basic(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 	resetCSRFlags()
@@ -69,7 +69,7 @@ func TestCertInfo_Basic(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCertInfo_MissingSerial(t *testing.T) {
+func TestF_Cert_Info_MissingSerial(t *testing.T) {
 	resetCertInfoFlags()
 
 	// Missing serial argument
@@ -78,7 +78,7 @@ func TestCertInfo_MissingSerial(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCertInfo_InvalidSerial(t *testing.T) {
+func TestF_Cert_Info_InvalidSerial(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 	resetCertInfoFlags()
@@ -103,7 +103,7 @@ func TestCertInfo_InvalidSerial(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCertInfo_CANotFound(t *testing.T) {
+func TestF_Cert_Info_CANotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCertInfoFlags()
 
@@ -115,7 +115,7 @@ func TestCertInfo_CANotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCertInfo_CertNotFound(t *testing.T) {
+func TestF_Cert_Info_CertNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 	resetCertInfoFlags()
