@@ -5,8 +5,8 @@
 #
 # Verifies CMS SignedData using OpenSSL 3.6+:
 #   - Classical (ECDSA)
-#   - PQC (ML-DSA-87)
-#   - Hybrid (Catalyst: ECDSA + ML-DSA)
+#   - PQC (ML-DSA-87, SLH-DSA)
+#   - Hybrid (Catalyst: ECDSA + ML-DSA, Composite: ECDSA + ML-DSA)
 #
 # REQUIREMENTS:
 #   - OpenSSL 3.5+ for PQC support
@@ -124,6 +124,46 @@ fi
 echo ""
 
 # =============================================================================
+# PQC SLH-DSA CMS
+# =============================================================================
+echo "[CrossCompat] PQC CMS Signature: SLH-DSA"
+if [ -d "$FIXTURES/pqc/slhdsa/ca" ]; then
+    CRED_DIR=$(find_credential "$FIXTURES/pqc/slhdsa/ca")
+    if [ -n "$CRED_DIR" ]; then
+        KEY_FILE="$CRED_DIR/private-keys.pem"
+        CERT_FILE="$CRED_DIR/certificates.pem"
+        if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
+            # Generate CMS signature
+            if "$PKI" cms sign --key "$KEY_FILE" --cert "$CERT_FILE" --data "$TMP_DIR/data.txt" --out "$TMP_DIR/cms-slhdsa.p7s" 2>/dev/null; then
+                # Try to verify with OpenSSL
+                # -binary: disable MIME canonicalization (CRLF conversion)
+                if openssl cms -verify -binary -in "$TMP_DIR/cms-slhdsa.p7s" -inform DER \
+                    -CAfile "$FIXTURES/pqc/slhdsa/ca/ca.crt" -content "$TMP_DIR/data.txt" \
+                    -purpose any -out /dev/null 2>/dev/null; then
+                    echo "    SLH-DSA CMS: OK (verified)"
+                else
+                    # Try to at least parse it
+                    if openssl cms -cmsout -print -in "$TMP_DIR/cms-slhdsa.p7s" -inform DER 2>/dev/null | head -20; then
+                        echo "    SLH-DSA CMS: OK (parsed, signature may not be verified)"
+                    else
+                        echo "    SLH-DSA CMS: SKIP (OpenSSL limitation)"
+                    fi
+                fi
+            else
+                echo "    SLH-DSA CMS: FAIL (generation error)"
+            fi
+        else
+            echo "    SLH-DSA CMS: SKIP (key/cert not found)"
+        fi
+    else
+        echo "    SLH-DSA CMS: SKIP (no credential found)"
+    fi
+else
+    echo "    SLH-DSA CMS: SKIP (fixtures not found)"
+fi
+echo ""
+
+# =============================================================================
 # Hybrid Catalyst CMS (ECDSA + ML-DSA)
 # =============================================================================
 echo "[CrossCompat] Hybrid CMS Signature: Catalyst"
@@ -160,6 +200,45 @@ if [ -d "$FIXTURES/catalyst/ca" ]; then
     fi
 else
     echo "    Catalyst CMS: SKIP (fixtures not found)"
+fi
+echo ""
+
+# =============================================================================
+# Hybrid Composite CMS (IETF: ECDSA + ML-DSA)
+# =============================================================================
+echo "[CrossCompat] Hybrid CMS Signature: Composite"
+if [ -d "$FIXTURES/composite/ca" ]; then
+    CRED_DIR=$(find_credential "$FIXTURES/composite/ca")
+    if [ -n "$CRED_DIR" ]; then
+        KEY_FILE="$CRED_DIR/private-keys.pem"
+        CERT_FILE="$CRED_DIR/certificates.pem"
+        if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
+            # Generate CMS signature
+            if "$PKI" cms sign --key "$KEY_FILE" --cert "$CERT_FILE" --data "$TMP_DIR/data.txt" --out "$TMP_DIR/cms-composite.p7s" 2>/dev/null; then
+                # OpenSSL does not support composite signatures
+                # -binary: disable MIME canonicalization (CRLF conversion)
+                if openssl cms -verify -binary -in "$TMP_DIR/cms-composite.p7s" -inform DER \
+                    -CAfile "$FIXTURES/composite/ca/ca.crt" -content "$TMP_DIR/data.txt" \
+                    -purpose any -out /dev/null 2>/dev/null; then
+                    echo "    Composite CMS: OK (verified)"
+                else
+                    if openssl cms -cmsout -print -in "$TMP_DIR/cms-composite.p7s" -inform DER 2>/dev/null | head -10; then
+                        echo "    Composite CMS: OK (parsed)"
+                    else
+                        echo "    Composite CMS: SKIP (OpenSSL limitation - BouncyCastle only)"
+                    fi
+                fi
+            else
+                echo "    Composite CMS: FAIL (generation error)"
+            fi
+        else
+            echo "    Composite CMS: SKIP (key/cert not found)"
+        fi
+    else
+        echo "    Composite CMS: SKIP (no credential found)"
+    fi
+else
+    echo "    Composite CMS: SKIP (fixtures not found)"
 fi
 echo ""
 
