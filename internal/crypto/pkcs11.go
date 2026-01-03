@@ -19,20 +19,6 @@ import (
 	"github.com/miekg/pkcs11"
 )
 
-// initializeModule initializes a PKCS#11 module, ignoring CKR_CRYPTOKI_ALREADY_INITIALIZED.
-// This is standard PKCS#11 practice: the module may already be initialized by another
-// component in the same process.
-func initializeModule(ctx *pkcs11.Ctx) error {
-	if err := ctx.Initialize(); err != nil {
-		// CKR_CRYPTOKI_ALREADY_INITIALIZED (0x191) is OK - module already ready
-		if p11err, ok := err.(pkcs11.Error); ok && p11err == pkcs11.CKR_CRYPTOKI_ALREADY_INITIALIZED {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
 // PKCS11Config holds PKCS#11 configuration.
 type PKCS11Config struct {
 	// ModulePath is the path to the PKCS#11 module (.so/.dylib/.dll)
