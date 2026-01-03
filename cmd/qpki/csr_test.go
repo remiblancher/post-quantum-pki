@@ -31,7 +31,7 @@ func resetCSRFlags() {
 // CSR Generation Tests (Classical)
 // =============================================================================
 
-func TestCSR_ECDSA(t *testing.T) {
+func TestF_Cert_CSR_ECDSA(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -49,7 +49,7 @@ func TestCSR_ECDSA(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_RSA(t *testing.T) {
+func TestF_Cert_CSR_RSA(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -67,7 +67,7 @@ func TestCSR_RSA(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_Ed25519(t *testing.T) {
+func TestF_Cert_CSR_Ed25519(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -85,7 +85,7 @@ func TestCSR_Ed25519(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_WithSANs(t *testing.T) {
+func TestF_Cert_CSR_WithSANs(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -105,7 +105,7 @@ func TestCSR_WithSANs(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_WithSubjectFields(t *testing.T) {
+func TestF_Cert_CSR_WithSubjectFields(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -124,7 +124,7 @@ func TestCSR_WithSubjectFields(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_WithExistingKey(t *testing.T) {
+func TestF_Cert_CSR_WithExistingKey(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -153,7 +153,7 @@ func TestCSR_WithExistingKey(t *testing.T) {
 // CSR Generation Tests (PQC)
 // =============================================================================
 
-func TestCSR_MLDSA(t *testing.T) {
+func TestF_Cert_CSR_MLDSA(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -175,7 +175,7 @@ func TestCSR_MLDSA(t *testing.T) {
 // CSR Error Cases
 // =============================================================================
 
-func TestCSR_MissingOutput(t *testing.T) {
+func TestF_Cert_CSR_MissingOutput(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -187,7 +187,7 @@ func TestCSR_MissingOutput(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_EmptyCN(t *testing.T) {
+func TestF_Cert_CSR_EmptyCN(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -202,7 +202,7 @@ func TestCSR_EmptyCN(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestCSR_MutuallyExclusiveFlags(t *testing.T) {
+func TestF_Cert_CSR_MutuallyExclusiveFlags(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -226,7 +226,7 @@ func TestCSR_MutuallyExclusiveFlags(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_MissingKeySource(t *testing.T) {
+func TestF_Cert_CSR_MissingKeySource(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -237,7 +237,7 @@ func TestCSR_MissingKeySource(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_AlgorithmWithoutKeyout(t *testing.T) {
+func TestF_Cert_CSR_AlgorithmWithoutKeyout(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -249,7 +249,7 @@ func TestCSR_AlgorithmWithoutKeyout(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_InvalidAlgorithm(t *testing.T) {
+func TestF_Cert_CSR_InvalidAlgorithm(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -262,7 +262,7 @@ func TestCSR_InvalidAlgorithm(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_KeyFileNotFound(t *testing.T) {
+func TestF_Cert_CSR_KeyFileNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -278,7 +278,7 @@ func TestCSR_KeyFileNotFound(t *testing.T) {
 // CSR Generation Tests (Hybrid)
 // =============================================================================
 
-func TestCSR_Hybrid_ECDSA_MLDSA(t *testing.T) {
+func TestF_Cert_CSR_Hybrid_ECDSA_MLDSA(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -300,7 +300,7 @@ func TestCSR_Hybrid_ECDSA_MLDSA(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_Hybrid_WithExistingKey(t *testing.T) {
+func TestF_Cert_CSR_Hybrid_WithExistingKey(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -330,7 +330,7 @@ func TestCSR_Hybrid_WithExistingKey(t *testing.T) {
 	assertFileExists(t, csrOut)
 }
 
-func TestCSR_Hybrid_InvalidPQCAlgorithm(t *testing.T) {
+func TestF_Cert_CSR_Hybrid_InvalidPQCAlgorithm(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -345,7 +345,7 @@ func TestCSR_Hybrid_InvalidPQCAlgorithm(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_Hybrid_NonPQCAlgorithm(t *testing.T) {
+func TestF_Cert_CSR_Hybrid_NonPQCAlgorithm(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -361,7 +361,7 @@ func TestCSR_Hybrid_NonPQCAlgorithm(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestCSR_Hybrid_MissingHybridKeyout(t *testing.T) {
+func TestF_Cert_CSR_Hybrid_MissingHybridKeyout(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 
@@ -379,7 +379,7 @@ func TestCSR_Hybrid_MissingHybridKeyout(t *testing.T) {
 // CSR Generation Tests (KEM with Attestation)
 // =============================================================================
 
-func TestCSR_KEM_MissingAttestation(t *testing.T) {
+func TestF_Cert_CSR_KEM_MissingAttestation(t *testing.T) {
 	tc := newTestContext(t)
 	resetCSRFlags()
 

@@ -17,7 +17,7 @@ func resetRevokeFlags() {
 // Revoke Tests
 // =============================================================================
 
-func TestRevoke_Certificate(t *testing.T) {
+func TestF_Cert_Revoke_Certificate(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -51,7 +51,7 @@ func TestRevoke_Certificate(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestRevoke_WithReason(t *testing.T) {
+func TestF_Cert_Revoke_WithReason(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -86,7 +86,7 @@ func TestRevoke_WithReason(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestRevoke_WithCRLGeneration(t *testing.T) {
+func TestF_Cert_Revoke_WithCRLGeneration(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -125,7 +125,7 @@ func TestRevoke_WithCRLGeneration(t *testing.T) {
 // Revoke Error Cases
 // =============================================================================
 
-func TestRevoke_MissingSerial(t *testing.T) {
+func TestF_Cert_Revoke_MissingSerial(t *testing.T) {
 	tc := newTestContext(t)
 	resetRevokeFlags()
 
@@ -133,7 +133,7 @@ func TestRevoke_MissingSerial(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestRevoke_InvalidSerial(t *testing.T) {
+func TestF_Cert_Revoke_InvalidSerial(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -155,7 +155,7 @@ func TestRevoke_InvalidSerial(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestRevoke_InvalidReason(t *testing.T) {
+func TestF_Cert_Revoke_InvalidReason(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -177,7 +177,7 @@ func TestRevoke_InvalidReason(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestRevoke_CANotFound(t *testing.T) {
+func TestF_Cert_Revoke_CANotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetRevokeFlags()
 
@@ -188,7 +188,7 @@ func TestRevoke_CANotFound(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestRevoke_CertificateNotFound(t *testing.T) {
+func TestF_Cert_Revoke_CertificateNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 

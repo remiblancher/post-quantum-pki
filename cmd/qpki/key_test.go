@@ -23,7 +23,7 @@ func resetKeyFlags() {
 // Key Gen Tests (Table-Driven)
 // =============================================================================
 
-func TestF_KeyGen(t *testing.T) {
+func TestF_Key_Gen(t *testing.T) {
 	tests := []struct {
 		name      string
 		algorithm string
@@ -66,7 +66,7 @@ func TestF_KeyGen(t *testing.T) {
 	}
 }
 
-func TestF_KeyGen_WithPassphrase(t *testing.T) {
+func TestF_Key_Gen_WithPassphrase(t *testing.T) {
 	tc := newTestContext(t)
 	resetKeyFlags()
 
@@ -88,7 +88,7 @@ func TestF_KeyGen_WithPassphrase(t *testing.T) {
 	}
 }
 
-func TestF_KeyGen_MissingOutput(t *testing.T) {
+func TestF_Key_Gen_MissingOutput(t *testing.T) {
 	resetKeyFlags()
 
 	_, err := executeCommand(rootCmd, "key", "gen", "--algorithm", "ecdsa-p256")
@@ -101,7 +101,7 @@ func TestF_KeyGen_MissingOutput(t *testing.T) {
 // Key Info Tests (Table-Driven)
 // =============================================================================
 
-func TestF_KeyInfo(t *testing.T) {
+func TestF_Key_Info(t *testing.T) {
 	tests := []struct {
 		name      string
 		algorithm string
@@ -135,7 +135,7 @@ func TestF_KeyInfo(t *testing.T) {
 	}
 }
 
-func TestF_KeyInfo_EncryptedKey(t *testing.T) {
+func TestF_Key_Info_EncryptedKey(t *testing.T) {
 	tc := newTestContext(t)
 	resetKeyFlags()
 
@@ -165,7 +165,7 @@ func TestF_KeyInfo_EncryptedKey(t *testing.T) {
 	assertNoError(t, err)
 }
 
-func TestF_KeyInfo_FileNotFound(t *testing.T) {
+func TestF_Key_Info_FileNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetKeyFlags()
 
@@ -178,7 +178,7 @@ func TestF_KeyInfo_FileNotFound(t *testing.T) {
 // Key Convert Tests (Table-Driven)
 // =============================================================================
 
-func TestF_KeyConvert(t *testing.T) {
+func TestF_Key_Convert(t *testing.T) {
 	tests := []struct {
 		name          string
 		addPassphrase bool
@@ -218,7 +218,7 @@ func TestF_KeyConvert(t *testing.T) {
 	}
 }
 
-func TestF_KeyConvert_RemovePassphrase(t *testing.T) {
+func TestF_Key_Convert_RemovePassphrase(t *testing.T) {
 	tc := newTestContext(t)
 	resetKeyFlags()
 
@@ -246,7 +246,7 @@ func TestF_KeyConvert_RemovePassphrase(t *testing.T) {
 	assertFileExists(t, dstPath)
 }
 
-func TestF_KeyConvert_ToDER(t *testing.T) {
+func TestF_Key_Convert_ToDER(t *testing.T) {
 	tc := newTestContext(t)
 	resetKeyFlags()
 
@@ -272,7 +272,7 @@ func TestF_KeyConvert_ToDER(t *testing.T) {
 	assertFileNotEmpty(t, dstPath)
 }
 
-func TestF_KeyConvert_MissingOutput(t *testing.T) {
+func TestF_Key_Convert_MissingOutput(t *testing.T) {
 	tc := newTestContext(t)
 	resetKeyFlags()
 
