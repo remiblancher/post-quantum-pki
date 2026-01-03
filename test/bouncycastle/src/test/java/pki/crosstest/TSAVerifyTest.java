@@ -158,10 +158,6 @@ public class TSAVerifyTest {
         X509CertificateHolder tsaCert = certs.iterator().next();
         System.out.println(algName + " TSA: " + tsaCert.getSubject());
 
-        // Print signature algorithm
-        String sigAlgOid = token.getSignedContentTypeOID();
-        System.out.println(algName + " Content Type OID: " + sigAlgOid);
-
         // Verify signature
         SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder()
             .setProvider("BC")
