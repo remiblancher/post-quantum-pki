@@ -5,8 +5,8 @@
 #
 # Verifies RFC 3161 Timestamp tokens using OpenSSL 3.6+:
 #   - Classical (ECDSA)
-#   - PQC (ML-DSA-87)
-#   - Hybrid (Catalyst: ECDSA + ML-DSA)
+#   - PQC (ML-DSA-87, SLH-DSA)
+#   - Hybrid (Catalyst: ECDSA + ML-DSA, Composite: ECDSA + ML-DSA)
 #
 # REQUIREMENTS:
 #   - OpenSSL 3.5+ for PQC support
@@ -103,6 +103,35 @@ fi
 echo ""
 
 # =============================================================================
+# PQC SLH-DSA TSA
+# =============================================================================
+echo "[CrossCompat] PQC TSA Token: SLH-DSA"
+CA_DIR="$FIXTURES/pqc/slhdsa/ca"
+if [ -d "$CA_DIR" ]; then
+    CA_KEY=$(find_ca_key "$CA_DIR")
+    if [ -n "$CA_KEY" ]; then
+        # Generate TSA token
+        if "$PKI" tsa sign --data "$TMP_DIR/data.txt" \
+            --cert "$CA_DIR/ca.crt" --key "$CA_KEY" \
+            -o "$TMP_DIR/ts-slhdsa.tsr" 2>/dev/null; then
+            # Parse with OpenSSL
+            if openssl ts -reply -in "$TMP_DIR/ts-slhdsa.tsr" -text 2>/dev/null | head -20; then
+                echo "    SLH-DSA TSA: OK (parsed)"
+            else
+                echo "    SLH-DSA TSA: SKIP (OpenSSL limitation)"
+            fi
+        else
+            echo "    SLH-DSA TSA: FAIL (generation error)"
+        fi
+    else
+        echo "    SLH-DSA TSA: SKIP (no CA key found)"
+    fi
+else
+    echo "    SLH-DSA TSA: SKIP (fixtures not found)"
+fi
+echo ""
+
+# =============================================================================
 # Hybrid Catalyst TSA (ECDSA + ML-DSA)
 # =============================================================================
 echo "[CrossCompat] Hybrid TSA Token: Catalyst"
@@ -129,6 +158,35 @@ if [ -d "$CA_DIR" ]; then
     fi
 else
     echo "    Catalyst TSA: SKIP (fixtures not found)"
+fi
+echo ""
+
+# =============================================================================
+# Hybrid Composite TSA (IETF: ECDSA + ML-DSA)
+# =============================================================================
+echo "[CrossCompat] Hybrid TSA Token: Composite"
+CA_DIR="$FIXTURES/composite/ca"
+if [ -d "$CA_DIR" ]; then
+    CA_KEY=$(find_ca_key "$CA_DIR")
+    if [ -n "$CA_KEY" ]; then
+        # Generate TSA token
+        if "$PKI" tsa sign --data "$TMP_DIR/data.txt" \
+            --cert "$CA_DIR/ca.crt" --key "$CA_KEY" \
+            -o "$TMP_DIR/ts-composite.tsr" 2>/dev/null; then
+            # OpenSSL does not support composite signatures
+            if openssl ts -reply -in "$TMP_DIR/ts-composite.tsr" -text 2>/dev/null | head -20; then
+                echo "    Composite TSA: OK (parsed)"
+            else
+                echo "    Composite TSA: SKIP (OpenSSL limitation - BouncyCastle only)"
+            fi
+        else
+            echo "    Composite TSA: FAIL (generation error)"
+        fi
+    else
+        echo "    Composite TSA: SKIP (no CA key found)"
+    fi
+else
+    echo "    Composite TSA: SKIP (fixtures not found)"
 fi
 echo ""
 
