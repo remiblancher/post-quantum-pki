@@ -123,6 +123,72 @@ echo ">>> Generating Composite Hybrid..."
 echo "    Composite Hybrid: OK (CA + TLS + OCSP + Signing + TSA + CRL)"
 
 # =============================================================================
+# CMS/OCSP/TSA Fixtures Generation
+# =============================================================================
+echo ""
+echo ">>> Generating CMS/OCSP/TSA fixtures..."
+
+# Create test data file
+echo "Test data for cross-compatibility testing" > "$OUT/testdata.txt"
+
+# Function to generate CMS/OCSP/TSA fixtures for a CA
+generate_protocol_fixtures() {
+    local CA_DIR="$1"
+    local OUT_DIR="$2"
+    local NAME="$3"
+
+    # Find credentials by CN pattern
+    local SIGNING_CRED=$(find "$CA_DIR/credentials" -type d -name "*signer*" 2>/dev/null | head -1)
+    local TSA_CRED=$(find "$CA_DIR/credentials" -type d -name "*tsa*" 2>/dev/null | head -1)
+    local OCSP_CRED=$(find "$CA_DIR/credentials" -type d -name "*ocsp*" 2>/dev/null | head -1)
+    local TLS_CRED=$(find "$CA_DIR/credentials" -type d ! -name "*ocsp*" ! -name "*signer*" ! -name "*tsa*" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)
+
+    if [ -z "$SIGNING_CRED" ] || [ -z "$TSA_CRED" ] || [ -z "$OCSP_CRED" ] || [ -z "$TLS_CRED" ]; then
+        echo "    $NAME: SKIP (missing credentials)"
+        return
+    fi
+
+    # 1. CMS SignedData (attached)
+    "$PKI" cms sign --data "$OUT/testdata.txt" \
+        --cert "$SIGNING_CRED/certificates.pem" \
+        --key "$SIGNING_CRED/private-keys.pem" \
+        --detached=false \
+        -o "$OUT_DIR/cms-attached.p7s" 2>/dev/null
+
+    # 2. CMS SignedData (detached)
+    "$PKI" cms sign --data "$OUT/testdata.txt" \
+        --cert "$SIGNING_CRED/certificates.pem" \
+        --key "$SIGNING_CRED/private-keys.pem" \
+        --detached=true \
+        -o "$OUT_DIR/cms-detached.p7s" 2>/dev/null
+
+    # 3. OCSP Response (good status) - use TLS cert serial
+    local SERIAL=$(openssl x509 -in "$TLS_CRED/certificates.pem" -serial -noout 2>/dev/null | cut -d= -f2)
+    if [ -n "$SERIAL" ]; then
+        "$PKI" ocsp sign --serial "$SERIAL" --status good \
+            --ca "$CA_DIR/ca.crt" \
+            --cert "$OCSP_CRED/certificates.pem" \
+            --key "$OCSP_CRED/private-keys.pem" \
+            -o "$OUT_DIR/ocsp-good.der" 2>/dev/null
+    fi
+
+    # 4. TSA Token
+    "$PKI" tsa sign --data "$OUT/testdata.txt" \
+        --cert "$TSA_CRED/certificates.pem" \
+        --key "$TSA_CRED/private-keys.pem" \
+        -o "$OUT_DIR/timestamp.tsr" 2>/dev/null
+
+    echo "    $NAME: OK (CMS + OCSP + TSA)"
+}
+
+# Generate for each CA type
+generate_protocol_fixtures "$OUT/classical/ca" "$OUT/classical" "Classical ECDSA"
+generate_protocol_fixtures "$OUT/pqc/mldsa/ca" "$OUT/pqc/mldsa" "PQC ML-DSA-87"
+generate_protocol_fixtures "$OUT/pqc/slhdsa/ca" "$OUT/pqc/slhdsa" "PQC SLH-DSA"
+generate_protocol_fixtures "$OUT/catalyst/ca" "$OUT/catalyst" "Catalyst Hybrid"
+generate_protocol_fixtures "$OUT/composite/ca" "$OUT/composite" "Composite Hybrid"
+
+# =============================================================================
 # CSR Generation (for cross-testing CSR verification)
 # =============================================================================
 echo ""
@@ -180,6 +246,12 @@ echo "  - $OUT/csr/mldsa87.csr"
 echo "  - $OUT/csr/slhdsa256f.csr"
 echo "  - $OUT/csr/catalyst.csr"
 echo "  - $OUT/csr/mlkem768.csr (if attestation available)"
+echo ""
+echo "Generated CMS/OCSP/TSA fixtures (per CA):"
+echo "  - cms-attached.p7s   (CMS SignedData with content)"
+echo "  - cms-detached.p7s   (CMS SignedData detached)"
+echo "  - ocsp-good.der      (OCSP Response, status=good)"
+echo "  - timestamp.tsr      (RFC 3161 Timestamp Token)"
 echo ""
 echo "Run cross-tests with:"
 echo "  cd test/openssl && ./run_all.sh"
