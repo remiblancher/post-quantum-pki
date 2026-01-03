@@ -116,11 +116,11 @@ jobs:
         run: |
           ./qpki inspect /tmp/test-ca/ca.crt
           # Verify subordinate CA chain
-          ./qpki cert verify --cert /tmp/issuing-ca/ca.crt --ca /tmp/test-ca/ca.crt
+          ./qpki cert verify /tmp/issuing-ca/ca.crt --ca /tmp/test-ca/ca.crt
           # Verify a credential certificate (find first credential)
           CRED_DIR=$(ls -d /tmp/test-ca/credentials/*/ | head -1)
           ./qpki inspect "${CRED_DIR}certificates.pem"
-          ./qpki cert verify --cert "${CRED_DIR}certificates.pem" --ca /tmp/test-ca/ca.crt
+          ./qpki cert verify "${CRED_DIR}certificates.pem" --ca /tmp/test-ca/ca.crt
 
       - name: "[Integration] Smoke Test: ML-DSA-87 PQC"
         run: |
@@ -132,7 +132,7 @@ jobs:
           # Get credential certificate path
           PQC_CRED=$(ls -d /tmp/pqc-ca/credentials/*/ | head -1)
           # Verify with qpki tool (OpenSSL doesn't support PQC yet)
-          ./qpki cert verify --cert "${PQC_CRED}certificates.pem" --ca /tmp/pqc-ca/ca.crt
+          ./qpki cert verify "${PQC_CRED}certificates.pem" --ca /tmp/pqc-ca/ca.crt
           ./qpki inspect "${PQC_CRED}certificates.pem"
 
       - name: "[Integration] Smoke Test: SLH-DSA-256f PQC"
@@ -145,7 +145,7 @@ jobs:
           # Get credential certificate path
           SLHDSA_CRED=$(ls -d /tmp/slhdsa-ca/credentials/*/ | head -1)
           # Verify with qpki tool
-          ./qpki cert verify --cert "${SLHDSA_CRED}certificates.pem" --ca /tmp/slhdsa-ca/ca.crt
+          ./qpki cert verify "${SLHDSA_CRED}certificates.pem" --ca /tmp/slhdsa-ca/ca.crt
           ./qpki inspect "${SLHDSA_CRED}certificates.pem"
 
       - name: "[Integration] Smoke Test: Catalyst Hybrid"
@@ -159,7 +159,7 @@ jobs:
           # Get credential certificate path
           CATALYST_CRED=$(ls -d /tmp/catalyst-ca/credentials/*/ | head -1)
           # Verify both signatures with qpki tool
-          ./qpki cert verify --cert "${CATALYST_CRED}certificates.pem" --ca /tmp/catalyst-ca/ca.crt
+          ./qpki cert verify "${CATALYST_CRED}certificates.pem" --ca /tmp/catalyst-ca/ca.crt
           # Show certificate with Catalyst extensions
           ./qpki inspect "${CATALYST_CRED}certificates.pem"
 
@@ -174,7 +174,7 @@ jobs:
           # Get credential certificate path
           COMPOSITE_CRED=$(ls -d /tmp/composite-ca/credentials/*/ | head -1)
           # Verify both component signatures with qpki tool
-          ./qpki cert verify --cert "${COMPOSITE_CRED}certificates.pem" --ca /tmp/composite-ca/ca.crt
+          ./qpki cert verify "${COMPOSITE_CRED}certificates.pem" --ca /tmp/composite-ca/ca.crt
           # Show certificate info
           ./qpki inspect "${COMPOSITE_CRED}certificates.pem"
           ./qpki inspect /tmp/composite-ca/ca.crt
@@ -492,32 +492,32 @@ jobs:
       - name: "[Functional] Verify: EC Certificate"
         run: |
           EC_CRED=$(ls -d /tmp/ca-ec/credentials/*/ | head -1)
-          ./qpki cert verify --cert "${EC_CRED}certificates.pem" --ca /tmp/ca-ec/ca.crt
+          ./qpki cert verify "${EC_CRED}certificates.pem" --ca /tmp/ca-ec/ca.crt
 
       - name: "[Functional] Verify: RSA Certificate"
         run: |
           RSA_CRED=$(ls -d /tmp/ca-rsa/credentials/*/ | head -1)
-          ./qpki cert verify --cert "${RSA_CRED}certificates.pem" --ca /tmp/ca-rsa/ca.crt
+          ./qpki cert verify "${RSA_CRED}certificates.pem" --ca /tmp/ca-rsa/ca.crt
 
       - name: "[Functional] Verify: ML-DSA Certificate"
         run: |
           MLDSA_CRED=$(ls -d /tmp/ca-mldsa/credentials/*/ | head -1)
-          ./qpki cert verify --cert "${MLDSA_CRED}certificates.pem" --ca /tmp/ca-mldsa/ca.crt
+          ./qpki cert verify "${MLDSA_CRED}certificates.pem" --ca /tmp/ca-mldsa/ca.crt
 
       - name: "[Functional] Verify: Catalyst Certificate"
         run: |
           CATALYST_CRED=$(ls -d /tmp/ca-catalyst/credentials/*/ | head -1)
-          ./qpki cert verify --cert "${CATALYST_CRED}certificates.pem" --ca /tmp/ca-catalyst/ca.crt
+          ./qpki cert verify "${CATALYST_CRED}certificates.pem" --ca /tmp/ca-catalyst/ca.crt
 
       - name: "[Functional] Verify: Composite Certificate"
         run: |
           COMPOSITE_CRED=$(ls -d /tmp/ca-composite/credentials/*/ | head -1)
-          ./qpki cert verify --cert "${COMPOSITE_CRED}certificates.pem" --ca /tmp/ca-composite/ca.crt
+          ./qpki cert verify "${COMPOSITE_CRED}certificates.pem" --ca /tmp/ca-composite/ca.crt
 
       - name: "[Functional] Verify: SLH-DSA Certificate"
         run: |
           SLHDSA_CRED=$(ls -d /tmp/ca-slhdsa/credentials/*/ | head -1)
-          ./qpki cert verify --cert "${SLHDSA_CRED}certificates.pem" --ca /tmp/ca-slhdsa/ca.crt
+          ./qpki cert verify "${SLHDSA_CRED}certificates.pem" --ca /tmp/ca-slhdsa/ca.crt
 
       # Inspect tests
       - name: "[Functional] Inspect: Various Certificates"

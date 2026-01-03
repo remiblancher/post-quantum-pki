@@ -36,7 +36,7 @@ func TestF_Verify_ValidCertificate(t *testing.T) {
 	resetVerifyFlags()
 
 	_, err = executeCommand(rootCmd, "cert", "verify",
-		"--cert", caCert,
+		caCert,
 		"--ca", caCert,
 	)
 	assertNoError(t, err)
@@ -71,7 +71,7 @@ func TestF_Verify_SubordinateCA(t *testing.T) {
 
 	// Verify subordinate CA cert against root
 	_, err = executeCommand(rootCmd, "cert", "verify",
-		"--cert", filepath.Join(subDir, "ca.crt"),
+		filepath.Join(subDir, "ca.crt"),
 		"--ca", filepath.Join(rootDir, "ca.crt"),
 	)
 	assertNoError(t, err)
@@ -103,7 +103,7 @@ func TestF_Verify_WithCRL(t *testing.T) {
 	crlFile := filepath.Join(caDir, "crl", "ca.crl")
 
 	_, err = executeCommand(rootCmd, "cert", "verify",
-		"--cert", caCert,
+		caCert,
 		"--ca", caCert,
 		"--crl", crlFile,
 	)
@@ -115,11 +115,11 @@ func TestF_Verify_WithCRL(t *testing.T) {
 // =============================================================================
 
 func TestF_Verify_MissingCert(t *testing.T) {
-	tc := newTestContext(t)
 	resetVerifyFlags()
 
+	// Positional argument is now required - cobra will fail
 	_, err := executeCommand(rootCmd, "cert", "verify",
-		"--ca", tc.path("ca.crt"),
+		"--ca", "/tmp/ca.crt",
 	)
 	assertError(t, err)
 }
@@ -129,7 +129,7 @@ func TestF_Verify_MissingCA(t *testing.T) {
 	resetVerifyFlags()
 
 	_, err := executeCommand(rootCmd, "cert", "verify",
-		"--cert", tc.path("cert.crt"),
+		tc.path("cert.crt"),
 	)
 	assertError(t, err)
 }
@@ -150,7 +150,7 @@ func TestF_Verify_CertNotFound(t *testing.T) {
 	resetVerifyFlags()
 
 	_, err = executeCommand(rootCmd, "cert", "verify",
-		"--cert", tc.path("nonexistent.crt"),
+		tc.path("nonexistent.crt"),
 		"--ca", filepath.Join(caDir, "ca.crt"),
 	)
 	assertError(t, err)
@@ -172,7 +172,7 @@ func TestF_Verify_CANotFound(t *testing.T) {
 	resetVerifyFlags()
 
 	_, err = executeCommand(rootCmd, "cert", "verify",
-		"--cert", filepath.Join(caDir, "ca.crt"),
+		filepath.Join(caDir, "ca.crt"),
 		"--ca", tc.path("nonexistent.crt"),
 	)
 	assertError(t, err)
@@ -196,7 +196,7 @@ func TestF_Verify_InvalidCRLPath(t *testing.T) {
 	caCert := filepath.Join(caDir, "ca.crt")
 
 	_, err = executeCommand(rootCmd, "cert", "verify",
-		"--cert", caCert,
+		caCert,
 		"--ca", caCert,
 		"--crl", tc.path("nonexistent.crl"),
 	)
