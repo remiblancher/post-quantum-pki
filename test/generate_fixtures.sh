@@ -137,11 +137,11 @@ generate_protocol_fixtures() {
     local OUT_DIR="$2"
     local NAME="$3"
 
-    # Find credentials by CN pattern
-    local SIGNING_CRED=$(find "$CA_DIR/credentials" -type d -name "*signer*" 2>/dev/null | head -1)
-    local TSA_CRED=$(find "$CA_DIR/credentials" -type d -name "*tsa*" 2>/dev/null | head -1)
-    local OCSP_CRED=$(find "$CA_DIR/credentials" -type d -name "*ocsp*" 2>/dev/null | head -1)
-    local TLS_CRED=$(find "$CA_DIR/credentials" -type d ! -name "*ocsp*" ! -name "*signer*" ! -name "*tsa*" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)
+    # Find credentials by CN pattern (case-insensitive)
+    local SIGNING_CRED=$(find "$CA_DIR/credentials" -type d -iname "*signer*" 2>/dev/null | head -1)
+    local TSA_CRED=$(find "$CA_DIR/credentials" -type d -iname "*tsa*" 2>/dev/null | head -1)
+    local OCSP_CRED=$(find "$CA_DIR/credentials" -type d -iname "*ocsp*" 2>/dev/null | head -1)
+    local TLS_CRED=$(find "$CA_DIR/credentials" -type d ! -iname "*ocsp*" ! -iname "*signer*" ! -iname "*tsa*" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)
 
     if [ -z "$SIGNING_CRED" ] || [ -z "$TSA_CRED" ] || [ -z "$OCSP_CRED" ] || [ -z "$TLS_CRED" ]; then
         echo "    $NAME: SKIP (missing credentials)"
