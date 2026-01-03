@@ -23,7 +23,7 @@ import (
 )
 
 var verifyCmd = &cobra.Command{
-	Use:   "verify",
+	Use:   "verify <certificate>",
 	Short: "Verify a certificate's validity and revocation status",
 	Long: `Verify that a certificate is valid and optionally check revocation status.
 
@@ -38,13 +38,14 @@ Revocation checking (optional):
 
 Examples:
   # Basic validation
-  pki verify --cert server.crt --ca ca.crt
+  qpki cert verify server.crt --ca ca.crt
 
   # With CRL check
-  pki verify --cert server.crt --ca ca.crt --crl ca.crl
+  qpki cert verify server.crt --ca ca.crt --crl ca.crl
 
   # With OCSP check
-  pki verify --cert server.crt --ca ca.crt --ocsp http://localhost:8080`,
+  qpki cert verify server.crt --ca ca.crt --ocsp http://localhost:8080`,
+	Args:          cobra.ExactArgs(1),
 	RunE:          runVerify,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -59,12 +60,10 @@ var (
 
 func init() {
 	flags := verifyCmd.Flags()
-	flags.StringVar(&verifyCertFile, "cert", "", "Certificate to verify (PEM)")
 	flags.StringVar(&verifyCAFile, "ca", "", "CA certificate (PEM)")
 	flags.StringVar(&verifyCRLFile, "crl", "", "CRL file for revocation check (PEM/DER)")
 	flags.StringVar(&verifyOCSPURL, "ocsp", "", "OCSP responder URL")
 
-	_ = verifyCmd.MarkFlagRequired("cert")
 	_ = verifyCmd.MarkFlagRequired("ca")
 
 	// Add verify as a subcommand of cert (was: rootCmd.AddCommand(verifyCmd))
@@ -80,6 +79,9 @@ const (
 )
 
 func runVerify(cmd *cobra.Command, args []string) error {
+	// Get certificate file from positional argument
+	verifyCertFile = args[0]
+
 	// Load certificate
 	cert, err := loadCertificate(verifyCertFile)
 	if err != nil {
