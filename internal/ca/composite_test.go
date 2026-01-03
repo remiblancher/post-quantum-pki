@@ -44,7 +44,9 @@ func TestMLDSASignVerify(t *testing.T) {
 
 	// Sign (FIPS 204 pure mode: ctx=nil, randomized=false)
 	sig := make([]byte, mldsa87.SignatureSize)
-	mldsa87.SignTo(priv, message, nil, false, sig)
+	if err := mldsa87.SignTo(priv, message, nil, false, sig); err != nil {
+		t.Fatalf("SignTo failed: %v", err)
+	}
 	t.Logf("Signature length: %d", len(sig))
 
 	// Verify (FIPS 204 pure mode: ctx=nil)
@@ -393,7 +395,9 @@ func TestVerifyMLDSA_MLDSA65(t *testing.T) {
 
 	message := []byte("test message")
 	sig := make([]byte, mldsa65.SignatureSize)
-	mldsa65.SignTo(priv, message, nil, false, sig)
+	if err := mldsa65.SignTo(priv, message, nil, false, sig); err != nil {
+		t.Fatalf("SignTo failed: %v", err)
+	}
 
 	// Verify with correct key
 	valid := verifyMLDSA(pkicrypto.AlgMLDSA65, pub, message, sig)
@@ -418,7 +422,9 @@ func TestVerifyMLDSA_MLDSA87(t *testing.T) {
 
 	message := []byte("test message")
 	sig := make([]byte, mldsa87.SignatureSize)
-	mldsa87.SignTo(priv, message, nil, false, sig)
+	if err := mldsa87.SignTo(priv, message, nil, false, sig); err != nil {
+		t.Fatalf("SignTo failed: %v", err)
+	}
 
 	// Verify with correct key
 	valid := verifyMLDSA(pkicrypto.AlgMLDSA87, pub, message, sig)
