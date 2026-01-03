@@ -356,6 +356,12 @@ func validateAlgorithmKeyMatch(sigAlgOID asn1.ObjectIdentifier, pub crypto.Publi
 				return fmt.Errorf("algorithm mismatch: ML-DSA-87 OID but key is %s", typeName)
 			}
 			return nil
+		// SLH-DSA variants (Go x509 doesn't parse SLH-DSA keys, so pub will be nil)
+		case sigAlgOID.Equal(OIDSLHDSA128s), sigAlgOID.Equal(OIDSLHDSA128f),
+			sigAlgOID.Equal(OIDSLHDSA192s), sigAlgOID.Equal(OIDSLHDSA192f),
+			sigAlgOID.Equal(OIDSLHDSA256s), sigAlgOID.Equal(OIDSLHDSA256f):
+			// SLH-DSA - pub may be nil since Go doesn't parse it, we'll extract from raw cert later
+			return nil
 		default:
 			// Unknown OID - reject for security
 			return fmt.Errorf("unknown or unsupported signature algorithm OID: %v for key type %s", sigAlgOID, typeName)
