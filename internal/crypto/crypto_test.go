@@ -883,3 +883,240 @@ func TestAlgorithmFromOID(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// [Unit] ML-KEM Key Generation Tests
+// =============================================================================
+
+func TestU_KeyGen_KEMAlgorithms(t *testing.T) {
+	kemAlgs := []AlgorithmID{
+		AlgMLKEM512,
+		AlgMLKEM768,
+		AlgMLKEM1024,
+	}
+
+	for _, alg := range kemAlgs {
+		t.Run(string(alg), func(t *testing.T) {
+			t.Parallel()
+
+			kp, err := GenerateKEMKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKEMKeyPair(%s) error = %v", alg, err)
+			}
+
+			if kp.Algorithm != alg {
+				t.Errorf("Algorithm = %v, want %v", kp.Algorithm, alg)
+			}
+			if kp.PrivateKey == nil {
+				t.Error("PrivateKey is nil")
+			}
+			if kp.PublicKey == nil {
+				t.Error("PublicKey is nil")
+			}
+		})
+	}
+}
+
+func TestU_KeyGen_KEMRequiresSpecialFunction(t *testing.T) {
+	// KEM algorithms should not work with GenerateKeyPair
+	kemAlgs := []AlgorithmID{
+		AlgMLKEM512,
+		AlgMLKEM768,
+		AlgMLKEM1024,
+	}
+
+	for _, alg := range kemAlgs {
+		t.Run(string(alg), func(t *testing.T) {
+			_, err := GenerateKeyPair(alg)
+			if err == nil {
+				t.Errorf("GenerateKeyPair(%s) should fail, KEM requires GenerateKEMKeyPair", alg)
+			}
+		})
+	}
+}
+
+func TestU_KeyGen_KEMInvalidAlgorithm(t *testing.T) {
+	_, err := GenerateKEMKeyPair("invalid")
+	if err == nil {
+		t.Error("expected error for invalid algorithm")
+	}
+
+	// Non-KEM algorithms should fail
+	_, err = GenerateKEMKeyPair(AlgECDSAP256)
+	if err == nil {
+		t.Error("expected error for non-KEM algorithm")
+	}
+}
+
+func TestU_MLKEM_PublicKeyBytes_RoundTrip(t *testing.T) {
+	kemAlgs := []AlgorithmID{
+		AlgMLKEM512,
+		AlgMLKEM768,
+		AlgMLKEM1024,
+	}
+
+	for _, alg := range kemAlgs {
+		t.Run(string(alg), func(t *testing.T) {
+			t.Parallel()
+
+			// Generate key pair
+			kp, err := GenerateKEMKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKEMKeyPair() error = %v", err)
+			}
+
+			// Get public key bytes
+			pubBytes, err := MLKEMPublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("MLKEMPublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("MLKEMPublicKeyBytes() returned empty")
+			}
+
+			// Parse public key back
+			parsedPub, err := ParseMLKEMPublicKey(alg, pubBytes)
+			if err != nil {
+				t.Fatalf("ParseMLKEMPublicKey() error = %v", err)
+			}
+
+			if parsedPub == nil {
+				t.Error("ParseMLKEMPublicKey() returned nil")
+			}
+		})
+	}
+}
+
+func TestU_MLKEM_PrivateKeyBytes_RoundTrip(t *testing.T) {
+	kemAlgs := []AlgorithmID{
+		AlgMLKEM512,
+		AlgMLKEM768,
+		AlgMLKEM1024,
+	}
+
+	for _, alg := range kemAlgs {
+		t.Run(string(alg), func(t *testing.T) {
+			t.Parallel()
+
+			// Generate key pair
+			kp, err := GenerateKEMKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKEMKeyPair() error = %v", err)
+			}
+
+			// Get private key bytes
+			privBytes, err := MLKEMPrivateKeyBytes(kp.PrivateKey)
+			if err != nil {
+				t.Fatalf("MLKEMPrivateKeyBytes() error = %v", err)
+			}
+
+			if len(privBytes) == 0 {
+				t.Error("MLKEMPrivateKeyBytes() returned empty")
+			}
+
+			// Parse private key back
+			parsedPriv, err := ParseMLKEMPrivateKey(alg, privBytes)
+			if err != nil {
+				t.Fatalf("ParseMLKEMPrivateKey() error = %v", err)
+			}
+
+			if parsedPriv == nil {
+				t.Error("ParseMLKEMPrivateKey() returned nil")
+			}
+		})
+	}
+}
+
+func TestU_KEMKeyPair_SavePrivateKey(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		alg        AlgorithmID
+		passphrase []byte
+	}{
+		{AlgMLKEM512, nil},
+		{AlgMLKEM768, nil},
+		{AlgMLKEM1024, nil},
+		{AlgMLKEM768, []byte("testpassword")},
+	}
+
+	for _, tt := range tests {
+		name := string(tt.alg)
+		if tt.passphrase != nil {
+			name += "-encrypted"
+		}
+
+		t.Run(name, func(t *testing.T) {
+			// Generate key
+			kp, err := GenerateKEMKeyPair(tt.alg)
+			if err != nil {
+				t.Fatalf("GenerateKEMKeyPair() error = %v", err)
+			}
+
+			// Save key
+			keyPath := filepath.Join(tempDir, name+".kem.pem")
+			if err := kp.SavePrivateKey(keyPath, tt.passphrase); err != nil {
+				t.Fatalf("SavePrivateKey() error = %v", err)
+			}
+
+			// Check file exists with correct permissions
+			info, err := os.Stat(keyPath)
+			if err != nil {
+				t.Fatalf("Stat() error = %v", err)
+			}
+			if info.Mode().Perm() != 0600 {
+				t.Errorf("key file permissions = %v, want 0600", info.Mode().Perm())
+			}
+		})
+	}
+}
+
+// =============================================================================
+// [Unit] EC Alias Tests
+// =============================================================================
+
+func TestU_ECAlias_KeyGeneration(t *testing.T) {
+	// ec-* aliases should work like ecdsa-*
+	tests := []struct {
+		alias    AlgorithmID
+		expected AlgorithmID
+	}{
+		{AlgECP256, AlgECDSAP256},
+		{AlgECP384, AlgECDSAP384},
+		{AlgECP521, AlgECDSAP521},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.alias), func(t *testing.T) {
+			kp, err := GenerateKeyPair(tt.alias)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair(%s) error = %v", tt.alias, err)
+			}
+
+			if kp.Algorithm != tt.alias {
+				t.Errorf("Algorithm = %v, want %v", kp.Algorithm, tt.alias)
+			}
+			if kp.PrivateKey == nil {
+				t.Error("PrivateKey is nil")
+			}
+
+			// Verify we can sign with the alias key
+			signer, err := NewSoftwareSigner(kp)
+			if err != nil {
+				t.Fatalf("NewSoftwareSigner() error = %v", err)
+			}
+
+			message := []byte("test message")
+			h := sha256.Sum256(message)
+			sig, err := signer.Sign(rand.Reader, h[:], crypto.SHA256)
+			if err != nil {
+				t.Fatalf("Sign() error = %v", err)
+			}
+
+			if len(sig) == 0 {
+				t.Error("signature is empty")
+			}
+		})
+	}
+}

@@ -3,10 +3,13 @@ package cms
 import (
 	"crypto"
 	"crypto/elliptic"
+	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"testing"
 	"time"
+
+	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
 // =============================================================================
@@ -849,5 +852,354 @@ func TestU_Sign_IssuerAndSerialNumber(t *testing.T) {
 	_, err = asn1.Unmarshal(sid.Issuer.FullBytes, &issuerName)
 	if err != nil {
 		t.Fatalf("Failed to parse issuer: %v", err)
+	}
+}
+
+// =============================================================================
+// Functional Tests: ML-DSA Algorithms (Post-Quantum)
+// =============================================================================
+
+// TestF_Sign_MLDSA_AllVariants tests CMS signing with all ML-DSA variants.
+func TestF_Sign_MLDSA_AllVariants(t *testing.T) {
+	tests := []struct {
+		name        string
+		alg         pkicrypto.AlgorithmID
+		expectedOID asn1.ObjectIdentifier
+	}{
+		{
+			name:        "[Functional] Sign: ML-DSA-44",
+			alg:         pkicrypto.AlgMLDSA44,
+			expectedOID: OIDMLDSA44,
+		},
+		{
+			name:        "[Functional] Sign: ML-DSA-65",
+			alg:         pkicrypto.AlgMLDSA65,
+			expectedOID: OIDMLDSA65,
+		},
+		{
+			name:        "[Functional] Sign: ML-DSA-87",
+			alg:         pkicrypto.AlgMLDSA87,
+			expectedOID: OIDMLDSA87,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateMLDSAKeyPair(t, tt.alg)
+			cert := generateMLDSACertificate(t, kp, tt.alg)
+
+			content := []byte("ML-DSA test content")
+
+			signedData, err := Sign(content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// STRUCTURE check: verify OID
+			oid := extractSignerInfoOID(t, signedData)
+			if !oid.Equal(tt.expectedOID) {
+				t.Errorf("STRUCTURE: Expected OID %v, got %v", tt.expectedOID, oid)
+			}
+
+			// CRYPTO check: verify signature
+			_, err = Verify(signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("CRYPTO: Verification failed: %v", err)
+			}
+		})
+	}
+}
+
+// TestF_Sign_MLDSA44_Detached tests detached ML-DSA-44 signature.
+func TestF_Sign_MLDSA44_Detached(t *testing.T) {
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA44)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA44)
+
+	content := []byte("detached ML-DSA content")
+
+	signedData, err := Sign(content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		IncludeCerts: true,
+		Detached:     true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	// STRUCTURE: verify OID
+	oid := extractSignerInfoOID(t, signedData)
+	if !oid.Equal(OIDMLDSA44) {
+		t.Errorf("STRUCTURE: Expected OID %v, got %v", OIDMLDSA44, oid)
+	}
+
+	// CRYPTO: verify with original content
+	_, err = Verify(signedData, &VerifyConfig{
+		Data:           content,
+		SkipCertVerify: true,
+	})
+	if err != nil {
+		t.Errorf("CRYPTO: Verification failed: %v", err)
+	}
+}
+
+// TestF_Sign_MLDSA65_LargeContent tests ML-DSA-65 with large content.
+func TestF_Sign_MLDSA65_LargeContent(t *testing.T) {
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA65)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA65)
+
+	// 512 KB content
+	largeContent := make([]byte, 512*1024)
+	for i := range largeContent {
+		largeContent[i] = byte(i % 256)
+	}
+
+	signedData, err := Sign(largeContent, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed for large content: %v", err)
+	}
+
+	result, err := Verify(signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed for large content: %v", err)
+	}
+
+	if len(result.Content) != len(largeContent) {
+		t.Errorf("Content length mismatch: expected %d, got %d", len(largeContent), len(result.Content))
+	}
+}
+
+// =============================================================================
+// Functional Tests: SLH-DSA Algorithms (Post-Quantum)
+// =============================================================================
+
+// TestF_Sign_SLHDSA_FastVariants tests CMS signing with SLH-DSA fast variants.
+func TestF_Sign_SLHDSA_FastVariants(t *testing.T) {
+	tests := []struct {
+		name        string
+		alg         pkicrypto.AlgorithmID
+		expectedOID asn1.ObjectIdentifier
+	}{
+		{
+			name:        "[Functional] Sign: SLH-DSA-128f",
+			alg:         pkicrypto.AlgSLHDSA128f,
+			expectedOID: OIDSLHDSA128f,
+		},
+		{
+			name:        "[Functional] Sign: SLH-DSA-192f",
+			alg:         pkicrypto.AlgSLHDSA192f,
+			expectedOID: OIDSLHDSA192f,
+		},
+		{
+			name:        "[Functional] Sign: SLH-DSA-256f",
+			alg:         pkicrypto.AlgSLHDSA256f,
+			expectedOID: OIDSLHDSA256f,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateSLHDSAKeyPair(t, tt.alg)
+			cert := generateSLHDSACertificate(t, kp, tt.alg)
+
+			content := []byte("SLH-DSA test content")
+
+			signedData, err := Sign(content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// STRUCTURE check: verify OID
+			oid := extractSignerInfoOID(t, signedData)
+			if !oid.Equal(tt.expectedOID) {
+				t.Errorf("STRUCTURE: Expected OID %v, got %v", tt.expectedOID, oid)
+			}
+
+			// CRYPTO check: verify signature
+			_, err = Verify(signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("CRYPTO: Verification failed: %v", err)
+			}
+		})
+	}
+}
+
+// TestF_Sign_SLHDSA_SmallVariants tests CMS signing with SLH-DSA small (slow) variants.
+// These variants produce smaller signatures but are slower.
+func TestF_Sign_SLHDSA_SmallVariants(t *testing.T) {
+	tests := []struct {
+		name        string
+		alg         pkicrypto.AlgorithmID
+		expectedOID asn1.ObjectIdentifier
+	}{
+		{
+			name:        "[Functional] Sign: SLH-DSA-128s",
+			alg:         pkicrypto.AlgSLHDSA128s,
+			expectedOID: OIDSLHDSA128s,
+		},
+		// Note: SLH-DSA-192s and SLH-DSA-256s are very slow, skip in unit tests
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateSLHDSAKeyPair(t, tt.alg)
+			cert := generateSLHDSACertificate(t, kp, tt.alg)
+
+			content := []byte("SLH-DSA small test content")
+
+			signedData, err := Sign(content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// STRUCTURE check: verify OID
+			oid := extractSignerInfoOID(t, signedData)
+			if !oid.Equal(tt.expectedOID) {
+				t.Errorf("STRUCTURE: Expected OID %v, got %v", tt.expectedOID, oid)
+			}
+
+			// CRYPTO check: verify signature
+			_, err = Verify(signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("CRYPTO: Verification failed: %v", err)
+			}
+		})
+	}
+}
+
+// TestF_Sign_SLHDSA128f_Detached tests detached SLH-DSA-128f signature.
+func TestF_Sign_SLHDSA128f_Detached(t *testing.T) {
+	kp := generateSLHDSAKeyPair(t, pkicrypto.AlgSLHDSA128f)
+	cert := generateSLHDSACertificate(t, kp, pkicrypto.AlgSLHDSA128f)
+
+	content := []byte("detached SLH-DSA content")
+
+	signedData, err := Sign(content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		IncludeCerts: true,
+		Detached:     true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	// STRUCTURE: verify OID
+	oid := extractSignerInfoOID(t, signedData)
+	if !oid.Equal(OIDSLHDSA128f) {
+		t.Errorf("STRUCTURE: Expected OID %v, got %v", OIDSLHDSA128f, oid)
+	}
+
+	// CRYPTO: verify with original content
+	_, err = Verify(signedData, &VerifyConfig{
+		Data:           content,
+		SkipCertVerify: true,
+	})
+	if err != nil {
+		t.Errorf("CRYPTO: Verification failed: %v", err)
+	}
+}
+
+// =============================================================================
+// Functional Tests: All PQC Algorithms (Combined Table-Driven)
+// =============================================================================
+
+// TestF_Sign_AllPQCAlgorithms tests signing with all supported PQC signature algorithms.
+func TestF_Sign_AllPQCAlgorithms(t *testing.T) {
+	tests := []struct {
+		name        string
+		alg         pkicrypto.AlgorithmID
+		expectedOID asn1.ObjectIdentifier
+		genKeyPair  func(t *testing.T, alg pkicrypto.AlgorithmID) *testKeyPair
+		genCert     func(t *testing.T, kp *testKeyPair, alg pkicrypto.AlgorithmID) *x509.Certificate
+	}{
+		// ML-DSA variants
+		{
+			name:        "[Functional] Sign: ML-DSA-44",
+			alg:         pkicrypto.AlgMLDSA44,
+			expectedOID: OIDMLDSA44,
+			genKeyPair:  generateMLDSAKeyPair,
+			genCert:     generateMLDSACertificate,
+		},
+		{
+			name:        "[Functional] Sign: ML-DSA-65",
+			alg:         pkicrypto.AlgMLDSA65,
+			expectedOID: OIDMLDSA65,
+			genKeyPair:  generateMLDSAKeyPair,
+			genCert:     generateMLDSACertificate,
+		},
+		{
+			name:        "[Functional] Sign: ML-DSA-87",
+			alg:         pkicrypto.AlgMLDSA87,
+			expectedOID: OIDMLDSA87,
+			genKeyPair:  generateMLDSAKeyPair,
+			genCert:     generateMLDSACertificate,
+		},
+		// SLH-DSA fast variants
+		{
+			name:        "[Functional] Sign: SLH-DSA-128f",
+			alg:         pkicrypto.AlgSLHDSA128f,
+			expectedOID: OIDSLHDSA128f,
+			genKeyPair:  generateSLHDSAKeyPair,
+			genCert:     generateSLHDSACertificate,
+		},
+		{
+			name:        "[Functional] Sign: SLH-DSA-128s",
+			alg:         pkicrypto.AlgSLHDSA128s,
+			expectedOID: OIDSLHDSA128s,
+			genKeyPair:  generateSLHDSAKeyPair,
+			genCert:     generateSLHDSACertificate,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := tt.genKeyPair(t, tt.alg)
+			cert := tt.genCert(t, kp, tt.alg)
+
+			content := []byte("PQC test content for " + string(tt.alg))
+
+			signedData, err := Sign(content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// STRUCTURE check
+			oid := extractSignerInfoOID(t, signedData)
+			if !oid.Equal(tt.expectedOID) {
+				t.Errorf("STRUCTURE: Expected OID %v, got %v", tt.expectedOID, oid)
+			}
+
+			// CRYPTO check
+			result, err := Verify(signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("CRYPTO: Verification failed: %v", err)
+			}
+
+			// Verify content round-trip
+			if string(result.Content) != string(content) {
+				t.Errorf("Content mismatch: expected %q, got %q", content, result.Content)
+			}
+		})
 	}
 }

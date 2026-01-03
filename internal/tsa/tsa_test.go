@@ -3,8 +3,10 @@ package tsa
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -14,6 +16,7 @@ import (
 	"time"
 
 	"github.com/remiblancher/post-quantum-pki/internal/cms"
+	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
 // =============================================================================
@@ -792,6 +795,536 @@ func TestU_Token_Parse_Invalid(t *testing.T) {
 			_, err := ParseToken(tt.data)
 			if err == nil {
 				t.Error("Expected error for invalid token data")
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Multi-Algorithm Token Tests
+// =============================================================================
+
+// tsaTestKeyPair holds a key pair for TSA testing.
+type tsaTestKeyPair struct {
+	PrivateKey crypto.Signer
+	PublicKey  crypto.PublicKey
+	Algorithm  pkicrypto.AlgorithmID
+}
+
+// generateTSAKeyPair generates a key pair for the specified algorithm.
+func generateTSAKeyPair(t *testing.T, alg pkicrypto.AlgorithmID) *tsaTestKeyPair {
+	t.Helper()
+
+	switch alg {
+	case pkicrypto.AlgECDSAP256:
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatalf("Failed to generate ECDSA P-256 key: %v", err)
+		}
+		return &tsaTestKeyPair{PrivateKey: priv, PublicKey: &priv.PublicKey, Algorithm: alg}
+
+	case pkicrypto.AlgECDSAP384:
+		priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		if err != nil {
+			t.Fatalf("Failed to generate ECDSA P-384 key: %v", err)
+		}
+		return &tsaTestKeyPair{PrivateKey: priv, PublicKey: &priv.PublicKey, Algorithm: alg}
+
+	case pkicrypto.AlgECDSAP521:
+		priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		if err != nil {
+			t.Fatalf("Failed to generate ECDSA P-521 key: %v", err)
+		}
+		return &tsaTestKeyPair{PrivateKey: priv, PublicKey: &priv.PublicKey, Algorithm: alg}
+
+	case pkicrypto.AlgRSA2048:
+		priv, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			t.Fatalf("Failed to generate RSA-2048 key: %v", err)
+		}
+		return &tsaTestKeyPair{PrivateKey: priv, PublicKey: &priv.PublicKey, Algorithm: alg}
+
+	case pkicrypto.AlgEd25519:
+		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatalf("Failed to generate Ed25519 key: %v", err)
+		}
+		return &tsaTestKeyPair{PrivateKey: priv, PublicKey: pub, Algorithm: alg}
+
+	case pkicrypto.AlgMLDSA44, pkicrypto.AlgMLDSA65, pkicrypto.AlgMLDSA87,
+		pkicrypto.AlgSLHDSA128s, pkicrypto.AlgSLHDSA128f,
+		pkicrypto.AlgSLHDSA192s, pkicrypto.AlgSLHDSA192f,
+		pkicrypto.AlgSLHDSA256s, pkicrypto.AlgSLHDSA256f:
+		signer, err := pkicrypto.GenerateSoftwareSigner(alg)
+		if err != nil {
+			t.Fatalf("Failed to generate %s key: %v", alg, err)
+		}
+		return &tsaTestKeyPair{PrivateKey: signer, PublicKey: signer.Public(), Algorithm: alg}
+
+	default:
+		t.Fatalf("Unsupported algorithm: %s", alg)
+		return nil
+	}
+}
+
+// generateTSACertificate creates a self-signed TSA certificate for the given key pair.
+func generateTSACertificate(t *testing.T, kp *tsaTestKeyPair) *x509.Certificate {
+	t.Helper()
+
+	// For PQC algorithms, use manual certificate construction
+	if kp.Algorithm.IsPQC() {
+		return generatePQCTSACertificate(t, kp)
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "Test TSA - " + string(kp.Algorithm),
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageTimeStamping},
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, kp.PublicKey, kp.PrivateKey)
+	if err != nil {
+		t.Fatalf("Failed to create certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	return cert
+}
+
+// generatePQCTSACertificate creates a self-signed TSA certificate for PQC algorithms.
+// Go's x509 package doesn't support PQC, so we build the certificate manually.
+func generatePQCTSACertificate(t *testing.T, kp *tsaTestKeyPair) *x509.Certificate {
+	t.Helper()
+
+	// Get the signature algorithm OID
+	sigOID := algorithmToOID(t, kp.Algorithm)
+
+	// Get public key bytes
+	pubBytes, err := pkicrypto.PublicKeyBytes(kp.PublicKey)
+	if err != nil {
+		t.Fatalf("Failed to marshal public key: %v", err)
+	}
+
+	// Build SubjectPublicKeyInfo
+	spki := struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}{
+		Algorithm: pkix.AlgorithmIdentifier{
+			Algorithm: sigOID,
+		},
+		PublicKey: asn1.BitString{
+			Bytes:     pubBytes,
+			BitLength: len(pubBytes) * 8,
+		},
+	}
+
+	spkiBytes, err := asn1.Marshal(spki)
+	if err != nil {
+		t.Fatalf("Failed to marshal SPKI: %v", err)
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("Failed to generate serial number: %v", err)
+	}
+
+	// Build TBSCertificate
+	tbs := struct {
+		Version            int `asn1:"optional,explicit,default:0,tag:0"`
+		SerialNumber       *big.Int
+		SignatureAlgorithm pkix.AlgorithmIdentifier
+		Issuer             pkix.RDNSequence
+		Validity           struct {
+			NotBefore, NotAfter time.Time
+		}
+		Subject              pkix.RDNSequence
+		SubjectPublicKeyInfo asn1.RawValue
+	}{
+		Version:            2, // v3
+		SerialNumber:       serialNumber,
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: sigOID},
+		Issuer: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3}, Value: "Test TSA - " + string(kp.Algorithm)},
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 10}, Value: "Test Org"},
+			},
+		},
+		Validity: struct {
+			NotBefore, NotAfter time.Time
+		}{
+			NotBefore: time.Now().Add(-1 * time.Hour),
+			NotAfter:  time.Now().Add(24 * time.Hour),
+		},
+		Subject: pkix.RDNSequence{
+			pkix.RelativeDistinguishedNameSET{
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3}, Value: "Test TSA - " + string(kp.Algorithm)},
+				pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 10}, Value: "Test Org"},
+			},
+		},
+		SubjectPublicKeyInfo: asn1.RawValue{FullBytes: spkiBytes},
+	}
+
+	tbsBytes, err := asn1.Marshal(tbs)
+	if err != nil {
+		t.Fatalf("Failed to marshal TBSCertificate: %v", err)
+	}
+
+	// Sign TBS with PQC key
+	var signOpts crypto.SignerOpts
+	if kp.Algorithm.Type() == pkicrypto.TypePQCSignature {
+		// ML-DSA requires crypto.Hash(0), SLH-DSA accepts nil
+		switch {
+		case kp.Algorithm == pkicrypto.AlgMLDSA44 || kp.Algorithm == pkicrypto.AlgMLDSA65 || kp.Algorithm == pkicrypto.AlgMLDSA87:
+			signOpts = crypto.Hash(0)
+		default:
+			signOpts = nil
+		}
+	}
+
+	signature, err := kp.PrivateKey.Sign(rand.Reader, tbsBytes, signOpts)
+	if err != nil {
+		t.Fatalf("Failed to sign TBSCertificate: %v", err)
+	}
+
+	// Build full certificate
+	certStruct := struct {
+		TBSCertificate     asn1.RawValue
+		SignatureAlgorithm pkix.AlgorithmIdentifier
+		SignatureValue     asn1.BitString
+	}{
+		TBSCertificate:     asn1.RawValue{FullBytes: tbsBytes},
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: sigOID},
+		SignatureValue: asn1.BitString{
+			Bytes:     signature,
+			BitLength: len(signature) * 8,
+		},
+	}
+
+	certDER, err := asn1.Marshal(certStruct)
+	if err != nil {
+		t.Fatalf("Failed to marshal certificate: %v", err)
+	}
+
+	// Parse it back
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	return cert
+}
+
+// algorithmToOID returns the ASN.1 OID for the given algorithm.
+func algorithmToOID(t *testing.T, alg pkicrypto.AlgorithmID) asn1.ObjectIdentifier {
+	t.Helper()
+	switch alg {
+	case pkicrypto.AlgMLDSA44:
+		return cms.OIDMLDSA44
+	case pkicrypto.AlgMLDSA65:
+		return cms.OIDMLDSA65
+	case pkicrypto.AlgMLDSA87:
+		return cms.OIDMLDSA87
+	case pkicrypto.AlgSLHDSA128s:
+		return cms.OIDSLHDSA128s
+	case pkicrypto.AlgSLHDSA128f:
+		return cms.OIDSLHDSA128f
+	case pkicrypto.AlgSLHDSA192s:
+		return cms.OIDSLHDSA192s
+	case pkicrypto.AlgSLHDSA192f:
+		return cms.OIDSLHDSA192f
+	case pkicrypto.AlgSLHDSA256s:
+		return cms.OIDSLHDSA256s
+	case pkicrypto.AlgSLHDSA256f:
+		return cms.OIDSLHDSA256f
+	default:
+		t.Fatalf("Unsupported algorithm for OID: %s", alg)
+		return nil
+	}
+}
+
+// TestF_Token_AllClassicalAlgorithms tests TSA token creation with all classical algorithms.
+func TestF_Token_AllClassicalAlgorithms(t *testing.T) {
+	algorithms := []struct {
+		name string
+		alg  pkicrypto.AlgorithmID
+	}{
+		{"ECDSA-P256", pkicrypto.AlgECDSAP256},
+		{"ECDSA-P384", pkicrypto.AlgECDSAP384},
+		{"ECDSA-P521", pkicrypto.AlgECDSAP521},
+		{"RSA-2048", pkicrypto.AlgRSA2048},
+		{"Ed25519", pkicrypto.AlgEd25519},
+	}
+
+	testData := []byte("test data for timestamp token")
+	hash := sha256.Sum256(testData)
+
+	for _, tc := range algorithms {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate key pair
+			kp := generateTSAKeyPair(t, tc.alg)
+
+			// Generate certificate
+			cert := generateTSACertificate(t, kp)
+
+			// Create timestamp request
+			req := &TimeStampReq{
+				Version:        1,
+				MessageImprint: NewMessageImprint(crypto.SHA256, hash[:]),
+				Nonce:          big.NewInt(12345),
+				CertReq:        true,
+			}
+
+			// Create token
+			config := &TokenConfig{
+				Certificate: cert,
+				Signer:      kp.PrivateKey,
+				Policy:      asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 1},
+				IncludeTSA:  true,
+			}
+
+			token, err := CreateToken(req, config, &RandomSerialGenerator{})
+			if err != nil {
+				t.Fatalf("CreateToken failed: %v", err)
+			}
+
+			// Verify token structure
+			if token.Info == nil {
+				t.Fatal("Token Info is nil")
+			}
+			if token.Info.Version != 1 {
+				t.Errorf("Version = %d, want 1", token.Info.Version)
+			}
+			if token.Info.SerialNumber == nil {
+				t.Error("SerialNumber is nil")
+			}
+			if token.Info.GenTime.IsZero() {
+				t.Error("GenTime is zero")
+			}
+
+			// Parse the token back
+			parsed, err := ParseToken(token.SignedData)
+			if err != nil {
+				t.Fatalf("ParseToken failed: %v", err)
+			}
+			if parsed.Info == nil {
+				t.Error("Parsed token Info is nil")
+			}
+		})
+	}
+}
+
+// TestF_Token_MLDSAAlgorithms tests TSA token creation with ML-DSA algorithms.
+func TestF_Token_MLDSAAlgorithms(t *testing.T) {
+	algorithms := []struct {
+		name string
+		alg  pkicrypto.AlgorithmID
+	}{
+		{"ML-DSA-44", pkicrypto.AlgMLDSA44},
+		{"ML-DSA-65", pkicrypto.AlgMLDSA65},
+		{"ML-DSA-87", pkicrypto.AlgMLDSA87},
+	}
+
+	testData := []byte("test data for ML-DSA timestamp")
+	hash := sha256.Sum256(testData)
+
+	for _, tc := range algorithms {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate key pair
+			kp := generateTSAKeyPair(t, tc.alg)
+
+			// Generate certificate
+			cert := generateTSACertificate(t, kp)
+
+			// Create timestamp request
+			req := &TimeStampReq{
+				Version:        1,
+				MessageImprint: NewMessageImprint(crypto.SHA256, hash[:]),
+				Nonce:          big.NewInt(54321),
+				CertReq:        true,
+			}
+
+			// Create token
+			config := &TokenConfig{
+				Certificate: cert,
+				Signer:      kp.PrivateKey,
+				Policy:      asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 1},
+				IncludeTSA:  true,
+			}
+
+			token, err := CreateToken(req, config, &RandomSerialGenerator{})
+			if err != nil {
+				t.Fatalf("CreateToken failed: %v", err)
+			}
+
+			// Verify token structure
+			if token.Info == nil {
+				t.Fatal("Token Info is nil")
+			}
+			if token.Info.Version != 1 {
+				t.Errorf("Version = %d, want 1", token.Info.Version)
+			}
+
+			// Parse the token back
+			parsed, err := ParseToken(token.SignedData)
+			if err != nil {
+				t.Fatalf("ParseToken failed: %v", err)
+			}
+			if parsed.Info == nil {
+				t.Error("Parsed token Info is nil")
+			}
+		})
+	}
+}
+
+// TestF_Token_SLHDSAAlgorithms tests TSA token creation with SLH-DSA algorithms.
+// Note: Only fast variants are tested by default as slow variants take several seconds.
+func TestF_Token_SLHDSAAlgorithms(t *testing.T) {
+	algorithms := []struct {
+		name   string
+		alg    pkicrypto.AlgorithmID
+		isSlow bool
+	}{
+		{"SLH-DSA-128f", pkicrypto.AlgSLHDSA128f, false},
+		{"SLH-DSA-192f", pkicrypto.AlgSLHDSA192f, false},
+		{"SLH-DSA-256f", pkicrypto.AlgSLHDSA256f, false},
+		// Slow variants (uncomment for comprehensive testing)
+		// {"SLH-DSA-128s", pkicrypto.AlgSLHDSA128s, true},
+		// {"SLH-DSA-192s", pkicrypto.AlgSLHDSA192s, true},
+		// {"SLH-DSA-256s", pkicrypto.AlgSLHDSA256s, true},
+	}
+
+	testData := []byte("test data for SLH-DSA timestamp")
+	hash := sha256.Sum256(testData)
+
+	for _, tc := range algorithms {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.isSlow && testing.Short() {
+				t.Skip("Skipping slow SLH-DSA variant in short mode")
+			}
+
+			// Don't run slow variants in parallel
+			if !tc.isSlow {
+				t.Parallel()
+			}
+
+			// Generate key pair
+			kp := generateTSAKeyPair(t, tc.alg)
+
+			// Generate certificate
+			cert := generateTSACertificate(t, kp)
+
+			// Create timestamp request
+			req := &TimeStampReq{
+				Version:        1,
+				MessageImprint: NewMessageImprint(crypto.SHA256, hash[:]),
+				Nonce:          big.NewInt(99999),
+				CertReq:        true,
+			}
+
+			// Create token
+			config := &TokenConfig{
+				Certificate: cert,
+				Signer:      kp.PrivateKey,
+				Policy:      asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 1},
+				IncludeTSA:  true,
+			}
+
+			token, err := CreateToken(req, config, &RandomSerialGenerator{})
+			if err != nil {
+				t.Fatalf("CreateToken failed: %v", err)
+			}
+
+			// Verify token structure
+			if token.Info == nil {
+				t.Fatal("Token Info is nil")
+			}
+
+			// Parse the token back
+			parsed, err := ParseToken(token.SignedData)
+			if err != nil {
+				t.Fatalf("ParseToken failed: %v", err)
+			}
+			if parsed.Info == nil {
+				t.Error("Parsed token Info is nil")
+			}
+		})
+	}
+}
+
+// TestF_Token_AllHashAlgorithms tests TSA token creation with different hash algorithms.
+func TestF_Token_AllHashAlgorithms(t *testing.T) {
+	hashAlgorithms := []struct {
+		name string
+		hash crypto.Hash
+	}{
+		{"SHA-256", crypto.SHA256},
+		{"SHA-384", crypto.SHA384},
+		{"SHA-512", crypto.SHA512},
+	}
+
+	testData := []byte("test data for hash algorithm testing")
+
+	// Use ECDSA P-256 as the signing algorithm
+	kp := generateTSAKeyPair(t, pkicrypto.AlgECDSAP256)
+	cert := generateTSACertificate(t, kp)
+
+	for _, tc := range hashAlgorithms {
+		t.Run(tc.name, func(t *testing.T) {
+			// Hash the data with the specified algorithm
+			hasher := tc.hash.New()
+			hasher.Write(testData)
+			hash := hasher.Sum(nil)
+
+			// Create timestamp request
+			req := &TimeStampReq{
+				Version:        1,
+				MessageImprint: NewMessageImprint(tc.hash, hash),
+				Nonce:          big.NewInt(11111),
+				CertReq:        true,
+			}
+
+			// Create token
+			config := &TokenConfig{
+				Certificate: cert,
+				Signer:      kp.PrivateKey,
+				Policy:      asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 1},
+				IncludeTSA:  true,
+			}
+
+			token, err := CreateToken(req, config, &RandomSerialGenerator{})
+			if err != nil {
+				t.Fatalf("CreateToken failed: %v", err)
+			}
+
+			// Verify the hash algorithm in the token
+			tokenHash, err := token.HashAlgorithm()
+			if err != nil {
+				t.Fatalf("HashAlgorithm failed: %v", err)
+			}
+			if tokenHash != tc.hash {
+				t.Errorf("Hash algorithm = %v, want %v", tokenHash, tc.hash)
+			}
+
+			// Verify the hashed message length
+			hashedMsg := token.HashedMessage()
+			if len(hashedMsg) != tc.hash.Size() {
+				t.Errorf("HashedMessage length = %d, want %d", len(hashedMsg), tc.hash.Size())
 			}
 		})
 	}
