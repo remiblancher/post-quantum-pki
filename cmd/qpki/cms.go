@@ -389,6 +389,12 @@ func runCMSVerify(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to parse CA certificate")
 		}
 		config.Roots = roots
+
+		// Extract raw CA certificate for PQC chain verification
+		block, _ := pem.Decode(caPEM)
+		if block != nil {
+			config.RootCertRaw = block.Bytes
+		}
 	} else {
 		config.SkipCertVerify = true
 	}

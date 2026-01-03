@@ -10,8 +10,10 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
@@ -27,6 +29,9 @@ type VerifyConfig struct {
 	Data []byte
 	// SkipCertVerify skips certificate chain verification
 	SkipCertVerify bool
+	// RootCertRaw is the raw DER-encoded root CA certificate for PQC verification
+	// This is needed because Go's x509 package doesn't support PQC signatures
+	RootCertRaw []byte
 }
 
 // VerifyResult contains the result of signature verification.
@@ -199,6 +204,24 @@ func verifyCertChain(cert *x509.Certificate, config *VerifyConfig) error {
 	}
 
 	_, err := cert.Verify(opts)
+	if err == nil {
+		return nil
+	}
+
+	// If Go's x509 fails with "unknown authority", try PQC verification
+	// This happens when the CA uses a PQC algorithm that Go doesn't support
+	if strings.Contains(err.Error(), "unknown authority") && len(config.RootCertRaw) > 0 {
+		// Parse the root certificate (Go parses structure but PublicKey may be nil for PQC)
+		rootCert, parseErr := x509.ParseCertificate(config.RootCertRaw)
+		if parseErr == nil {
+			// Use the parsed root certificate for PQC verification
+			valid, pqcErr := ca.VerifyPQCCertificateRaw(cert.Raw, rootCert)
+			if pqcErr == nil && valid {
+				return nil
+			}
+		}
+	}
+
 	return err
 }
 
