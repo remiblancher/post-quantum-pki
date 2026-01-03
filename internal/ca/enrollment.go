@@ -523,6 +523,12 @@ func (ca *CA) issueCompositeCertFromProfile(req EnrollmentRequest, prof *profile
 		return nil, nil, nil, fmt.Errorf("invalid composite profile: requires exactly 2 algorithms")
 	}
 
+	// Compile profile to get parsed extensions
+	cp, err := prof.Compile()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to compile profile: %w", err)
+	}
+
 	classicalAlg := prof.Algorithms[0]
 	pqcAlg := prof.Algorithms[1]
 
@@ -538,13 +544,10 @@ func (ca *CA) issueCompositeCertFromProfile(req EnrollmentRequest, prof *profile
 		return nil, nil, nil, fmt.Errorf("failed to generate PQC key: %w", err)
 	}
 
-	template := &x509.Certificate{
-		Subject:        req.Subject,
-		DNSNames:       req.DNSNames,
-		EmailAddresses: req.EmailAddresses,
-		NotBefore:      notBefore,
-		NotAfter:       notAfter,
-	}
+	// Use CompiledProfile.ApplyToTemplate for pre-parsed extensions
+	template := cp.ApplyToTemplate(req.Subject, req.DNSNames, nil, req.EmailAddresses)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
 
 	cert, err := ca.IssueComposite(CompositeRequest{
 		Template:           template,
@@ -552,7 +555,6 @@ func (ca *CA) issueCompositeCertFromProfile(req EnrollmentRequest, prof *profile
 		PQCPublicKey:       pqcSigner.Public(),
 		ClassicalAlg:       classicalAlg,
 		PQCAlg:             pqcAlg,
-		Extensions:         prof.Extensions,
 		Validity:           prof.Validity,
 	})
 	if err != nil {
