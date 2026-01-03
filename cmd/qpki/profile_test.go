@@ -15,7 +15,7 @@ func resetProfileFlags() {
 // Profile List Tests
 // =============================================================================
 
-func TestF_ProfileList(t *testing.T) {
+func TestF_Profile_List(t *testing.T) {
 	resetProfileFlags()
 
 	_, err := executeCommand(rootCmd, "profile", "list")
@@ -26,7 +26,7 @@ func TestF_ProfileList(t *testing.T) {
 // Profile Info Tests
 // =============================================================================
 
-func TestF_ProfileInfo(t *testing.T) {
+func TestF_Profile_Info(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile string
@@ -51,7 +51,7 @@ func TestF_ProfileInfo(t *testing.T) {
 	}
 }
 
-func TestF_ProfileInfo_MissingArg(t *testing.T) {
+func TestF_Profile_Info_MissingArg(t *testing.T) {
 	resetProfileFlags()
 
 	_, err := executeCommand(rootCmd, "profile", "info")
@@ -62,7 +62,7 @@ func TestF_ProfileInfo_MissingArg(t *testing.T) {
 // Profile Show Tests
 // =============================================================================
 
-func TestF_ProfileShow(t *testing.T) {
+func TestF_Profile_Show(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile string
@@ -90,7 +90,7 @@ func TestF_ProfileShow(t *testing.T) {
 // Profile Vars Tests
 // =============================================================================
 
-func TestF_ProfileVars(t *testing.T) {
+func TestF_Profile_Vars(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile string
@@ -118,7 +118,7 @@ func TestF_ProfileVars(t *testing.T) {
 // Profile Lint Tests
 // =============================================================================
 
-func TestF_ProfileLint_ValidProfile(t *testing.T) {
+func TestF_Profile_Lint_ValidProfile(t *testing.T) {
 	tc := newTestContext(t)
 	resetProfileFlags()
 
@@ -139,7 +139,7 @@ extensions:
 	assertNoError(t, err)
 }
 
-func TestF_ProfileLint_InvalidProfile(t *testing.T) {
+func TestF_Profile_Lint_InvalidProfile(t *testing.T) {
 	tc := newTestContext(t)
 	resetProfileFlags()
 
@@ -153,7 +153,7 @@ func TestF_ProfileLint_InvalidProfile(t *testing.T) {
 	assertError(t, err)
 }
 
-func TestF_ProfileLint_FileNotFound(t *testing.T) {
+func TestF_Profile_Lint_FileNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetProfileFlags()
 
@@ -165,7 +165,7 @@ func TestF_ProfileLint_FileNotFound(t *testing.T) {
 // Profile Export Tests
 // =============================================================================
 
-func TestF_ProfileExport(t *testing.T) {
+func TestF_Profile_Export(t *testing.T) {
 	tc := newTestContext(t)
 	resetProfileFlags()
 
@@ -177,7 +177,7 @@ func TestF_ProfileExport(t *testing.T) {
 	assertFileNotEmpty(t, outPath)
 }
 
-func TestF_ProfileExport_ProfileNotFound(t *testing.T) {
+func TestF_Profile_Export_ProfileNotFound(t *testing.T) {
 	tc := newTestContext(t)
 	resetProfileFlags()
 

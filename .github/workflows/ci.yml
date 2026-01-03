@@ -35,6 +35,18 @@ jobs:
             exit 1
           fi
 
+      - name: "[Unit] Generate HTML Coverage Report"
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: "[Unit] Upload Coverage Report"
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+          retention-days: 30
+
       - name: "[Unit] Upload Coverage to Codecov"
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
