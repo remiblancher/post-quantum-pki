@@ -9,6 +9,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -98,6 +99,7 @@ public class OCSPVerifyTest {
     // =========================================================================
 
     @Test
+    @Disabled("BC 1.83 uses Composite draft-07, we use IETF draft-13")
     @DisplayName("[CrossCompat] Verify: OCSP Composite Hybrid")
     public void testCrossCompat_Verify_OCSP_Composite() throws Exception {
         Path ocspFile = Paths.get(FIXTURES, "composite/ocsp-good.der");

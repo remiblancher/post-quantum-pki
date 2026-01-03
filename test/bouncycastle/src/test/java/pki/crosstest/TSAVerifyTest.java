@@ -10,6 +10,7 @@ import org.bouncycastle.tsp.TimeStampToken;
 import org.bouncycastle.tsp.TimeStampTokenInfo;
 import org.bouncycastle.util.Store;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - PQC ML-DSA-87 (FIPS 204)
  * - PQC SLH-DSA (FIPS 205)
  * - Catalyst Hybrid (ECDSA + ML-DSA)
- * - Composite Hybrid (IETF draft-13)
+ * - Composite Hybrid (IETF draft-13) - DISABLED: BC 1.83 uses draft-07
  */
 public class TSAVerifyTest {
 
@@ -102,6 +103,7 @@ public class TSAVerifyTest {
     // =========================================================================
 
     @Test
+    @Disabled("BC 1.83 uses Composite draft-07, we use IETF draft-13")
     @DisplayName("[CrossCompat] Verify: TSA Composite Hybrid")
     public void testCrossCompat_Verify_TSA_Composite() throws Exception {
         Path tsaFile = Paths.get(FIXTURES, "composite/timestamp.tsr");

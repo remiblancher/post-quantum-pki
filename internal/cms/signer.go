@@ -25,13 +25,14 @@ import (
 
 // SignerConfig contains options for signing.
 type SignerConfig struct {
-	Certificate  *x509.Certificate
-	Signer       crypto.Signer
-	DigestAlg    crypto.Hash
-	IncludeCerts bool
-	SigningTime  time.Time
-	ContentType  asn1.ObjectIdentifier
-	Detached     bool // If true, content is not included in SignedData
+	Certificate         *x509.Certificate
+	Signer              crypto.Signer
+	DigestAlg           crypto.Hash
+	IncludeCerts        bool
+	SigningTime         time.Time
+	ContentType         asn1.ObjectIdentifier
+	Detached            bool // If true, content is not included in SignedData
+	IncludeSigningCertV2 bool // If true, include ESSCertIDv2 attribute (RFC 5816 TSA)
 }
 
 // Sign creates a CMS SignedData structure.
@@ -59,7 +60,13 @@ func Sign(content []byte, config *SignerConfig) ([]byte, error) {
 	}
 
 	// Build signed attributes
-	signedAttrs, err := buildSignedAttrs(config.ContentType, digest, config.SigningTime)
+	signedAttrs, err := buildSignedAttrs(&buildSignedAttrsConfig{
+		ContentType:          config.ContentType,
+		Digest:               digest,
+		SigningTime:          config.SigningTime,
+		IncludeSigningCertV2: config.IncludeSigningCertV2,
+		Certificate:          config.Certificate,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build signed attributes: %w", err)
 	}
@@ -161,23 +168,47 @@ func Sign(content []byte, config *SignerConfig) ([]byte, error) {
 	return asn1.Marshal(contentInfo)
 }
 
-func buildSignedAttrs(contentType asn1.ObjectIdentifier, digest []byte, signingTime time.Time) ([]Attribute, error) {
-	ctAttr, err := NewContentTypeAttr(contentType)
+// buildSignedAttrsConfig contains options for building signed attributes.
+type buildSignedAttrsConfig struct {
+	ContentType          asn1.ObjectIdentifier
+	Digest               []byte
+	SigningTime          time.Time
+	IncludeSigningCertV2 bool
+	Certificate          *x509.Certificate // Required if IncludeSigningCertV2 is true
+}
+
+func buildSignedAttrs(config *buildSignedAttrsConfig) ([]Attribute, error) {
+	ctAttr, err := NewContentTypeAttr(config.ContentType)
 	if err != nil {
 		return nil, err
 	}
 
-	mdAttr, err := NewMessageDigestAttr(digest)
+	mdAttr, err := NewMessageDigestAttr(config.Digest)
 	if err != nil {
 		return nil, err
 	}
 
-	stAttr, err := NewSigningTimeAttr(signingTime)
+	stAttr, err := NewSigningTimeAttr(config.SigningTime)
 	if err != nil {
 		return nil, err
 	}
 
-	return []Attribute{ctAttr, mdAttr, stAttr}, nil
+	attrs := []Attribute{ctAttr, mdAttr, stAttr}
+
+	// Add ESSCertIDv2 (signing-certificate-v2) if requested (RFC 5816 for TSA)
+	if config.IncludeSigningCertV2 && config.Certificate != nil {
+		scAttr, err := NewSigningCertificateV2Attr(
+			config.Certificate.Raw,
+			config.Certificate.RawIssuer,
+			config.Certificate.SerialNumber,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create signing-certificate-v2 attr: %w", err)
+		}
+		attrs = append(attrs, scAttr)
+	}
+
+	return attrs, nil
 }
 
 // sortAttributes sorts attributes by their DER encoding for SET OF compliance.
