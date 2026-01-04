@@ -150,131 +150,25 @@ pki/
 └── docs/                        # Documentation
 ```
 
-## 3. Core Interfaces
+## 3. Core Abstractions
 
-### 3.1 Signer Interface
+### Interfaces
 
-```go
-// Signer extends crypto.Signer with algorithm metadata.
-type Signer interface {
-    crypto.Signer
-    Algorithm() AlgorithmID
-}
-```
+| Interface | Package | Role |
+|-----------|---------|------|
+| `Signer` | crypto | Unified signing interface for all algorithm types (extends `crypto.Signer`) |
+| `HybridSigner` | crypto | Dual-algorithm signing for Catalyst certificates (classical + PQC) |
+| `KeyProvider` | crypto | Pluggable key storage abstraction (software files or PKCS#11 HSM) |
 
-### 3.2 HybridSigner Interface
+### Data Types
 
-```go
-// HybridSigner combines classical and PQC signers (for Catalyst certificates).
-type HybridSigner interface {
-    Signer
-    ClassicalSigner() Signer
-    PQCSigner() Signer
-    SignHybrid(rand io.Reader, message []byte) (classical, pqc []byte, err error)
-}
-```
+| Type | Package | Role |
+|------|---------|------|
+| `Profile` | profile | Certificate policy template (algorithm, validity, extensions, variables) |
+| `CAMetadata` | ca | CA configuration with key references (supports software and HSM keys) |
+| `Credential` | credential | Grouped certificates with coupled lifecycle (rotation, revocation) |
 
-### 3.3 KeyProvider Interface
-
-```go
-// KeyProvider provides unified key management for software and HSM keys.
-type KeyProvider interface {
-    Load(cfg KeyStorageConfig) (Signer, error)
-    Generate(alg AlgorithmID, cfg KeyStorageConfig) (Signer, error)
-}
-
-// KeyStorageConfig holds configuration for key storage/retrieval.
-type KeyStorageConfig struct {
-    Type             KeyProviderType  // "software" or "pkcs11"
-
-    // Software key storage
-    KeyPath          string
-    Passphrase       string
-
-    // PKCS#11 (HSM) key storage
-    PKCS11Lib        string
-    PKCS11Token      string
-    PKCS11Pin        string
-    PKCS11KeyLabel   string
-    PKCS11KeyID      string
-    PKCS11ConfigPath string
-}
-```
-
-### 3.4 Profile Structure
-
-```go
-// Profile defines certificate characteristics via YAML configuration.
-type Profile struct {
-    Name        string
-    Description string
-    Algorithm   AlgorithmID           // For simple mode
-    Algorithms  []AlgorithmID         // For catalyst/composite (exactly 2)
-    Mode        Mode                  // simple, catalyst, composite
-    Validity    time.Duration
-    Extensions  *ExtensionsConfig
-    Variables   map[string]*Variable  // Declarative inputs with validation
-    Signature   *SignatureAlgoConfig
-}
-```
-
-## 4. Data Structures
-
-### 4.1 CA Metadata
-
-```go
-// CAMetadata stores CA configuration and key references.
-type CAMetadata struct {
-    Profile string     `json:"profile"`
-    Created time.Time  `json:"created"`
-    Keys    []KeyRef   `json:"keys"`
-}
-
-// KeyRef references a CA key (software or HSM).
-type KeyRef struct {
-    ID        string      `json:"id"`        // "default", "classical", "pqc"
-    Algorithm AlgorithmID `json:"algorithm"`
-    Storage   StorageRef  `json:"storage"`
-}
-
-// StorageRef references where a key is stored.
-type StorageRef struct {
-    Type   string `json:"type"`              // "software" or "pkcs11"
-    Path   string `json:"path,omitempty"`    // Software: key file path
-    Config string `json:"config,omitempty"`  // HSM: hsm-config.yaml path
-    Label  string `json:"label,omitempty"`   // HSM: CKA_LABEL
-    KeyID  string `json:"key_id,omitempty"`  // HSM: CKA_ID (hex)
-}
-```
-
-### 4.2 Credential
-
-```go
-// Credential groups related certificates with coupled lifecycle.
-type Credential struct {
-    ID           string           `json:"id"`
-    Subject      Subject          `json:"subject"`
-    Profiles     []string         `json:"profiles"`
-    Status       Status           `json:"status"`  // valid, revoked, expired, pending
-    Created      time.Time        `json:"created"`
-    NotBefore    time.Time        `json:"not_before"`
-    NotAfter     time.Time        `json:"not_after"`
-    Certificates []CertificateRef `json:"certificates"`
-    RevokedAt    *time.Time       `json:"revoked_at,omitempty"`
-}
-
-// CertificateRef references a certificate within a credential.
-type CertificateRef struct {
-    Serial      string     `json:"serial"`
-    Role        CertRole   `json:"role"`       // signature, encryption, etc.
-    Profile     string     `json:"profile"`
-    Algorithm   string     `json:"algorithm"`
-    Fingerprint string     `json:"fingerprint"`
-    Storage     StorageRef `json:"storage,omitempty"`
-}
-```
-
-## 5. Algorithm Support
+## 4. Algorithm Support
 
 ### Classical Algorithms
 | Algorithm | Type | Key Size | Use Case |
