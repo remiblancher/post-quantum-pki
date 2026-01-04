@@ -269,5 +269,5 @@ func (ctp *CompiledTemplateProfile) Render(userValues VariableValues) (*Rendered
 
 // Algorithm returns the algorithm ID, substituting variables if needed.
 func (rp *RenderedProfile) Algorithm() crypto.AlgorithmID {
-	return rp.Profile.GetAlgorithm()
+	return rp.GetAlgorithm()
 }

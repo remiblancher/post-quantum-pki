@@ -989,8 +989,8 @@ func generatePQCTSACertificate(t *testing.T, kp *tsaTestKeyPair) *x509.Certifica
 	var signOpts crypto.SignerOpts
 	if kp.Algorithm.Type() == pkicrypto.TypePQCSignature {
 		// ML-DSA requires crypto.Hash(0), SLH-DSA accepts nil
-		switch {
-		case kp.Algorithm == pkicrypto.AlgMLDSA44 || kp.Algorithm == pkicrypto.AlgMLDSA65 || kp.Algorithm == pkicrypto.AlgMLDSA87:
+		switch kp.Algorithm {
+		case pkicrypto.AlgMLDSA44, pkicrypto.AlgMLDSA65, pkicrypto.AlgMLDSA87:
 			signOpts = crypto.Hash(0)
 		default:
 			signOpts = nil

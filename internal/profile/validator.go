@@ -609,10 +609,11 @@ func isValidDNSLabel(label string) bool {
 
 	// Check all characters
 	for _, c := range label {
-		if !((c >= 'a' && c <= 'z') ||
-			(c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') ||
-			c == '-') {
+		isLower := c >= 'a' && c <= 'z'
+		isUpper := c >= 'A' && c <= 'Z'
+		isDigit := c >= '0' && c <= '9'
+		isHyphen := c == '-'
+		if !isLower && !isUpper && !isDigit && !isHyphen {
 			return false
 		}
 	}

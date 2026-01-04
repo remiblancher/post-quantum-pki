@@ -266,7 +266,7 @@ func (s *SoftwareSigner) SavePrivateKey(path string, passphrase []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := pem.Encode(f, pemBlock); err != nil {
 		return fmt.Errorf("failed to write PEM: %w", err)
@@ -432,10 +432,10 @@ func LoadPrivateKeysAsHybrid(path string, passphrase []byte) (Signer, error) {
 	// Determine which is classical and which is PQC
 	var classical, pqc *SoftwareSigner
 	for _, s := range signers {
-		algType := s.Algorithm().Type()
-		if algType == TypePQCSignature {
+		switch s.Algorithm().Type() {
+		case TypePQCSignature:
 			pqc = s
-		} else if algType == TypeClassicalSignature {
+		case TypeClassicalSignature:
 			classical = s
 		}
 	}

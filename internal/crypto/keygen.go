@@ -569,7 +569,7 @@ func (kp *KEMKeyPair) SavePrivateKey(path string, passphrase []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := pem.Encode(f, pemBlock); err != nil {
 		return fmt.Errorf("failed to write PEM: %w", err)
