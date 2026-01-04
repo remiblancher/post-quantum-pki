@@ -330,8 +330,8 @@ func generatePQCOCSPResponderCert(t *testing.T, caCert *x509.Certificate, caKey 
 
 	// Sign TBS with PQC key
 	var signOpts crypto.SignerOpts
-	switch {
-	case alg == pkicrypto.AlgMLDSA44 || alg == pkicrypto.AlgMLDSA65 || alg == pkicrypto.AlgMLDSA87:
+	switch alg {
+	case pkicrypto.AlgMLDSA44, pkicrypto.AlgMLDSA65, pkicrypto.AlgMLDSA87:
 		signOpts = crypto.Hash(0)
 	default:
 		signOpts = nil

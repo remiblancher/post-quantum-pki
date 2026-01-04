@@ -203,15 +203,15 @@ func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.Compi
 
 	// Add to credential with storage refs
 	role := credential.RoleSignature
-	if cp.Profile.IsKEM() {
+	if cp.IsKEM() {
 		role = credential.RoleEncryption
 	}
 	altAlg := ""
-	if cp.Profile.IsCatalyst() {
-		altAlg = string(cp.Profile.GetAlternativeAlgorithm())
+	if cp.IsCatalyst() {
+		altAlg = string(cp.GetAlternativeAlgorithm())
 	}
-	ref := credential.CertificateRefFromCert(cert, role, cp.Profile.IsCatalyst(), altAlg, storageRefs...)
-	ref.Profile = cp.Profile.Name
+	ref := credential.CertificateRefFromCert(cert, role, cp.IsCatalyst(), altAlg, storageRefs...)
+	ref.Profile = cp.Name
 	cred.AddCertificate(ref)
 
 	// Activate credential
@@ -223,7 +223,7 @@ func (ca *CA) EnrollWithCompiledProfile(req EnrollmentRequest, cp *profile.Compi
 // issueSimpleCertFromCompiledProfile issues a simple certificate using a pre-compiled profile.
 // Extensions are already parsed, avoiding runtime parsing overhead.
 func (ca *CA) issueSimpleCertFromCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile, notBefore, notAfter time.Time, credentialID string, keyIndex int) (*x509.Certificate, pkicrypto.Signer, pkicrypto.StorageRef, error) {
-	alg := cp.Profile.GetAlgorithm()
+	alg := cp.GetAlgorithm()
 
 	// Generate key pair using KeyProvider
 	signer, storageRef, err := ca.GenerateCredentialKey(alg, credentialID, keyIndex)
@@ -239,7 +239,7 @@ func (ca *CA) issueSimpleCertFromCompiledProfile(req EnrollmentRequest, cp *prof
 	cert, err := ca.Issue(IssueRequest{
 		Template:  template,
 		PublicKey: signer.Public(),
-		Validity:  cp.Profile.Validity,
+		Validity:  cp.Validity,
 	})
 	if err != nil {
 		return nil, nil, pkicrypto.StorageRef{}, err
@@ -250,12 +250,12 @@ func (ca *CA) issueSimpleCertFromCompiledProfile(req EnrollmentRequest, cp *prof
 
 // issueCatalystCertFromCompiledProfile issues a Catalyst certificate using a pre-compiled profile.
 func (ca *CA) issueCatalystCertFromCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile, notBefore, notAfter time.Time, credentialID string, keyIndex int) (*x509.Certificate, []pkicrypto.Signer, []pkicrypto.StorageRef, error) {
-	if !cp.Profile.IsCatalyst() || len(cp.Profile.Algorithms) != 2 {
+	if !cp.IsCatalyst() || len(cp.Algorithms) != 2 {
 		return nil, nil, nil, fmt.Errorf("invalid catalyst profile: requires exactly 2 algorithms")
 	}
 
-	classicalAlg := cp.Profile.Algorithms[0]
-	pqcAlg := cp.Profile.Algorithms[1]
+	classicalAlg := cp.Algorithms[0]
+	pqcAlg := cp.Algorithms[1]
 
 	// Generate classical key pair using KeyProvider
 	classicalSigner, classicalStorage, err := ca.GenerateCredentialKey(classicalAlg, credentialID, keyIndex)
@@ -279,7 +279,7 @@ func (ca *CA) issueCatalystCertFromCompiledProfile(req EnrollmentRequest, cp *pr
 		ClassicalPublicKey: classicalSigner.Public(),
 		PQCPublicKey:       pqcSigner.Public(),
 		PQCAlgorithm:       pqcAlg,
-		Validity:           cp.Profile.Validity,
+		Validity:           cp.Validity,
 	})
 	if err != nil {
 		return nil, nil, nil, err
@@ -290,12 +290,12 @@ func (ca *CA) issueCatalystCertFromCompiledProfile(req EnrollmentRequest, cp *pr
 
 // issueCompositeCertFromCompiledProfile issues a Composite certificate using a pre-compiled profile.
 func (ca *CA) issueCompositeCertFromCompiledProfile(req EnrollmentRequest, cp *profile.CompiledProfile, notBefore, notAfter time.Time, credentialID string, keyIndex int) (*x509.Certificate, []pkicrypto.Signer, []pkicrypto.StorageRef, error) {
-	if !cp.Profile.IsComposite() || len(cp.Profile.Algorithms) != 2 {
+	if !cp.IsComposite() || len(cp.Algorithms) != 2 {
 		return nil, nil, nil, fmt.Errorf("invalid composite profile: requires exactly 2 algorithms")
 	}
 
-	classicalAlg := cp.Profile.Algorithms[0]
-	pqcAlg := cp.Profile.Algorithms[1]
+	classicalAlg := cp.Algorithms[0]
+	pqcAlg := cp.Algorithms[1]
 
 	// Generate classical key pair using KeyProvider
 	classicalSigner, classicalStorage, err := ca.GenerateCredentialKey(classicalAlg, credentialID, keyIndex)
@@ -320,7 +320,7 @@ func (ca *CA) issueCompositeCertFromCompiledProfile(req EnrollmentRequest, cp *p
 		PQCPublicKey:       pqcSigner.Public(),
 		ClassicalAlg:       classicalAlg,
 		PQCAlg:             pqcAlg,
-		Validity:           cp.Profile.Validity,
+		Validity:           cp.Validity,
 	})
 	if err != nil {
 		return nil, nil, nil, err

@@ -198,7 +198,7 @@ func (h *HybridSignerImpl) SaveHybridKeyBundle(path string, passphrase []byte) e
 	if err != nil {
 		return fmt.Errorf("failed to create bundle file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Write classical key
 	classicalSS, ok := h.classical.(*SoftwareSigner)
