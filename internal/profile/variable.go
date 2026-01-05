@@ -299,6 +299,7 @@ func (vv VariableValues) GetBool(name string) (bool, bool) {
 }
 
 // GetStringList returns a string slice value from the map.
+// Handles both single strings and slices.
 func (vv VariableValues) GetStringList(name string) ([]string, bool) {
 	v, ok := vv[name]
 	if !ok {
@@ -306,6 +307,12 @@ func (vv VariableValues) GetStringList(name string) ([]string, bool) {
 	}
 
 	switch s := v.(type) {
+	case string:
+		// Single string value - convert to single-element slice
+		if s != "" {
+			return []string{s}, true
+		}
+		return nil, false
 	case []string:
 		return s, true
 	case []interface{}:

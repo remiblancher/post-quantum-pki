@@ -933,9 +933,7 @@ func buildEndEntityExtensions(template *x509.Certificate, subjectKeyId, authorit
 
 	// Extra Extensions (includes CertificatePolicies, OCSPNoCheck, custom extensions)
 	// These are already DER-encoded by Extensions.Apply()
-	for _, ext := range template.ExtraExtensions {
-		exts = append(exts, ext)
-	}
+	exts = append(exts, template.ExtraExtensions...)
 
 	return exts, nil
 }

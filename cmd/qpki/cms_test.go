@@ -636,9 +636,9 @@ func setupCAWithKEMCredential(tc *testContext) (string, string, string) {
 	resetCAFlags()
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "rsa/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	if err != nil {
 		tc.t.Fatalf("failed to init CA: %v", err)

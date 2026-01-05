@@ -40,9 +40,9 @@ func TestF_Credential_Enroll(t *testing.T) {
 	// Create CA first
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -96,9 +96,9 @@ func TestF_Credential_List(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -116,9 +116,9 @@ func TestF_Credential_List_WithCredentials(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -160,9 +160,9 @@ func TestF_Credential_Info_NotFound(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetCredentialFlags()
@@ -194,9 +194,9 @@ func setupCAWithCredential(tc *testContext) (string, string) {
 	resetCAFlags()
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	if err != nil {
 		tc.t.Fatalf("failed to init CA: %v", err)
@@ -251,9 +251,9 @@ func setupCAWithSimpleCredential(tc *testContext) (string, string) {
 	resetCAFlags()
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	if err != nil {
 		tc.t.Fatalf("failed to init CA: %v", err)
@@ -497,9 +497,9 @@ func TestF_Credential_Import_Basic(t *testing.T) {
 	resetCAFlags()
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -525,9 +525,9 @@ func TestF_Credential_Import_WithCustomID(t *testing.T) {
 	resetCAFlags()
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -614,9 +614,9 @@ func TestF_Credential_Import_KeyMismatch(t *testing.T) {
 	resetCAFlags()
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	// Create certificate with one key

@@ -24,9 +24,9 @@ func TestF_Verify_ValidCertificate(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -49,9 +49,9 @@ func TestF_Verify_SubordinateCA(t *testing.T) {
 	// Create root CA
 	rootDir := tc.path("root-ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Root CA",
 		"--profile", "ec/root-ca",
 		"--dir", rootDir,
+		"--var", "cn=Root CA",
 	)
 	assertNoError(t, err)
 
@@ -60,10 +60,10 @@ func TestF_Verify_SubordinateCA(t *testing.T) {
 	// Create subordinate CA
 	subDir := tc.path("sub-ca")
 	_, err = executeCommand(rootCmd, "ca", "init",
-		"--name", "Issuing CA",
 		"--profile", "ec/issuing-ca",
 		"--dir", subDir,
 		"--parent", rootDir,
+		"--var", "cn=Issuing CA",
 	)
 	assertNoError(t, err)
 
@@ -84,9 +84,9 @@ func TestF_Verify_WithCRL(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -141,9 +141,9 @@ func TestF_Verify_CertNotFound(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -163,9 +163,9 @@ func TestF_Verify_CANotFound(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -185,9 +185,9 @@ func TestF_Verify_InvalidCRLPath(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 

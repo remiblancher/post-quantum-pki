@@ -23,9 +23,9 @@ func TestF_Cert_List_Empty(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -43,9 +43,9 @@ func TestF_Cert_List_WithCertificates(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -74,9 +74,9 @@ func TestF_Cert_List_FilterValid(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -104,9 +104,9 @@ func TestF_Cert_List_FilterRevoked(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetListFlags()
@@ -123,9 +123,9 @@ func TestF_Cert_List_FilterExpired(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetListFlags()
@@ -142,9 +142,9 @@ func TestF_Cert_List_InvalidFilter(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetCredentialFlags()
@@ -170,9 +170,9 @@ func TestF_Cert_List_Verbose(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -202,9 +202,9 @@ func TestF_Cert_List_WithRevokedCert(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -248,9 +248,9 @@ func TestF_Cert_List_WithRevokedFilteredByValid(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -309,9 +309,9 @@ func TestF_Cert_List_VerboseWithRevoked(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 

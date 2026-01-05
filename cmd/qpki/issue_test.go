@@ -273,10 +273,9 @@ func TestF_Cert_Issue_WithIPAddresses(t *testing.T) {
 		"--ca-dir", caDir,
 		"--profile", "ec/tls-server",
 		"--csr", csrOut,
-		"--ip", "192.168.1.1",
-		"--ip", "10.0.0.1",
 		"--var", "cn=server.example.com",
 		"--var", "dns_names=server.example.com",
+		"--var", "ip_addresses=192.168.1.1,10.0.0.1",
 		"--out", certOut,
 	)
 	assertNoError(t, err)
@@ -319,10 +318,9 @@ func TestF_Cert_Issue_WithIPv6Addresses(t *testing.T) {
 		"--ca-dir", caDir,
 		"--profile", "ec/tls-server",
 		"--csr", csrOut,
-		"--ip", "::1",
-		"--ip", "2001:db8::1",
 		"--var", "cn=server.example.com",
 		"--var", "dns_names=server.example.com",
+		"--var", "ip_addresses=::1,2001:db8::1",
 		"--out", certOut,
 	)
 	assertNoError(t, err)
@@ -362,9 +360,9 @@ func TestF_Cert_Issue_InvalidIPAddress(t *testing.T) {
 		"--ca-dir", caDir,
 		"--profile", "ec/tls-server",
 		"--csr", csrOut,
-		"--ip", "not-an-ip",
 		"--var", "cn=server.example.com",
 		"--var", "dns_names=server.example.com",
+		"--var", "ip_addresses=not-an-ip",
 		"--out", tc.path("server.crt"),
 	)
 	assertError(t, err)
