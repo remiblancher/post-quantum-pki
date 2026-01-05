@@ -323,8 +323,8 @@ func TestU_ResolvePassphrase_Literal(t *testing.T) {
 }
 
 func TestU_ResolvePassphrase_EnvVar(t *testing.T) {
-	os.Setenv("TEST_PASSPHRASE_VAR", "envpassword123")
-	defer os.Unsetenv("TEST_PASSPHRASE_VAR")
+	_ = os.Setenv("TEST_PASSPHRASE_VAR", "envpassword123")
+	defer func() { _ = os.Unsetenv("TEST_PASSPHRASE_VAR") }()
 
 	result := ResolvePassphrase("env:TEST_PASSPHRASE_VAR")
 	if string(result) != "envpassword123" {
@@ -333,7 +333,7 @@ func TestU_ResolvePassphrase_EnvVar(t *testing.T) {
 }
 
 func TestU_ResolvePassphrase_EnvVar_NotSet(t *testing.T) {
-	os.Unsetenv("NONEXISTENT_PASSPHRASE_VAR")
+	_ = os.Unsetenv("NONEXISTENT_PASSPHRASE_VAR")
 
 	result := ResolvePassphrase("env:NONEXISTENT_PASSPHRASE_VAR")
 	if string(result) != "" {
