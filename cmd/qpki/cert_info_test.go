@@ -24,9 +24,9 @@ func TestF_Cert_Info_Basic(t *testing.T) {
 
 	// Create CA
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -87,9 +87,9 @@ func TestF_Cert_Info_InvalidSerial(t *testing.T) {
 
 	// Create CA
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetCertInfoFlags()
@@ -124,9 +124,9 @@ func TestF_Cert_Info_CertNotFound(t *testing.T) {
 
 	// Create CA
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetCertInfoFlags()

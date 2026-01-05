@@ -24,9 +24,9 @@ func TestF_Cert_Revoke_Certificate(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -58,9 +58,9 @@ func TestF_Cert_Revoke_WithReason(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -93,9 +93,9 @@ func TestF_Cert_Revoke_WithCRLGeneration(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
@@ -140,9 +140,9 @@ func TestF_Cert_Revoke_InvalidSerial(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetRevokeFlags()
@@ -162,9 +162,9 @@ func TestF_Cert_Revoke_InvalidReason(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, _ = executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 
 	resetRevokeFlags()
@@ -195,9 +195,9 @@ func TestF_Cert_Revoke_CertificateNotFound(t *testing.T) {
 	// Create CA
 	caDir := tc.path("ca")
 	_, err := executeCommand(rootCmd, "ca", "init",
-		"--name", "Test CA",
 		"--profile", "ec/root-ca",
 		"--dir", caDir,
+		"--var", "cn=Test CA",
 	)
 	assertNoError(t, err)
 
