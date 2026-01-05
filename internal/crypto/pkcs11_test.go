@@ -298,7 +298,7 @@ func TestU_NewPKCS11Signer_ECDSA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPKCS11Signer() error = %v", err)
 	}
-	defer signer.Close()
+	defer func() { _ = signer.Close() }()
 
 	if signer.Algorithm() != AlgECDSAP256 {
 		t.Errorf("Algorithm() = %s, want %s", signer.Algorithm(), AlgECDSAP256)
@@ -364,7 +364,7 @@ func TestU_PKCS11Signer_Sign_ECDSA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPKCS11Signer() error = %v", err)
 	}
-	defer signer.Close()
+	defer func() { _ = signer.Close() }()
 
 	// Sign some data
 	message := []byte("test message for signing")
@@ -409,7 +409,7 @@ func TestU_PKCS11Signer_Sign_RSA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPKCS11Signer() error = %v", err)
 	}
-	defer signer.Close()
+	defer func() { _ = signer.Close() }()
 
 	// Sign some data
 	message := []byte("test message for RSA signing")

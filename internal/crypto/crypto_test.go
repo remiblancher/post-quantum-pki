@@ -1292,8 +1292,8 @@ func TestU_HSMConfig_GetPIN_Present(t *testing.T) {
 	}
 
 	// Set environment variable
-	os.Setenv("TEST_HSM_PIN", "secretpin123")
-	defer os.Unsetenv("TEST_HSM_PIN")
+	_ = os.Setenv("TEST_HSM_PIN", "secretpin123")
+	defer func() { _ = os.Unsetenv("TEST_HSM_PIN") }()
 
 	pin, err := cfg.GetPIN()
 	if err != nil {
@@ -1312,7 +1312,7 @@ func TestU_HSMConfig_GetPIN_Missing(t *testing.T) {
 	}
 
 	// Make sure the env var doesn't exist
-	os.Unsetenv("NONEXISTENT_HSM_PIN_VAR")
+	_ = os.Unsetenv("NONEXISTENT_HSM_PIN_VAR")
 
 	_, err := cfg.GetPIN()
 	if err == nil {
@@ -1334,8 +1334,8 @@ func TestU_HSMConfig_ToPKCS11Config(t *testing.T) {
 	}
 
 	// Set environment variable
-	os.Setenv("TEST_HSM_PIN_CONVERT", "mypin")
-	defer os.Unsetenv("TEST_HSM_PIN_CONVERT")
+	_ = os.Setenv("TEST_HSM_PIN_CONVERT", "mypin")
+	defer func() { _ = os.Unsetenv("TEST_HSM_PIN_CONVERT") }()
 
 	pkcs11Cfg, err := cfg.ToPKCS11Config("mykey", "keyid123")
 	if err != nil {
@@ -1378,7 +1378,7 @@ func TestU_HSMConfig_ToPKCS11Config_PINError(t *testing.T) {
 	}
 
 	// Make sure the env var doesn't exist
-	os.Unsetenv("NONEXISTENT_PIN_VAR")
+	_ = os.Unsetenv("NONEXISTENT_PIN_VAR")
 
 	_, err := cfg.ToPKCS11Config("mykey", "keyid")
 	if err == nil {
@@ -1402,8 +1402,8 @@ pkcs11:
 	}
 
 	// Set the PIN env var for validation
-	os.Setenv("HSM_PIN", "testpin")
-	defer os.Unsetenv("HSM_PIN")
+	_ = os.Setenv("HSM_PIN", "testpin")
+	defer func() { _ = os.Unsetenv("HSM_PIN") }()
 
 	cfg, err := LoadHSMConfig(configPath)
 	if err != nil {
