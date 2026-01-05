@@ -29,8 +29,8 @@ ML-DSA (Module-Lattice Digital Signature Algorithm) is the standardized version 
 | Variant | Security Level | Public Key | Signature | Performance |
 |---------|----------------|------------|-----------|-------------|
 | ML-DSA-44 | NIST Level 1 | 1,312 bytes | 2,420 bytes | Fastest |
-| ML-DSA-65 | NIST Level 3 | 1,952 bytes | 3,293 bytes | Balanced |
-| ML-DSA-87 | NIST Level 5 | 2,592 bytes | 4,595 bytes | Most secure |
+| ML-DSA-65 | NIST Level 3 | 1,952 bytes | 3,309 bytes | Balanced |
+| ML-DSA-87 | NIST Level 5 | 2,592 bytes | 4,627 bytes | Most secure |
 
 **Recommendation**: Use ML-DSA-65 for most applications (equivalent to AES-192 security).
 
