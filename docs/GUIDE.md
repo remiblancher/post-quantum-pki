@@ -141,6 +141,8 @@ qpki [--audit-log PATH]
 **Global flags:**
 - `--audit-log PATH` - Enable audit logging to file (or set `PKI_AUDIT_LOG` env var)
 
+**Supported algorithms:** ECDSA, Ed25519, RSA, post-quantum (ML-DSA, SLH-DSA, ML-KEM), and hybrid modes (Catalyst, Composite). See [CONCEPTS.md](CONCEPTS.md) for details.
+
 ### 2.1 Quick Reference
 
 | Catégorie | Commande | Description |
