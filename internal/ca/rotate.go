@@ -200,8 +200,21 @@ func executeRotation(req RotateCARequest, currentCA *CA, prof *profile.Profile, 
 
 	// Generate new CA keys based on profile
 	var newCA *CA
-	if prof.IsCatalyst() {
-		// Hybrid CA
+	if prof.IsComposite() {
+		// Composite CA (IETF format)
+		cfg := CompositeCAConfig{
+			CommonName:         currentCA.cert.Subject.CommonName,
+			Organization:       firstOrEmpty(currentCA.cert.Subject.Organization),
+			Country:            firstOrEmpty(currentCA.cert.Subject.Country),
+			ClassicalAlgorithm: prof.Algorithms[0],
+			PQCAlgorithm:       prof.Algorithms[1],
+			ValidityYears:      int(prof.Validity.Hours() / 24 / 365),
+			PathLen:            currentCA.cert.MaxPathLen,
+			Passphrase:         req.Passphrase,
+		}
+		newCA, err = initializeCompositeCAInDir(newStore, cfg)
+	} else if prof.IsCatalyst() {
+		// Catalyst Hybrid CA (ITU-T format)
 		cfg := HybridCAConfig{
 			CommonName:         currentCA.cert.Subject.CommonName,
 			Organization:       firstOrEmpty(currentCA.cert.Subject.Organization),
@@ -648,6 +661,193 @@ func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
 		store:  store,
 		cert:   cert,
 		signer: hybridSigner,
+		info:   info,
+	}, nil
+}
+
+// initializeCompositeCAInDir initializes a composite CA in the given store directory.
+// This creates a proper IETF composite certificate with combined signature.
+func initializeCompositeCAInDir(store *Store, cfg CompositeCAConfig) (*CA, error) {
+	// Get composite algorithm
+	compAlg, err := GetCompositeAlgorithm(cfg.ClassicalAlgorithm, cfg.PQCAlgorithm)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported composite algorithm combination: %w", err)
+	}
+
+	if err := store.Init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize store: %w", err)
+	}
+
+	// Create keys/ and certs/ directories
+	keysDir := filepath.Join(store.BasePath(), "keys")
+	certsDir := filepath.Join(store.BasePath(), "certs")
+	if err := os.MkdirAll(keysDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create keys directory: %w", err)
+	}
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create certs directory: %w", err)
+	}
+
+	// Generate classical key pair
+	classicalKeyPath := CAKeyPathForAlgorithm(store.BasePath(), cfg.ClassicalAlgorithm)
+	classicalKeyCfg := pkicrypto.KeyStorageConfig{
+		Type:       pkicrypto.KeyProviderTypeSoftware,
+		KeyPath:    classicalKeyPath,
+		Passphrase: cfg.Passphrase,
+	}
+	classicalKM := pkicrypto.NewKeyProvider(classicalKeyCfg)
+	classicalSigner, err := classicalKM.Generate(cfg.ClassicalAlgorithm, classicalKeyCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate classical CA key: %w", err)
+	}
+
+	// Generate PQC key pair
+	pqcKeyPath := CAKeyPathForAlgorithm(store.BasePath(), cfg.PQCAlgorithm)
+	pqcKeyCfg := pkicrypto.KeyStorageConfig{
+		Type:       pkicrypto.KeyProviderTypeSoftware,
+		KeyPath:    pqcKeyPath,
+		Passphrase: cfg.Passphrase,
+	}
+	pqcKM := pkicrypto.NewKeyProvider(pqcKeyCfg)
+	pqcSigner, err := pqcKM.Generate(cfg.PQCAlgorithm, pqcKeyCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PQC CA key: %w", err)
+	}
+
+	// Build composite public key
+	compositePubKey, err := EncodeCompositePublicKey(
+		cfg.PQCAlgorithm, pqcSigner.Public(),
+		cfg.ClassicalAlgorithm, classicalSigner.Public(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode composite public key: %w", err)
+	}
+
+	// Build subject/issuer Name
+	subject := buildName(cfg.CommonName, cfg.Organization, cfg.Country)
+	subjectDER, err := asn1.Marshal(subject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal subject: %w", err)
+	}
+
+	// Generate serial number
+	serialBytes, err := store.NextSerial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get serial number: %w", err)
+	}
+	serial := new(big.Int).SetBytes(serialBytes)
+
+	// Compute subject key ID (SHA-256 of composite public key)
+	skidHash := sha256.Sum256(compositePubKey.PublicKey.Bytes)
+	skid := skidHash[:20]
+
+	// Build extensions
+	extensions, err := buildCAExtensions(cfg.PathLen, skid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build extensions: %w", err)
+	}
+
+	// Build validity
+	now := time.Now().UTC()
+	notBefore := now.Add(-1 * time.Hour)
+	notAfter := now.AddDate(cfg.ValidityYears, 0, 0)
+
+	// Build TBSCertificate
+	tbs := tbsCertificate{
+		Version:      2, // v3
+		SerialNumber: serial,
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{
+			Algorithm: compAlg.OID,
+		},
+		Issuer: asn1.RawValue{FullBytes: subjectDER},
+		Validity: validity{
+			NotBefore: notBefore,
+			NotAfter:  notAfter,
+		},
+		Subject:    asn1.RawValue{FullBytes: subjectDER},
+		PublicKey:  compositePubKey,
+		Extensions: extensions,
+	}
+
+	// Marshal TBSCertificate
+	tbsDER, err := asn1.Marshal(tbs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal TBSCertificate: %w", err)
+	}
+
+	// Create composite signature
+	signature, err := CreateCompositeSignature(tbsDER, compAlg, pqcSigner, classicalSigner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create composite signature: %w", err)
+	}
+
+	// Build complete certificate
+	cert := compositeCertificate{
+		TBSCertificate: asn1.RawValue{FullBytes: tbsDER},
+		SignatureAlgorithm: pkix.AlgorithmIdentifier{
+			Algorithm: compAlg.OID,
+		},
+		SignatureValue: asn1.BitString{
+			Bytes:     signature,
+			BitLength: len(signature) * 8,
+		},
+	}
+
+	// Marshal complete certificate
+	certDER, err := asn1.Marshal(cert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal certificate: %w", err)
+	}
+
+	// Parse back using Go's x509
+	parsedCert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse composite certificate: %w", err)
+	}
+
+	// Save CA certificate using classical algorithm ID
+	classicalAlgoID := string(cfg.ClassicalAlgorithm)
+	certPath := CACertPathForAlgorithm(store.BasePath(), cfg.ClassicalAlgorithm)
+	if err := store.saveCert(certPath, parsedCert); err != nil {
+		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
+	}
+
+	// Create and save CA info
+	pqcAlgoID := string(cfg.PQCAlgorithm)
+	info := NewCAInfo(Subject{
+		CommonName:   cfg.CommonName,
+		Organization: []string{cfg.Organization},
+		Country:      []string{cfg.Country},
+	})
+	info.SetBasePath(store.BasePath())
+
+	// Add key references
+	info.AddKey(KeyRef{
+		ID:        "classical",
+		Algorithm: cfg.ClassicalAlgorithm,
+		Storage:   CreateSoftwareKeyRef(RelativeCAKeyPathForAlgorithm(cfg.ClassicalAlgorithm)),
+	})
+	info.AddKey(KeyRef{
+		ID:        "pqc",
+		Algorithm: cfg.PQCAlgorithm,
+		Storage:   CreateSoftwareKeyRef(RelativeCAKeyPathForAlgorithm(cfg.PQCAlgorithm)),
+	})
+
+	info.CreateInitialVersion([]string{"composite"}, []string{classicalAlgoID, pqcAlgoID})
+	if err := info.Save(); err != nil {
+		return nil, fmt.Errorf("failed to save CA info: %w", err)
+	}
+
+	// Create composite signer
+	compositeSigner, err := pkicrypto.NewHybridSigner(classicalSigner, pqcSigner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create composite signer: %w", err)
+	}
+
+	return &CA{
+		store:  store,
+		cert:   parsedCert,
+		signer: compositeSigner,
 		info:   info,
 	}, nil
 }
