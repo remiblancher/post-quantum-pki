@@ -931,8 +931,8 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
 
-	// Determine algorithm family for versioned paths
-	algoFamily := ca.GetAlgorithmFamilyName(alg)
+	// Get full algorithm ID (e.g., "ecdsa-p256", "ml-dsa-65")
+	algoID := string(alg)
 
 	// Create CAInfo first to set up versioned structure
 	info := ca.NewCAInfo(ca.Subject{
@@ -941,15 +941,15 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		Country:      subject.Country,
 	})
 	info.SetBasePath(absDir)
-	info.CreateInitialVersion([]string{caInitProfile}, []string{algoFamily})
+	info.CreateInitialVersion([]string{caInitProfile}, []string{algoID})
 
-	// Create version directory structure
-	if err := info.EnsureVersionDir("v1", algoFamily); err != nil {
+	// Create version directory structure (keys/ and certs/)
+	if err := info.EnsureVersionDir("v1"); err != nil {
 		return fmt.Errorf("failed to create version directory: %w", err)
 	}
 
 	// Generate CA key pair at versioned path
-	keyPath := info.KeyPath("v1", algoFamily)
+	keyPath := info.KeyPath("v1", string(alg))
 	keyCfg := crypto.KeyStorageConfig{
 		Type:       crypto.KeyProviderTypeSoftware,
 		KeyPath:    keyPath,
@@ -984,7 +984,7 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Save CA certificate to versioned path
-	certPath := info.CertPath("v1", algoFamily)
+	certPath := info.CertPath("v1", algoID)
 	if err := saveCertToPath(certPath, cert); err != nil {
 		return fmt.Errorf("failed to save CA certificate: %w", err)
 	}
@@ -995,7 +995,7 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		Algorithm: alg,
 		Storage: crypto.StorageRef{
 			Type: "software",
-			Path: fmt.Sprintf("versions/v1/%s/key.pem", algoFamily),
+			Path: fmt.Sprintf("versions/v1/keys/ca.%s.key", algoID),
 		},
 	})
 	if err := info.Save(); err != nil {
@@ -1179,6 +1179,13 @@ func runCAExport(cmd *cobra.Command, args []string) error {
 			for _, algo := range ver.Algos {
 				certPath := info.CertPath(targetVersionID, algo)
 				if cert, err := loadCertFromPath(certPath); err == nil {
+					certs = append(certs, cert)
+				}
+			}
+			// Fallback: check legacy ca.crt path (for rotate-created versions)
+			if len(certs) == 0 {
+				legacyCertPath := filepath.Join(absDir, "versions", targetVersionID, "ca.crt")
+				if cert, err := loadCertFromPath(legacyCertPath); err == nil {
 					certs = append(certs, cert)
 				}
 			}

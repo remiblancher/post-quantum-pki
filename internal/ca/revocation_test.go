@@ -467,29 +467,14 @@ func TestU_ParseRevocationReason_AllVariants(t *testing.T) {
 // Store CRL For Algorithm Unit Tests
 // =============================================================================
 
-func TestU_Store_CRLDirForAlgorithm(t *testing.T) {
+func TestU_Store_CRLDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewStore(tmpDir)
 
-	tests := []struct {
-		name      string
-		algoFam   string
-		wantSuffix string
-	}{
-		{"[Unit] CRL Dir: EC", "ec", "/crl/ec"},
-		{"[Unit] CRL Dir: RSA", "rsa", "/crl/rsa"},
-		{"[Unit] CRL Dir: ML-DSA", "ml-dsa", "/crl/ml-dsa"},
-		{"[Unit] CRL Dir: SLH-DSA", "slh-dsa", "/crl/slh-dsa"},
-		{"[Unit] CRL Dir: Ed", "ed", "/crl/ed"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			path := store.CRLDirForAlgorithm(tt.algoFam)
-			if path != tmpDir+tt.wantSuffix {
-				t.Errorf("CRLDirForAlgorithm(%s) = %v, want suffix %v", tt.algoFam, path, tt.wantSuffix)
-			}
-		})
+	path := store.CRLDir()
+	expected := tmpDir + "/crl"
+	if path != expected {
+		t.Errorf("CRLDir() = %v, want %v", path, expected)
 	}
 }
 
@@ -498,54 +483,55 @@ func TestU_Store_CRLPathForAlgorithm(t *testing.T) {
 	store := NewStore(tmpDir)
 
 	tests := []struct {
-		name      string
-		algoFam   string
+		name       string
+		algorithm  string
 		wantSuffix string
 	}{
-		{"[Unit] CRL Path: EC", "ec", "/crl/ec/ca.crl"},
-		{"[Unit] CRL Path: RSA", "rsa", "/crl/rsa/ca.crl"},
-		{"[Unit] CRL Path: ML-DSA", "ml-dsa", "/crl/ml-dsa/ca.crl"},
+		{"[Unit] CRL Path: ECDSA-P256", "ecdsa-p256", "/crl/ca.ecdsa-p256.crl"},
+		{"[Unit] CRL Path: ECDSA-P384", "ecdsa-p384", "/crl/ca.ecdsa-p384.crl"},
+		{"[Unit] CRL Path: ML-DSA-65", "ml-dsa-65", "/crl/ca.ml-dsa-65.crl"},
+		{"[Unit] CRL Path: ML-DSA-87", "ml-dsa-87", "/crl/ca.ml-dsa-87.crl"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path := store.CRLPathForAlgorithm(tt.algoFam)
+			path := store.CRLPathForAlgorithm(tt.algorithm)
 			if path != tmpDir+tt.wantSuffix {
-				t.Errorf("CRLPathForAlgorithm(%s) = %v, want suffix %v", tt.algoFam, path, tt.wantSuffix)
+				t.Errorf("CRLPathForAlgorithm(%s) = %v, want suffix %v", tt.algorithm, path, tt.wantSuffix)
 			}
 		})
 	}
 }
 
-func TestU_Store_NextCRLNumberForAlgorithm(t *testing.T) {
+func TestU_Store_NextCRLNumber_Shared(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewStore(tmpDir)
 
-	// First call should return 01 and create directory
-	num1, err := store.NextCRLNumberForAlgorithm("ec")
+	// First call should return 01
+	num1, err := store.NextCRLNumber()
 	if err != nil {
-		t.Fatalf("NextCRLNumberForAlgorithm() error = %v", err)
+		t.Fatalf("NextCRLNumber() error = %v", err)
 	}
 	if len(num1) == 0 || num1[0] != 0x01 {
 		t.Errorf("First CRL number should be 01, got %x", num1)
 	}
 
-	// Second call should return 02
-	num2, err := store.NextCRLNumberForAlgorithm("ec")
+	// Second call should return 02 (shared across algorithms)
+	num2, err := store.NextCRLNumber()
 	if err != nil {
-		t.Fatalf("NextCRLNumberForAlgorithm() second call error = %v", err)
+		t.Fatalf("NextCRLNumber() second call error = %v", err)
 	}
 	if len(num2) == 0 || num2[0] != 0x02 {
 		t.Errorf("Second CRL number should be 02, got %x", num2)
 	}
 
-	// Different algorithm family should start at 01
-	num3, err := store.NextCRLNumberForAlgorithm("rsa")
+	// Third call should return 03 (crlnumber is shared, not per-algorithm)
+	num3, err := store.NextCRLNumber()
 	if err != nil {
-		t.Fatalf("NextCRLNumberForAlgorithm(rsa) error = %v", err)
+		t.Fatalf("NextCRLNumber() third call error = %v", err)
 	}
-	if len(num3) == 0 || num3[0] != 0x01 {
-		t.Errorf("First RSA CRL number should be 01, got %x", num3)
+	if len(num3) == 0 || num3[0] != 0x03 {
+		t.Errorf("Third CRL number should be 03, got %x", num3)
 	}
 }
 
@@ -573,25 +559,25 @@ func TestU_Store_SaveAndLoadCRLForAlgorithm(t *testing.T) {
 		t.Fatalf("GenerateCRL() error = %v", err)
 	}
 
-	// Save it for ec algorithm family
-	err = store.SaveCRLForAlgorithm(crlDER, "ec")
+	// Save it for ecdsa-p256 algorithm
+	err = store.SaveCRLForAlgorithm(crlDER, "ecdsa-p256")
 	if err != nil {
 		t.Fatalf("SaveCRLForAlgorithm() error = %v", err)
 	}
 
 	// Verify both PEM and DER files exist
-	pemPath := store.CRLPathForAlgorithm("ec")
+	pemPath := store.CRLPathForAlgorithm("ecdsa-p256")
 	if _, err := os.Stat(pemPath); os.IsNotExist(err) {
 		t.Error("CRL PEM file should exist")
 	}
 
-	derPath := store.CRLDirForAlgorithm("ec") + "/ca.crl.der"
+	derPath := store.CRLDERPathForAlgorithm("ecdsa-p256")
 	if _, err := os.Stat(derPath); os.IsNotExist(err) {
 		t.Error("CRL DER file should exist")
 	}
 
 	// Load it back
-	loadedCRL, err := store.LoadCRLForAlgorithm("ec")
+	loadedCRL, err := store.LoadCRLForAlgorithm("ecdsa-p256")
 	if err != nil {
 		t.Fatalf("LoadCRLForAlgorithm() error = %v", err)
 	}
@@ -646,12 +632,12 @@ func TestU_Store_ListCRLAlgorithms(t *testing.T) {
 		t.Fatalf("GenerateCRL() error = %v", err)
 	}
 
-	// Save CRLs for multiple algorithm families
-	if err := store.SaveCRLForAlgorithm(crlDER, "ec"); err != nil {
-		t.Fatalf("SaveCRLForAlgorithm(ec) error = %v", err)
+	// Save CRLs for multiple algorithms
+	if err := store.SaveCRLForAlgorithm(crlDER, "ecdsa-p256"); err != nil {
+		t.Fatalf("SaveCRLForAlgorithm(ecdsa-p256) error = %v", err)
 	}
-	if err := store.SaveCRLForAlgorithm(crlDER, "rsa"); err != nil {
-		t.Fatalf("SaveCRLForAlgorithm(rsa) error = %v", err)
+	if err := store.SaveCRLForAlgorithm(crlDER, "rsa-2048"); err != nil {
+		t.Fatalf("SaveCRLForAlgorithm(rsa-2048) error = %v", err)
 	}
 
 	// List should now contain both

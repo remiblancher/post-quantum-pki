@@ -29,7 +29,7 @@ func TestCAMetadataAddKey(t *testing.T) {
 		Algorithm: pkicrypto.AlgECDSAP384,
 		Storage: pkicrypto.StorageRef{
 			Type: "software",
-			Path: "private/ca.ecdsa-p384.key",
+			Path: "keys/ca.ecdsa-p384.key",
 		},
 	}
 
@@ -140,7 +140,7 @@ func TestSaveLoadCAMetadata(t *testing.T) {
 		Algorithm: pkicrypto.AlgECDSAP384,
 		Storage: pkicrypto.StorageRef{
 			Type: "software",
-			Path: "private/ca.ecdsa-p384.key",
+			Path: "keys/ca.ecdsa-p384.key",
 		},
 	})
 
@@ -223,7 +223,7 @@ func TestMetadataExists(t *testing.T) {
 }
 
 func TestCreateSoftwareKeyRef(t *testing.T) {
-	keyPath := "private/ca.ecdsa-p384.key"
+	keyPath := "keys/ca.ecdsa-p384.key"
 	ref := CreateSoftwareKeyRef(keyPath)
 
 	if ref.Type != "software" {
@@ -257,9 +257,9 @@ func TestCAKeyPathForAlgorithm(t *testing.T) {
 		alg      pkicrypto.AlgorithmID
 		want     string
 	}{
-		{"/ca", pkicrypto.AlgECDSAP384, "/ca/private/ca.ecdsa-p384.key"},
-		{"/ca", pkicrypto.AlgMLDSA65, "/ca/private/ca.ml-dsa-65.key"},
-		{"/ca", pkicrypto.AlgRSA4096, "/ca/private/ca.rsa-4096.key"},
+		{"/ca", pkicrypto.AlgECDSAP384, "/ca/keys/ca.ecdsa-p384.key"},
+		{"/ca", pkicrypto.AlgMLDSA65, "/ca/keys/ca.ml-dsa-65.key"},
+		{"/ca", pkicrypto.AlgRSA4096, "/ca/keys/ca.rsa-4096.key"},
 	}
 
 	for _, tt := range tests {
@@ -277,8 +277,8 @@ func TestRelativeCAKeyPathForAlgorithm(t *testing.T) {
 		alg  pkicrypto.AlgorithmID
 		want string
 	}{
-		{pkicrypto.AlgECDSAP384, "private/ca.ecdsa-p384.key"},
-		{pkicrypto.AlgMLDSA65, "private/ca.ml-dsa-65.key"},
+		{pkicrypto.AlgECDSAP384, "keys/ca.ecdsa-p384.key"},
+		{pkicrypto.AlgMLDSA65, "keys/ca.ml-dsa-65.key"},
 	}
 
 	for _, tt := range tests {
@@ -298,7 +298,7 @@ func TestKeyRefBuildKeyStorageConfig(t *testing.T) {
 			Algorithm: pkicrypto.AlgECDSAP384,
 			Storage: pkicrypto.StorageRef{
 				Type: "software",
-				Path: "private/ca.ecdsa-p384.key",
+				Path: "keys/ca.ecdsa-p384.key",
 			},
 		}
 
@@ -310,8 +310,8 @@ func TestKeyRefBuildKeyStorageConfig(t *testing.T) {
 		if cfg.Type != pkicrypto.KeyProviderTypeSoftware {
 			t.Errorf("Type = %s, want software", cfg.Type)
 		}
-		if cfg.KeyPath != "/ca/private/ca.ecdsa-p384.key" {
-			t.Errorf("KeyPath = %s, want /ca/private/ca.ecdsa-p384.key", cfg.KeyPath)
+		if cfg.KeyPath != "/ca/keys/ca.ecdsa-p384.key" {
+			t.Errorf("KeyPath = %s, want /ca/keys/ca.ecdsa-p384.key", cfg.KeyPath)
 		}
 		if cfg.Passphrase != "test-pass" {
 			t.Errorf("Passphrase = %s, want test-pass", cfg.Passphrase)
@@ -327,7 +327,7 @@ func TestCAMetadataHybridKeys(t *testing.T) {
 		Algorithm: pkicrypto.AlgECDSAP384,
 		Storage: pkicrypto.StorageRef{
 			Type: "software",
-			Path: "private/ca.ecdsa-p384.key",
+			Path: "keys/ca.ecdsa-p384.key",
 		},
 	})
 
@@ -336,7 +336,7 @@ func TestCAMetadataHybridKeys(t *testing.T) {
 		Algorithm: pkicrypto.AlgMLDSA65,
 		Storage: pkicrypto.StorageRef{
 			Type: "software",
-			Path: "private/ca.ml-dsa-65.key",
+			Path: "keys/ca.ml-dsa-65.key",
 		},
 	})
 
@@ -374,7 +374,7 @@ func TestCAMetadataJSON(t *testing.T) {
 				Algorithm: pkicrypto.AlgECDSAP384,
 				Storage: pkicrypto.StorageRef{
 					Type: "software",
-					Path: "private/ca.ecdsa-p384.key",
+					Path: "keys/ca.ecdsa-p384.key",
 				},
 			},
 		},

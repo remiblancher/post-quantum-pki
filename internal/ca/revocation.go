@@ -380,60 +380,32 @@ func (s *Store) IsRevoked(serial []byte) (bool, error) {
 	return false, fmt.Errorf("certificate not found")
 }
 
-// CRLDirForAlgorithm returns the CRL directory path for a specific algorithm family.
-func (s *Store) CRLDirForAlgorithm(algoFamily string) string {
-	return filepath.Join(s.basePath, "crl", algoFamily)
+// CRLDir returns the CRL directory path.
+func (s *Store) CRLDir() string {
+	return filepath.Join(s.basePath, "crl")
 }
 
-// CRLPathForAlgorithm returns the CRL path for a specific algorithm family.
-func (s *Store) CRLPathForAlgorithm(algoFamily string) string {
-	return filepath.Join(s.CRLDirForAlgorithm(algoFamily), "ca.crl")
+// CRLPathForAlgorithm returns the CRL path for a specific algorithm.
+// Format: crl/ca.{algorithm}.crl
+func (s *Store) CRLPathForAlgorithm(algorithm string) string {
+	return filepath.Join(s.CRLDir(), fmt.Sprintf("ca.%s.crl", algorithm))
 }
 
-// NextCRLNumberForAlgorithm returns the next CRL number for a specific algorithm family.
-func (s *Store) NextCRLNumberForAlgorithm(algoFamily string) ([]byte, error) {
-	crlDir := s.CRLDirForAlgorithm(algoFamily)
-	if err := os.MkdirAll(crlDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create CRL directory: %w", err)
-	}
-
-	crlNumPath := filepath.Join(crlDir, "crlnumber")
-
-	// Initialize if doesn't exist
-	if _, err := os.Stat(crlNumPath); os.IsNotExist(err) {
-		if err := os.WriteFile(crlNumPath, []byte("01\n"), 0644); err != nil {
-			return nil, err
-		}
-	}
-
-	data, err := os.ReadFile(crlNumPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read crlnumber file: %w", err)
-	}
-
-	numHex := strings.TrimSpace(string(data))
-	num, err := hex.DecodeString(numHex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse CRL number: %w", err)
-	}
-
-	// Increment for next use
-	next := incrementSerial(num)
-	if err := os.WriteFile(crlNumPath, []byte(hex.EncodeToString(next)+"\n"), 0644); err != nil {
-		return nil, err
-	}
-
-	return num, nil
+// CRLDERPathForAlgorithm returns the DER CRL path for a specific algorithm.
+// Format: crl/ca.{algorithm}.crl.der
+func (s *Store) CRLDERPathForAlgorithm(algorithm string) string {
+	return filepath.Join(s.CRLDir(), fmt.Sprintf("ca.%s.crl.der", algorithm))
 }
 
-// SaveCRLForAlgorithm saves a CRL for a specific algorithm family.
-func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algoFamily string) error {
-	crlDir := s.CRLDirForAlgorithm(algoFamily)
+// SaveCRLForAlgorithm saves a CRL for a specific algorithm.
+// Uses the new path structure: crl/ca.{algorithm}.crl
+func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algorithm string) error {
+	crlDir := s.CRLDir()
 	if err := os.MkdirAll(crlDir, 0755); err != nil {
 		return fmt.Errorf("failed to create CRL directory: %w", err)
 	}
 
-	crlPath := filepath.Join(crlDir, "ca.crl")
+	crlPath := s.CRLPathForAlgorithm(algorithm)
 
 	block := &pem.Block{
 		Type:  "X509 CRL",
@@ -451,7 +423,7 @@ func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algoFamily string) error {
 	}
 
 	// Also save as DER
-	derPath := filepath.Join(crlDir, "ca.crl.der")
+	derPath := s.CRLDERPathForAlgorithm(algorithm)
 	if err := os.WriteFile(derPath, crlDER, 0644); err != nil {
 		return fmt.Errorf("failed to write DER CRL: %w", err)
 	}
@@ -459,9 +431,9 @@ func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algoFamily string) error {
 	return nil
 }
 
-// LoadCRLForAlgorithm loads a CRL for a specific algorithm family.
-func (s *Store) LoadCRLForAlgorithm(algoFamily string) (*x509.RevocationList, error) {
-	crlPath := s.CRLPathForAlgorithm(algoFamily)
+// LoadCRLForAlgorithm loads a CRL for a specific algorithm.
+func (s *Store) LoadCRLForAlgorithm(algorithm string) (*x509.RevocationList, error) {
+	crlPath := s.CRLPathForAlgorithm(algorithm)
 	data, err := os.ReadFile(crlPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -483,7 +455,8 @@ func (s *Store) LoadCRLForAlgorithm(algoFamily string) (*x509.RevocationList, er
 	return crl, nil
 }
 
-// ListCRLAlgorithms returns all algorithm families that have CRLs.
+// ListCRLAlgorithms returns all algorithms that have CRLs.
+// Parses file names like ca.{algorithm}.crl to extract algorithms.
 func (s *Store) ListCRLAlgorithms() ([]string, error) {
 	crlDir := filepath.Join(s.basePath, "crl")
 	entries, err := os.ReadDir(crlDir)
@@ -497,10 +470,21 @@ func (s *Store) ListCRLAlgorithms() ([]string, error) {
 	var algos []string
 	for _, entry := range entries {
 		if entry.IsDir() {
-			// Check if it has a CRL file
-			crlPath := filepath.Join(crlDir, entry.Name(), "ca.crl")
-			if _, err := os.Stat(crlPath); err == nil {
-				algos = append(algos, entry.Name())
+			continue
+		}
+		// Parse file names like ca.{algorithm}.crl
+		name := entry.Name()
+		if strings.HasPrefix(name, "ca.") && strings.HasSuffix(name, ".crl") {
+			// Skip files that don't have an algorithm in the middle (like ca.crl)
+			withoutPrefix := strings.TrimPrefix(name, "ca.")
+			if !strings.HasSuffix(withoutPrefix, ".crl") {
+				// This is ca.crl (legacy format), not ca.{algo}.crl
+				continue
+			}
+			// Extract algorithm: ca.ecdsa-p256.crl -> ecdsa-p256
+			algo := strings.TrimSuffix(withoutPrefix, ".crl")
+			if algo != "" {
+				algos = append(algos, algo)
 			}
 		}
 	}
@@ -550,8 +534,8 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 		revokedCerts = append(revokedCerts, revoked)
 	}
 
-	// Get CRL number for this algorithm family
-	crlNumber, err := ca.store.NextCRLNumberForAlgorithm(algoFamily)
+	// Get shared CRL number
+	crlNumber, err := ca.store.NextCRLNumber()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CRL number: %w", err)
 	}
@@ -568,8 +552,11 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 		return nil, fmt.Errorf("failed to create CRL: %w", err)
 	}
 
-	// Save CRL for this algorithm family
-	if err := ca.store.SaveCRLForAlgorithm(crlDER, algoFamily); err != nil {
+	// Get signer algorithm for CRL filename
+	signerAlgo := ca.signer.Algorithm()
+
+	// Save CRL for this algorithm
+	if err := ca.store.SaveCRLForAlgorithm(crlDER, string(signerAlgo)); err != nil {
 		return nil, fmt.Errorf("failed to save CRL: %w", err)
 	}
 
@@ -613,8 +600,8 @@ func (ca *CA) generatePQCCRLForAlgorithm(algoFamily string, nextUpdate time.Time
 		revokedCerts = append(revokedCerts, revoked)
 	}
 
-	// Get CRL number for this algorithm family
-	crlNumber, err := ca.store.NextCRLNumberForAlgorithm(algoFamily)
+	// Get shared CRL number
+	crlNumber, err := ca.store.NextCRLNumber()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CRL number: %w", err)
 	}
@@ -625,8 +612,11 @@ func (ca *CA) generatePQCCRLForAlgorithm(algoFamily string, nextUpdate time.Time
 		return nil, err
 	}
 
-	// Save CRL for this algorithm family
-	if err := ca.store.SaveCRLForAlgorithm(crlDER, algoFamily); err != nil {
+	// Get signer algorithm for CRL filename
+	signerAlgo := ca.signer.Algorithm()
+
+	// Save CRL for this algorithm
+	if err := ca.store.SaveCRLForAlgorithm(crlDER, string(signerAlgo)); err != nil {
 		return nil, fmt.Errorf("failed to save CRL: %w", err)
 	}
 

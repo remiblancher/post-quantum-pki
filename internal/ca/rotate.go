@@ -191,10 +191,10 @@ func executeRotation(req RotateCARequest, currentCA *CA, prof *profile.Profile, 
 		return nil, nil, nil, fmt.Errorf("failed to create version: %w", err)
 	}
 
-	// Initialize new CA in version directory (using profile's algorithm family as subdirectory)
+	// Initialize new CA in version directory
 	algoFamily := prof.GetAlgorithmFamily()
-	profileDir := versionStore.ProfileDir(version.ID, algoFamily)
-	newStore := NewStore(profileDir)
+	versionDir := versionStore.VersionDir(version.ID)
+	newStore := NewStore(versionDir)
 
 	// Generate new CA keys based on profile
 	var newCA *CA
@@ -240,6 +240,23 @@ func executeRotation(req RotateCARequest, currentCA *CA, prof *profile.Profile, 
 	}
 	if err := versionStore.AddCertificateRef(version.ID, certRef); err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to add certificate reference: %w", err)
+	}
+
+	// For hybrid profiles, also add the PQC algorithm family
+	if prof.IsCatalyst() || prof.IsComposite() {
+		pqcAlgoFamily := getAlgorithmFamily(prof.Algorithms[1])
+		pqcCertRef := CertRef{
+			Profile:         prof.Name,
+			Algorithm:       string(prof.Algorithms[1]),
+			AlgorithmFamily: pqcAlgoFamily,
+			Subject:         newCA.cert.Subject.String(),
+			Serial:          newCA.cert.SerialNumber.Text(16),
+			NotBefore:       newCA.cert.NotBefore,
+			NotAfter:        newCA.cert.NotAfter,
+		}
+		if err := versionStore.AddCertificateRef(version.ID, pqcCertRef); err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to add PQC certificate reference: %w", err)
+		}
 	}
 
 	// Cross-sign if requested
@@ -294,6 +311,16 @@ func initializeCAInDir(store *Store, cfg Config) (*CA, error) {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
+	// Create keys/ and certs/ directories
+	keysDir := filepath.Join(store.BasePath(), "keys")
+	certsDir := filepath.Join(store.BasePath(), "certs")
+	if err := os.MkdirAll(keysDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create keys directory: %w", err)
+	}
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create certs directory: %w", err)
+	}
+
 	// Generate CA key pair using KeyProvider
 	keyPath := CAKeyPathForAlgorithm(store.BasePath(), cfg.Algorithm)
 	keyCfg := pkicrypto.KeyStorageConfig{
@@ -345,12 +372,14 @@ func initializeCAInDir(store *Store, cfg Config) (*CA, error) {
 		return nil, fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
 
-	// Save CA certificate
-	if err := store.SaveCACert(cert); err != nil {
+	// Save CA certificate to new structure: certs/ca.{algo}.pem
+	certPath := CACertPathForAlgorithm(store.BasePath(), cfg.Algorithm)
+	if err := store.saveCert(certPath, cert); err != nil {
 		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
 	}
 
-	// Create and save CA info
+	// Create and save CA info using full algorithm ID
+	algoID := string(cfg.Algorithm)
 	info := NewCAInfo(Subject{
 		CommonName:   cfg.CommonName,
 		Organization: []string{cfg.Organization},
@@ -362,7 +391,7 @@ func initializeCAInDir(store *Store, cfg Config) (*CA, error) {
 		Algorithm: cfg.Algorithm,
 		Storage:   CreateSoftwareKeyRef(RelativeCAKeyPathForAlgorithm(cfg.Algorithm)),
 	})
-	info.CreateInitialVersion([]string{cfg.Profile}, []string{getAlgorithmFamily(cfg.Algorithm)})
+	info.CreateInitialVersion([]string{cfg.Profile}, []string{algoID})
 	if err := info.Save(); err != nil {
 		return nil, fmt.Errorf("failed to save CA info: %w", err)
 	}
@@ -394,6 +423,16 @@ func initializePQCCAInDir(store *Store, cfg Config) (*CA, error) {
 func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
 	if err := store.Init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
+	}
+
+	// Create keys/ and certs/ directories
+	keysDir := filepath.Join(store.BasePath(), "keys")
+	certsDir := filepath.Join(store.BasePath(), "certs")
+	if err := os.MkdirAll(keysDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create keys directory: %w", err)
+	}
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create certs directory: %w", err)
 	}
 
 	// Generate classical key pair using KeyProvider
@@ -517,8 +556,10 @@ func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("failed to parse Catalyst CA certificate: %w", err)
 	}
 
-	// Save CA certificate
-	if err := store.SaveCACert(cert); err != nil {
+	// Save CA certificate to new structure: certs/ca.{algo}.pem
+	// For hybrid CAs, use classical algorithm for the certificate name
+	certPath := CACertPathForAlgorithm(store.BasePath(), cfg.ClassicalAlgorithm)
+	if err := store.saveCert(certPath, cert); err != nil {
 		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
 	}
 
@@ -540,8 +581,8 @@ func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
 		Storage:   CreateSoftwareKeyRef(RelativeCAKeyPathForAlgorithm(cfg.PQCAlgorithm)),
 	})
 	info.CreateInitialVersion([]string{"hybrid"}, []string{
-		getAlgorithmFamily(cfg.ClassicalAlgorithm),
-		getAlgorithmFamily(cfg.PQCAlgorithm),
+		string(cfg.ClassicalAlgorithm),
+		string(cfg.PQCAlgorithm),
 	})
 	if err := info.Save(); err != nil {
 		return nil, fmt.Errorf("failed to save CA info: %w", err)
@@ -978,10 +1019,10 @@ func executeMultiProfileRotation(
 	var currentCAs map[string]*CA
 	if len(currentCerts) > 0 && req.CrossSign {
 		currentCAs = make(map[string]*CA)
-		for algoFamily, certRef := range currentCerts {
-			// Load CA from the profile directory
-			profileDir := versionStore.ProfileDir(versionStore.getActiveVersionID(), algoFamily)
-			store := NewStore(profileDir)
+		for _, certRef := range currentCerts {
+			// Load CA from the version directory
+			versionDir := versionStore.VersionDir(versionStore.getActiveVersionID())
+			store := NewStore(versionDir)
 			ca, err := New(store)
 			if err != nil {
 				continue // Skip if can't load
@@ -993,18 +1034,25 @@ func executeMultiProfileRotation(
 		}
 	}
 
+	// Create version directory structure (keys/ and certs/)
+	keysDir := versionStore.KeysDir(version.ID)
+	certsDir := versionStore.CertsDir(version.ID)
+	if err := os.MkdirAll(keysDir, 0755); err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to create keys directory: %w", err)
+	}
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to create certs directory: %w", err)
+	}
+
+	versionDir := versionStore.VersionDir(version.ID)
+	versionStore2 := NewStore(versionDir)
+
 	// Create certificates for each profile
 	for _, prof := range req.Profiles {
 		algoFamily := prof.GetAlgorithmFamily()
 		algorithm := prof.GetAlgorithm()
 
-		// Create profile directory within version
-		profileDir := versionStore.ProfileDir(version.ID, algoFamily)
-		if err := os.MkdirAll(profileDir, 0755); err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to create profile directory for %s: %w", algoFamily, err)
-		}
-
-		profileStore := NewStore(profileDir)
+		profileStore := versionStore2
 
 		// Get subject from previous version or use defaults
 		var cn, org, country string
@@ -1088,7 +1136,7 @@ func executeMultiProfileRotation(
 				}
 
 				// Save cross-signed certificate
-				crossSignPath := filepath.Join(profileDir, "cross-signed", "by-previous.crt")
+				crossSignPath := filepath.Join(versionDir, "cross-signed", "by-previous.crt")
 				if err := saveCrossSignedCert(crossSignPath, crossSignedCert); err != nil {
 					return nil, nil, nil, fmt.Errorf("failed to save cross-signed cert for %s: %w", algoFamily, err)
 				}

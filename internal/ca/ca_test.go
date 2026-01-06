@@ -1015,13 +1015,13 @@ func TestU_CA_KeyPaths(t *testing.T) {
 		t.Error("KeyPaths() should return at least one path")
 	}
 
-	// Should have an "ec" key for ECDSA algorithm
-	ecPath, ok := paths["ec"]
+	// Should have the full algorithm ID key for ECDSA algorithm
+	ecPath, ok := paths["ecdsa-p256"]
 	if !ok {
-		t.Errorf("KeyPaths() should include 'ec' key, got keys: %v", paths)
+		t.Errorf("KeyPaths() should include 'ecdsa-p256' key, got keys: %v", paths)
 	}
 	if ecPath == "" {
-		t.Error("KeyPaths()['ec'] should not be empty")
+		t.Error("KeyPaths()['ecdsa-p256'] should not be empty")
 	}
 }
 
@@ -1183,12 +1183,12 @@ func TestU_CA_KeyPaths_HybridCA(t *testing.T) {
 		t.Errorf("KeyPaths() for hybrid CA should return at least 2 paths, got %d: %v", len(paths), paths)
 	}
 
-	// Should have algorithm family keys (ec for classical, ml-dsa for PQC)
-	if _, ok := paths["ec"]; !ok {
-		t.Errorf("KeyPaths() for hybrid CA should include 'ec' key, got: %v", paths)
+	// Should have full algorithm ID keys (ecdsa-p384 for classical, ml-dsa-87 for PQC)
+	if _, ok := paths["ecdsa-p384"]; !ok {
+		t.Errorf("KeyPaths() for hybrid CA should include 'ecdsa-p384' key, got: %v", paths)
 	}
-	if _, ok := paths["ml-dsa"]; !ok {
-		t.Errorf("KeyPaths() for hybrid CA should include 'ml-dsa' key, got: %v", paths)
+	if _, ok := paths["ml-dsa-87"]; !ok {
+		t.Errorf("KeyPaths() for hybrid CA should include 'ml-dsa-87' key, got: %v", paths)
 	}
 }
 
