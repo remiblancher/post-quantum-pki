@@ -142,8 +142,8 @@ func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
-	// Determine algorithm family for versioned directory structure
-	algoFamily := GetAlgorithmFamilyName(cfg.Algorithm)
+	// Get full algorithm ID (e.g., "ml-dsa-65")
+	algoID := string(cfg.Algorithm)
 
 	// Create CAInfo to set up versioned structure
 	info := NewCAInfo(Subject{
@@ -152,15 +152,15 @@ func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
 		Country:      []string{cfg.Country},
 	})
 	info.SetBasePath(store.BasePath())
-	info.CreateInitialVersion([]string{"pqc"}, []string{algoFamily})
+	info.CreateInitialVersion([]string{"pqc"}, []string{algoID})
 
-	// Create version directory
-	if err := info.EnsureVersionDir("v1", algoFamily); err != nil {
+	// Create version directory structure (keys/ and certs/)
+	if err := info.EnsureVersionDir("v1"); err != nil {
 		return nil, fmt.Errorf("failed to create version directory: %w", err)
 	}
 
 	// Generate PQC key pair at versioned path
-	keyPath := info.KeyPath("v1", algoFamily)
+	keyPath := info.KeyPath("v1", algoID)
 	keyCfg := pkicrypto.KeyStorageConfig{
 		Type:       pkicrypto.KeyProviderTypeSoftware,
 		KeyPath:    keyPath,
@@ -281,7 +281,7 @@ func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
 	}
 
 	// Save CA certificate to versioned path
-	certPath := info.CertPath("v1", algoFamily)
+	certPath := info.CertPath("v1", algoID)
 	if err := saveCertToPath(certPath, parsedCert); err != nil {
 		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
 	}
@@ -290,7 +290,7 @@ func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
 	info.AddKey(KeyRef{
 		ID:        "default",
 		Algorithm: cfg.Algorithm,
-		Storage:   CreateSoftwareKeyRef(fmt.Sprintf("versions/v1/%s/key.pem", algoFamily)),
+		Storage:   CreateSoftwareKeyRef(fmt.Sprintf("versions/v1/keys/ca.%s.key", algoID)),
 	})
 	if err := info.Save(); err != nil {
 		return nil, fmt.Errorf("failed to save CA info: %w", err)

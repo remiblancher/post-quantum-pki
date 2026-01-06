@@ -303,9 +303,9 @@ func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
-	// Determine algorithm families
-	classicalFamily := getAlgorithmFamily(cfg.ClassicalAlgorithm)
-	pqcFamily := getAlgorithmFamily(cfg.PQCAlgorithm)
+	// Get full algorithm IDs (e.g., "ecdsa-p384", "ml-dsa-65")
+	classicalAlgoID := string(cfg.ClassicalAlgorithm)
+	pqcAlgoID := string(cfg.PQCAlgorithm)
 
 	// Create CAInfo
 	info := NewCAInfo(Subject{
@@ -318,19 +318,16 @@ func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
 	// Create v1 as the initial active version with both algos
 	info.CreateInitialVersion(
 		[]string{"composite"},
-		[]string{classicalFamily, pqcFamily},
+		[]string{classicalAlgoID, pqcAlgoID},
 	)
 
-	// Create version directory structure for both algos
-	if err := info.EnsureVersionDir("v1", classicalFamily); err != nil {
-		return nil, fmt.Errorf("failed to create classical version directory: %w", err)
-	}
-	if err := info.EnsureVersionDir("v1", pqcFamily); err != nil {
-		return nil, fmt.Errorf("failed to create PQC version directory: %w", err)
+	// Create version directory structure (keys/ and certs/)
+	if err := info.EnsureVersionDir("v1"); err != nil {
+		return nil, fmt.Errorf("failed to create version directory: %w", err)
 	}
 
 	// Generate classical key pair using KeyProvider
-	classicalKeyPath := info.KeyPath("v1", classicalFamily)
+	classicalKeyPath := info.KeyPath("v1", string(cfg.ClassicalAlgorithm))
 	classicalKeyCfg := pkicrypto.KeyStorageConfig{
 		Type:       pkicrypto.KeyProviderTypeSoftware,
 		KeyPath:    classicalKeyPath,
@@ -343,7 +340,7 @@ func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
 	}
 
 	// Generate PQC key pair using KeyProvider
-	pqcKeyPath := info.KeyPath("v1", pqcFamily)
+	pqcKeyPath := info.KeyPath("v1", string(cfg.PQCAlgorithm))
 	pqcKeyCfg := pkicrypto.KeyStorageConfig{
 		Type:       pkicrypto.KeyProviderTypeSoftware,
 		KeyPath:    pqcKeyPath,
@@ -446,8 +443,8 @@ func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("failed to parse composite certificate: %w", err)
 	}
 
-	// Save CA certificate to classical algo directory
-	certPath := info.CertPath("v1", classicalFamily)
+	// Save CA certificate using classical algorithm ID
+	certPath := info.CertPath("v1", classicalAlgoID)
 	if err := saveCertToPath(certPath, parsedCert); err != nil {
 		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
 	}

@@ -56,14 +56,14 @@ func resetCAFlags() {
 
 func TestF_CA_Init(t *testing.T) {
 	tests := []struct {
-		name       string
-		profile    string
-		algoFamily string // Algorithm family for versioned paths (ec, ml-dsa, etc.)
-		wantErr    bool
+		name    string
+		profile string
+		algoID  string // Full algorithm ID for versioned paths (ecdsa-p384, ml-dsa-87, etc.)
+		wantErr bool
 	}{
-		{"[Functional] CA Init: EC Root CA", "ec/root-ca", "ec", false},
-		{"[Functional] CA Init: EC Issuing CA Profile", "ec/issuing-ca", "ec", false},
-		{"[Functional] CA Init: ML-DSA Root CA", "ml/root-ca", "ml-dsa", false},
+		{"[Functional] CA Init: EC Root CA", "ec/root-ca", "ecdsa-p384", false},
+		{"[Functional] CA Init: EC Issuing CA Profile", "ec/issuing-ca", "ecdsa-p256", false},
+		{"[Functional] CA Init: ML-DSA Root CA", "ml/root-ca", "ml-dsa-87", false},
 		{"[Functional] CA Init: ProfileInvalid", "nonexistent/profile", "", true},
 	}
 
@@ -89,9 +89,9 @@ func TestF_CA_Init(t *testing.T) {
 
 			if !tt.wantErr {
 				// Check new versioned structure
-				assertFileExists(t, filepath.Join(caDir, "ca.json"))
-				assertFileExists(t, filepath.Join(caDir, "versions", "v1", tt.algoFamily, "cert.pem"))
-				assertFileExists(t, filepath.Join(caDir, "versions", "v1", tt.algoFamily, "key.pem"))
+				assertFileExists(t, filepath.Join(caDir, "ca.meta.json"))
+				assertFileExists(t, filepath.Join(caDir, "versions", "v1", "certs", "ca."+tt.algoID+".pem"))
+				assertFileExists(t, filepath.Join(caDir, "versions", "v1", "keys", "ca."+tt.algoID+".key"))
 			}
 		})
 	}
@@ -111,10 +111,10 @@ func TestF_CA_Init_WithPassphrase(t *testing.T) {
 	)
 
 	assertNoError(t, err)
-	// Check new versioned structure
-	assertFileExists(t, filepath.Join(caDir, "ca.json"))
-	assertFileExists(t, filepath.Join(caDir, "versions", "v1", "ec", "cert.pem"))
-	assertFileExists(t, filepath.Join(caDir, "versions", "v1", "ec", "key.pem"))
+	// Check new versioned structure (ec/root-ca uses ecdsa-p384)
+	assertFileExists(t, filepath.Join(caDir, "ca.meta.json"))
+	assertFileExists(t, filepath.Join(caDir, "versions", "v1", "certs", "ca.ecdsa-p384.pem"))
+	assertFileExists(t, filepath.Join(caDir, "versions", "v1", "keys", "ca.ecdsa-p384.key"))
 }
 
 func TestF_CA_Init_ProfileMissing(t *testing.T) {
@@ -185,10 +185,10 @@ func TestF_CA_Init_Subordinate(t *testing.T) {
 	)
 
 	assertNoError(t, err)
-	// Check new versioned structure
-	assertFileExists(t, filepath.Join(subDir, "ca.json"))
-	assertFileExists(t, filepath.Join(subDir, "versions", "v1", "ec", "cert.pem"))
-	assertFileExists(t, filepath.Join(subDir, "versions", "v1", "ec", "key.pem"))
+	// Check new versioned structure (ec/issuing-ca uses ecdsa-p256)
+	assertFileExists(t, filepath.Join(subDir, "ca.meta.json"))
+	assertFileExists(t, filepath.Join(subDir, "versions", "v1", "certs", "ca.ecdsa-p256.pem"))
+	assertFileExists(t, filepath.Join(subDir, "versions", "v1", "keys", "ca.ecdsa-p256.key"))
 	assertFileExists(t, filepath.Join(subDir, "chain.crt"))
 }
 

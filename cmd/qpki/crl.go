@@ -234,16 +234,16 @@ func runCRLGenForAlgo(caDir, algoFamily string, versionStore *ca.VersionStore) e
 		return fmt.Errorf("failed to get active version: %w", err)
 	}
 
-	// Find certificate for this algorithm family
-	var found bool
+	// Find certificate for this algorithm family and get full algorithm ID
+	var algoID string
 	for _, cert := range activeVersion.Certificates {
 		if cert.AlgorithmFamily == algoFamily {
-			found = true
+			algoID = cert.Algorithm
 			break
 		}
 	}
 
-	if !found {
+	if algoID == "" {
 		return fmt.Errorf("algorithm family %s not found in active version", algoFamily)
 	}
 
@@ -253,8 +253,8 @@ func runCRLGenForAlgo(caDir, algoFamily string, versionStore *ca.VersionStore) e
 		return fmt.Errorf("failed to load CA info: %w", err)
 	}
 
-	// Load signer from version path
-	keyPath := info.KeyPath(activeVersion.ID, algoFamily)
+	// Load signer from version path using full algorithm ID
+	keyPath := info.KeyPath(activeVersion.ID, algoID)
 	keyCfg := pkicrypto.KeyStorageConfig{
 		Type:       pkicrypto.KeyProviderTypeSoftware,
 		KeyPath:    keyPath,
@@ -279,8 +279,8 @@ func runCRLGenForAlgo(caDir, algoFamily string, versionStore *ca.VersionStore) e
 		revoked = nil // Non-fatal: may not have any revocations
 	}
 
-	// Generate CRL to algorithm-specific directory
-	crlDir := filepath.Join(caDir, "crl", algoFamily)
+	// Generate CRL to crl/ directory with algorithm ID in filename
+	crlDir := filepath.Join(caDir, "crl")
 	if err := os.MkdirAll(crlDir, 0755); err != nil {
 		return fmt.Errorf("failed to create CRL directory: %w", err)
 	}
@@ -291,20 +291,20 @@ func runCRLGenForAlgo(caDir, algoFamily string, versionStore *ca.VersionStore) e
 		return fmt.Errorf("failed to generate CRL for %s: %w", algoFamily, err)
 	}
 
-	// Write CRL to algorithm-specific location
-	crlPath := filepath.Join(crlDir, "ca.crl")
-	if err := os.WriteFile(crlPath, crlDER, 0644); err != nil {
+	// Write CRL with algorithm ID in filename: crl/ca.{algoID}.crl
+	crlPath := filepath.Join(crlDir, fmt.Sprintf("ca.%s.crl", algoID))
+	crlPEM := pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER})
+	if err := os.WriteFile(crlPath, crlPEM, 0644); err != nil {
 		return fmt.Errorf("failed to write CRL: %w", err)
 	}
 
-	// Also write PEM version
-	crlPEM := pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER})
-	crlPEMPath := filepath.Join(crlDir, "ca.crl.pem")
-	if err := os.WriteFile(crlPEMPath, crlPEM, 0644); err != nil {
-		return fmt.Errorf("failed to write CRL PEM: %w", err)
+	// Also write DER version
+	crlDERPath := filepath.Join(crlDir, fmt.Sprintf("ca.%s.crl.der", algoID))
+	if err := os.WriteFile(crlDERPath, crlDER, 0644); err != nil {
+		return fmt.Errorf("failed to write CRL DER: %w", err)
 	}
 
-	fmt.Printf("CRL generated for %s:\n", algoFamily)
+	fmt.Printf("CRL generated for %s (%s):\n", algoFamily, algoID)
 	fmt.Printf("  Revoked certificates: %d\n", len(revoked))
 	fmt.Printf("  CRL file: %s\n", crlPath)
 	fmt.Printf("  Size: %d bytes\n", len(crlDER))

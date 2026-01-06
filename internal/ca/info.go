@@ -10,8 +10,11 @@ import (
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
-// InfoFile is the name of the unified CA info file.
-const InfoFile = "ca.json"
+// MetaFile is the name of the CA metadata file.
+const MetaFile = "ca.meta.json"
+
+// InfoFile is an alias for MetaFile for backward compatibility.
+const InfoFile = MetaFile
 
 // VersionStatus represents the status of a CA version.
 type VersionStatus string
@@ -213,29 +216,38 @@ func (c *CAInfo) VersionDir(versionID string) string {
 	return filepath.Join(c.basePath, "versions", versionID)
 }
 
-// AlgoDir returns the directory for an algorithm within a version.
-func (c *CAInfo) AlgoDir(versionID, algo string) string {
-	return filepath.Join(c.VersionDir(versionID), algo)
+// KeysDir returns the keys directory for a version.
+func (c *CAInfo) KeysDir(versionID string) string {
+	return filepath.Join(c.VersionDir(versionID), "keys")
 }
 
-// CertPath returns the certificate path.
-func (c *CAInfo) CertPath(versionID, algo string) string {
-	return filepath.Join(c.AlgoDir(versionID, algo), "cert.pem")
+// CertsDir returns the certs directory for a version.
+func (c *CAInfo) CertsDir(versionID string) string {
+	return filepath.Join(c.VersionDir(versionID), "certs")
 }
 
-// KeyPath returns the private key path.
-func (c *CAInfo) KeyPath(versionID, algo string) string {
-	return filepath.Join(c.AlgoDir(versionID, algo), "key.pem")
+// CertPath returns the certificate path for a specific algorithm.
+// Format: versions/{versionID}/certs/ca.{algorithm}.pem
+// The algorithm should be the full algorithm ID (e.g., "ecdsa-p384", "ml-dsa-87").
+func (c *CAInfo) CertPath(versionID, algorithm string) string {
+	return filepath.Join(c.CertsDir(versionID), fmt.Sprintf("ca.%s.pem", algorithm))
+}
+
+// KeyPath returns the private key path for a specific algorithm.
+// Format: versions/{versionID}/keys/ca.{algorithm}.key
+// The algorithm should be the full algorithm ID (e.g., "ecdsa-p384", "ml-dsa-87").
+func (c *CAInfo) KeyPath(versionID, algorithm string) string {
+	return filepath.Join(c.KeysDir(versionID), fmt.Sprintf("ca.%s.key", algorithm))
 }
 
 // ActiveCertPath returns the active certificate path for an algorithm.
-func (c *CAInfo) ActiveCertPath(algo string) string {
-	return c.CertPath(c.Active, algo)
+func (c *CAInfo) ActiveCertPath(algorithm string) string {
+	return c.CertPath(c.Active, algorithm)
 }
 
 // ActiveKeyPath returns the active key path for an algorithm.
-func (c *CAInfo) ActiveKeyPath(algo string) string {
-	return c.KeyPath(c.Active, algo)
+func (c *CAInfo) ActiveKeyPath(algorithm string) string {
+	return c.KeyPath(c.Active, algorithm)
 }
 
 // BasePath returns the CA base path.
@@ -255,7 +267,7 @@ func (c *CAInfo) Save() error {
 
 // SaveCAInfo saves CAInfo to a file atomically.
 func SaveCAInfo(basePath string, info *CAInfo) error {
-	path := filepath.Join(basePath, InfoFile)
+	path := filepath.Join(basePath, MetaFile)
 
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
@@ -278,7 +290,7 @@ func SaveCAInfo(basePath string, info *CAInfo) error {
 
 // LoadCAInfo loads CAInfo from a file.
 func LoadCAInfo(basePath string) (*CAInfo, error) {
-	path := filepath.Join(basePath, InfoFile)
+	path := filepath.Join(basePath, MetaFile)
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -297,17 +309,19 @@ func LoadCAInfo(basePath string) (*CAInfo, error) {
 	return &info, nil
 }
 
-// CAInfoExists checks if ca.json exists.
+// CAInfoExists checks if ca.meta.json exists.
 func CAInfoExists(basePath string) bool {
-	path := filepath.Join(basePath, InfoFile)
+	path := filepath.Join(basePath, MetaFile)
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-// EnsureVersionDir creates the version directory structure.
-func (c *CAInfo) EnsureVersionDir(versionID, algo string) error {
-	dir := c.AlgoDir(versionID, algo)
-	return os.MkdirAll(dir, 0755)
+// EnsureVersionDir creates the version directory structure (keys/ and certs/).
+func (c *CAInfo) EnsureVersionDir(versionID string) error {
+	if err := os.MkdirAll(c.KeysDir(versionID), 0755); err != nil {
+		return err
+	}
+	return os.MkdirAll(c.CertsDir(versionID), 0755)
 }
 
 // Helper to build KeyStorageConfig from KeyRef
@@ -413,9 +427,14 @@ func (vs *VersionStore) VersionDir(versionID string) string {
 	return filepath.Join(vs.VersionsDir(), versionID)
 }
 
-// ProfileDir returns the directory for a specific profile within a version.
-func (vs *VersionStore) ProfileDir(versionID, algorithmFamily string) string {
-	return filepath.Join(vs.VersionDir(versionID), algorithmFamily)
+// KeysDir returns the keys directory for a specific version.
+func (vs *VersionStore) KeysDir(versionID string) string {
+	return filepath.Join(vs.VersionDir(versionID), "keys")
+}
+
+// CertsDir returns the certs directory for a specific version.
+func (vs *VersionStore) CertsDir(versionID string) string {
+	return filepath.Join(vs.VersionDir(versionID), "certs")
 }
 
 // CrossSignedCertPath returns the path for a cross-signed certificate.
@@ -485,10 +504,14 @@ func (vs *VersionStore) GetVersion(id string) (*Version, error) {
 	}
 
 	// Build Certificates from Algos for compatibility
+	// Algos now contains full algorithm IDs (e.g., "ecdsa-p384", "ml-dsa-87")
 	var certs []CertRef
 	for _, algo := range ver.Algos {
+		// Compute algorithm family from full algorithm ID
+		family := GetAlgorithmFamilyFromID(algo)
 		certs = append(certs, CertRef{
-			AlgorithmFamily: algo,
+			Algorithm:       algo,
+			AlgorithmFamily: family,
 		})
 	}
 
@@ -546,7 +569,7 @@ func (vs *VersionStore) getActiveVersionID() string {
 }
 
 // AddCertificateRef adds a certificate reference to a version.
-// This updates the version's Algos field with the algorithm family.
+// This updates the version's Algos field with the full algorithm ID.
 func (vs *VersionStore) AddCertificateRef(versionID string, certRef CertRef) error {
 	if err := vs.loadInfo(); err != nil {
 		return err
@@ -560,14 +583,14 @@ func (vs *VersionStore) AddCertificateRef(versionID string, certRef CertRef) err
 		return fmt.Errorf("version not found: %s", versionID)
 	}
 
-	// Add algorithm family if not already present
-	algoFamily := certRef.AlgorithmFamily
+	// Add full algorithm ID if not already present
+	algoID := certRef.Algorithm
 	for _, existing := range ver.Algos {
-		if existing == algoFamily {
+		if existing == algoID {
 			return nil // Already exists
 		}
 	}
-	ver.Algos = append(ver.Algos, algoFamily)
+	ver.Algos = append(ver.Algos, algoID)
 	vs.info.Versions[versionID] = ver
 
 	return vs.info.Save()
@@ -597,15 +620,21 @@ func (vs *VersionStore) AddCrossSignedBy(versionID, signerVersionID string) erro
 }
 
 // CAKeyPathForAlgorithm returns the key path following the new naming convention.
-// Example: private/ca.ecdsa-p384.key
+// Example: keys/ca.ecdsa-p384.key
 func CAKeyPathForAlgorithm(basePath string, alg pkicrypto.AlgorithmID) string {
-	return filepath.Join(basePath, "private", fmt.Sprintf("ca.%s.key", alg))
+	return filepath.Join(basePath, "keys", fmt.Sprintf("ca.%s.key", alg))
 }
 
 // RelativeCAKeyPathForAlgorithm returns the relative key path for use in metadata.
-// Example: private/ca.ecdsa-p384.key
+// Example: keys/ca.ecdsa-p384.key
 func RelativeCAKeyPathForAlgorithm(alg pkicrypto.AlgorithmID) string {
-	return fmt.Sprintf("private/ca.%s.key", alg)
+	return fmt.Sprintf("keys/ca.%s.key", alg)
+}
+
+// CACertPathForAlgorithm returns the certificate path for a specific algorithm.
+// Example: certs/ca.ecdsa-p384.pem
+func CACertPathForAlgorithm(basePath string, alg pkicrypto.AlgorithmID) string {
+	return filepath.Join(basePath, "certs", fmt.Sprintf("ca.%s.pem", alg))
 }
 
 // CreateSoftwareKeyRef creates a StorageRef for a software key.
@@ -715,7 +744,12 @@ type VersionIndex struct {
 // GetAlgorithmFamilyName returns the algorithm family name for an algorithm.
 // For example: "ecdsa-p256" -> "ec", "ml-dsa-65" -> "ml-dsa"
 func GetAlgorithmFamilyName(alg pkicrypto.AlgorithmID) string {
-	algStr := string(alg)
+	return GetAlgorithmFamilyFromID(string(alg))
+}
+
+// GetAlgorithmFamilyFromID returns the algorithm family from a string algorithm ID.
+// For example: "ecdsa-p256" -> "ec", "ml-dsa-65" -> "ml-dsa"
+func GetAlgorithmFamilyFromID(algStr string) string {
 	switch {
 	case algStr == "ecdsa-p256" || algStr == "ecdsa-p384" || algStr == "ecdsa-p521":
 		return "ec"
@@ -732,8 +766,8 @@ func GetAlgorithmFamilyName(alg pkicrypto.AlgorithmID) string {
 	}
 }
 
-// MetadataFile is the name of the legacy metadata file (now ca.json).
-const MetadataFile = InfoFile
+// MetadataFile is an alias for MetaFile for backward compatibility.
+const MetadataFile = MetaFile
 
 // LoadCAMetadata loads CA metadata from a file.
 // For backward compatibility during migration.

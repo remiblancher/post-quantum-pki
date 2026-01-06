@@ -310,8 +310,8 @@ func TestF_CRL_Gen_MultiProfile_Algo(t *testing.T) {
 	)
 	assertNoError(t, err)
 
-	// Verify CRL was created in algorithm-specific directory
-	crlPath := filepath.Join(caDir, "crl", "ec", "ca.crl")
+	// Verify CRL was created with algorithm ID in filename (ec/root-ca uses ecdsa-p384)
+	crlPath := filepath.Join(caDir, "crl", "ca.ecdsa-p384.crl")
 	assertFileExists(t, crlPath)
 }
 
@@ -337,9 +337,10 @@ func TestF_CRL_Gen_MultiProfile_All(t *testing.T) {
 	)
 	assertNoError(t, err)
 
-	// Verify CRLs were created
-	ecCrlPath := filepath.Join(caDir, "crl", "ec", "ca.crl")
-	rsaCrlPath := filepath.Join(caDir, "crl", "rsa", "ca.crl")
+	// Verify CRLs were created with algorithm IDs in filenames
+	// ec/root-ca uses ecdsa-p384, rsa/root-ca uses rsa-4096
+	ecCrlPath := filepath.Join(caDir, "crl", "ca.ecdsa-p384.crl")
+	rsaCrlPath := filepath.Join(caDir, "crl", "ca.rsa-4096.crl")
 	assertFileExists(t, ecCrlPath)
 	assertFileExists(t, rsaCrlPath)
 }
