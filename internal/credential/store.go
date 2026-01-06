@@ -96,18 +96,6 @@ func (s *FileStore) keysPath(credentialID string) string {
 	return filepath.Join(s.credentialPath(credentialID), "private-keys.pem")
 }
 
-// activeCertsPath returns the path to certificates for a specific algorithm family in active/.
-func (s *FileStore) activeCertsPath(credentialID, algoFamily string) string {
-	vs := s.GetVersionStore(credentialID)
-	return filepath.Join(vs.ActiveDir(), algoFamily, "certificates.pem")
-}
-
-// activeKeysPath returns the path to private keys for a specific algorithm family in active/.
-func (s *FileStore) activeKeysPath(credentialID, algoFamily string) string {
-	vs := s.GetVersionStore(credentialID)
-	return filepath.Join(vs.ActiveDir(), algoFamily, "private-keys.pem")
-}
-
 // Save saves a credential with its certificates and keys.
 func (s *FileStore) Save(cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
 	s.mu.Lock()
