@@ -8,6 +8,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -22,6 +24,20 @@ import (
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
 	"github.com/cloudflare/circl/sign/slhdsa"
 )
+
+// ML-KEM OIDs (FIPS 203 / NIST) for PKCS#8 parsing
+var (
+	oidMLKEM512  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 1}
+	oidMLKEM768  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 2}
+	oidMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
+)
+
+// pkcs8PrivateKey is the ASN.1 structure for PKCS#8 private keys.
+type pkcs8PrivateKey struct {
+	Version    int
+	Algo       pkix.AlgorithmIdentifier
+	PrivateKey []byte
+}
 
 // KeyPair holds a public/private key pair.
 type KeyPair struct {
@@ -517,6 +533,85 @@ func ParseMLKEMPrivateKey(alg AlgorithmID, data []byte) (crypto.PrivateKey, erro
 	return priv, nil
 }
 
+// parseMLKEMPrivateKeyPKCS8 parses an ML-KEM private key from PKCS#8 DER format.
+// Returns the algorithm ID, parsed private key, and any error.
+func parseMLKEMPrivateKeyPKCS8(der []byte) (AlgorithmID, crypto.PrivateKey, error) {
+	var pkcs8 pkcs8PrivateKey
+	if _, err := asn1.Unmarshal(der, &pkcs8); err != nil {
+		return "", nil, fmt.Errorf("failed to parse PKCS#8: %w", err)
+	}
+
+	// Determine algorithm from OID
+	var alg AlgorithmID
+	oid := pkcs8.Algo.Algorithm
+	switch {
+	case oid.Equal(oidMLKEM512):
+		alg = AlgMLKEM512
+	case oid.Equal(oidMLKEM768):
+		alg = AlgMLKEM768
+	case oid.Equal(oidMLKEM1024):
+		alg = AlgMLKEM1024
+	default:
+		return "", nil, fmt.Errorf("unsupported PKCS#8 algorithm OID: %v", oid)
+	}
+
+	// The privateKey field contains an OCTET STRING wrapping the raw key bytes
+	var rawKeyBytes []byte
+	if _, err := asn1.Unmarshal(pkcs8.PrivateKey, &rawKeyBytes); err != nil {
+		return "", nil, fmt.Errorf("failed to parse private key octet string: %w", err)
+	}
+
+	// Parse the raw ML-KEM key bytes
+	priv, err := ParseMLKEMPrivateKey(alg, rawKeyBytes)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse ML-KEM key: %w", err)
+	}
+
+	return alg, priv, nil
+}
+
+// marshalMLKEMPrivateKeyPKCS8 marshals an ML-KEM private key to PKCS#8 DER format.
+func marshalMLKEMPrivateKeyPKCS8(priv crypto.PrivateKey) ([]byte, error) {
+	var oid asn1.ObjectIdentifier
+	var rawBytes []byte
+	var err error
+
+	switch k := priv.(type) {
+	case *mlkem512.PrivateKey:
+		oid = oidMLKEM512
+		rawBytes, err = k.MarshalBinary()
+	case *mlkem768.PrivateKey:
+		oid = oidMLKEM768
+		rawBytes, err = k.MarshalBinary()
+	case *mlkem1024.PrivateKey:
+		oid = oidMLKEM1024
+		rawBytes, err = k.MarshalBinary()
+	default:
+		return nil, fmt.Errorf("unsupported ML-KEM key type: %T", priv)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal key: %w", err)
+	}
+
+	// Wrap raw key bytes in OCTET STRING
+	wrappedKey, err := asn1.Marshal(rawBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wrap key bytes: %w", err)
+	}
+
+	// Build PKCS#8 structure
+	pkcs8 := pkcs8PrivateKey{
+		Version: 0,
+		Algo: pkix.AlgorithmIdentifier{
+			Algorithm: oid,
+		},
+		PrivateKey: wrappedKey,
+	}
+
+	return asn1.Marshal(pkcs8)
+}
+
 // MLKEMPublicKeyBytes returns the raw bytes of an ML-KEM public key.
 func MLKEMPublicKeyBytes(pub crypto.PublicKey) ([]byte, error) {
 	switch k := pub.(type) {
@@ -545,17 +640,16 @@ func MLKEMPrivateKeyBytes(priv crypto.PrivateKey) ([]byte, error) {
 	}
 }
 
-// SavePrivateKey saves the KEM private key to a PEM file.
+// SavePrivateKey saves the KEM private key to a PEM file in PKCS#8 format.
 // If passphrase is provided, the key is encrypted.
 func (kp *KEMKeyPair) SavePrivateKey(path string, passphrase []byte) error {
-	privBytes, err := MLKEMPrivateKeyBytes(kp.PrivateKey)
+	privBytes, err := marshalMLKEMPrivateKeyPKCS8(kp.PrivateKey)
 	if err != nil {
-		return fmt.Errorf("failed to get private key bytes: %w", err)
+		return fmt.Errorf("failed to marshal private key to PKCS#8: %w", err)
 	}
 
-	pemType := fmt.Sprintf("%s PRIVATE KEY", kp.Algorithm.String())
 	pemBlock := &pem.Block{
-		Type:  pemType,
+		Type:  "PRIVATE KEY",
 		Bytes: privBytes,
 	}
 
@@ -605,22 +699,14 @@ func LoadKEMPrivateKey(path string, passphrase []byte) (*KEMKeyPair, error) {
 		}
 	}
 
-	// Parse based on PEM type
-	var alg AlgorithmID
-	switch block.Type {
-	case "ml-kem-512 PRIVATE KEY":
-		alg = AlgMLKEM512
-	case "ml-kem-768 PRIVATE KEY":
-		alg = AlgMLKEM768
-	case "ml-kem-1024 PRIVATE KEY":
-		alg = AlgMLKEM1024
-	default:
-		return nil, fmt.Errorf("unknown KEM PEM type: %s", block.Type)
+	// Only accept PKCS#8 standard format
+	if block.Type != "PRIVATE KEY" {
+		return nil, fmt.Errorf("expected PRIVATE KEY (PKCS#8), got: %s", block.Type)
 	}
 
-	priv, err := ParseMLKEMPrivateKey(alg, keyBytes)
+	alg, priv, err := parseMLKEMPrivateKeyPKCS8(keyBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse KEM private key: %w", err)
+		return nil, fmt.Errorf("failed to parse PKCS#8 ML-KEM private key: %w", err)
 	}
 
 	// Extract public key from private key
@@ -643,11 +729,12 @@ func LoadKEMPrivateKey(path string, passphrase []byte) (*KEMKeyPair, error) {
 	}, nil
 }
 
-// IsKEMPEMType returns true if the PEM type is for a KEM key.
+// IsKEMPEMType returns true if the PEM type is a legacy KEM key format.
+// Since ML-KEM keys now use standard PKCS#8 format ("PRIVATE KEY"),
+// this function always returns false. Use LoadKEMPrivateKey to detect
+// ML-KEM keys by parsing the PKCS#8 structure.
+//
+// Deprecated: ML-KEM keys use standard "PRIVATE KEY" PEM type.
 func IsKEMPEMType(pemType string) bool {
-	switch pemType {
-	case "ml-kem-512 PRIVATE KEY", "ml-kem-768 PRIVATE KEY", "ml-kem-1024 PRIVATE KEY":
-		return true
-	}
 	return false
 }

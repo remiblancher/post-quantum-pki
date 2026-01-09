@@ -7,9 +7,10 @@ import "encoding/asn1"
 // CMS/PKCS#7 OIDs
 var (
 	// Content types
-	OIDData          = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
-	OIDSignedData    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
-	OIDEnvelopedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 3}
+	OIDData             = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
+	OIDSignedData       = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
+	OIDEnvelopedData    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 3}
+	OIDAuthEnvelopedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 1, 23} // RFC 5083
 
 	// TSP content type (RFC 3161)
 	OIDTSTInfo = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 1, 4}
@@ -49,9 +50,10 @@ var (
 
 // Key agreement algorithm OIDs (ECDH)
 var (
-	OIDECDHStdSHA256KDF = asn1.ObjectIdentifier{1, 3, 132, 1, 11, 1} // dhSinglePass-stdDH-sha256kdf-scheme
-	OIDECDHStdSHA384KDF = asn1.ObjectIdentifier{1, 3, 132, 1, 11, 2} // dhSinglePass-stdDH-sha384kdf-scheme
-	OIDECDHStdSHA512KDF = asn1.ObjectIdentifier{1, 3, 132, 1, 11, 3} // dhSinglePass-stdDH-sha512kdf-scheme
+	OIDECDHStdSHA1KDF   = asn1.ObjectIdentifier{1, 3, 133, 16, 840, 63, 0, 2} // dhSinglePass-stdDH-sha1kdf-scheme (legacy)
+	OIDECDHStdSHA256KDF = asn1.ObjectIdentifier{1, 3, 132, 1, 11, 1}          // dhSinglePass-stdDH-sha256kdf-scheme
+	OIDECDHStdSHA384KDF = asn1.ObjectIdentifier{1, 3, 132, 1, 11, 2}          // dhSinglePass-stdDH-sha384kdf-scheme
+	OIDECDHStdSHA512KDF = asn1.ObjectIdentifier{1, 3, 132, 1, 11, 3}          // dhSinglePass-stdDH-sha512kdf-scheme
 )
 
 // ML-KEM OIDs (FIPS 203)
@@ -59,6 +61,11 @@ var (
 	OIDMLKEM512  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 1}
 	OIDMLKEM768  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 2}
 	OIDMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
+)
+
+// OtherRecipientInfo OIDs (RFC 9629)
+var (
+	OIDOriKEM = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 13, 3} // id-ori-kem
 )
 
 // KDF OIDs
@@ -70,6 +77,7 @@ var (
 
 // Hash algorithm OIDs
 var (
+	OIDSHA1   = asn1.ObjectIdentifier{1, 3, 14, 3, 2, 26}
 	OIDSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
 	OIDSHA384 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 2}
 	OIDSHA512 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 3}
