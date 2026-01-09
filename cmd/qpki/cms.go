@@ -537,14 +537,30 @@ func runCMSDecrypt(cmd *cobra.Command, args []string) error {
 	}
 
 	var privKey interface{}
-	if pkicrypto.IsKEMPEMType(block.Type) {
-		// ML-KEM key - use KEM-specific loader
+	if block.Type == "PRIVATE KEY" {
+		// PKCS#8 format - try ML-KEM loader first
 		passphrase := pkicrypto.ResolvePassphrase(cmsDecryptPassphrase)
 		kemPair, err := pkicrypto.LoadKEMPrivateKey(cmsDecryptKey, passphrase)
-		if err != nil {
-			return fmt.Errorf("failed to load KEM private key: %w", err)
+		if err == nil {
+			privKey = kemPair.PrivateKey
+		} else {
+			// Not ML-KEM - try standard loader (RSA, EC, etc.)
+			keyCfg := pkicrypto.KeyStorageConfig{
+				Type:       pkicrypto.KeyProviderTypeSoftware,
+				KeyPath:    cmsDecryptKey,
+				Passphrase: cmsDecryptPassphrase,
+			}
+			km := pkicrypto.NewKeyProvider(keyCfg)
+			signer, err := km.Load(keyCfg)
+			if err != nil {
+				return fmt.Errorf("failed to load private key: %w", err)
+			}
+			softSigner, ok := signer.(*pkicrypto.SoftwareSigner)
+			if !ok {
+				return fmt.Errorf("CMS decrypt requires a software key (HSM decryption not yet supported)")
+			}
+			privKey = softSigner.PrivateKey()
 		}
-		privKey = kemPair.PrivateKey
 	} else {
 		// Signing key (RSA, EC, etc.) - use standard loader
 		keyCfg := pkicrypto.KeyStorageConfig{

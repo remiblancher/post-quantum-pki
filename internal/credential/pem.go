@@ -4,6 +4,8 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -17,6 +19,61 @@ import (
 	"github.com/cloudflare/circl/sign/slhdsa"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
+
+// ML-KEM OIDs (FIPS 203 / NIST)
+var (
+	oidMLKEM512  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 1}
+	oidMLKEM768  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 2}
+	oidMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
+)
+
+// pkcs8PrivateKey is the ASN.1 structure for PKCS#8 private keys.
+type pkcs8PrivateKey struct {
+	Version    int
+	Algo       pkix.AlgorithmIdentifier
+	PrivateKey []byte
+}
+
+// marshalMLKEMPrivateKeyPKCS8 marshals an ML-KEM private key to PKCS#8 DER format.
+func marshalMLKEMPrivateKeyPKCS8(priv crypto.PrivateKey) ([]byte, error) {
+	var oid asn1.ObjectIdentifier
+	var keyBytes []byte
+	var err error
+
+	switch k := priv.(type) {
+	case *mlkem512.PrivateKey:
+		oid = oidMLKEM512
+		keyBytes, err = k.MarshalBinary()
+	case *mlkem768.PrivateKey:
+		oid = oidMLKEM768
+		keyBytes, err = k.MarshalBinary()
+	case *mlkem1024.PrivateKey:
+		oid = oidMLKEM1024
+		keyBytes, err = k.MarshalBinary()
+	default:
+		return nil, fmt.Errorf("unsupported ML-KEM key type: %T", priv)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ML-KEM key: %w", err)
+	}
+
+	// Wrap raw key bytes in OCTET STRING for PKCS#8 privateKey field
+	privKeyOctetString, err := asn1.Marshal(keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key octet string: %w", err)
+	}
+
+	pkcs8 := pkcs8PrivateKey{
+		Version: 0,
+		Algo: pkix.AlgorithmIdentifier{
+			Algorithm: oid,
+		},
+		PrivateKey: privKeyOctetString,
+	}
+
+	return asn1.Marshal(pkcs8)
+}
 
 // EncodeCertificatesPEM encodes multiple certificates to a single PEM file.
 // Certificates are written in order, each as a separate PEM block.
@@ -109,26 +166,13 @@ func privateKeyToPEMBlock(priv crypto.PrivateKey, alg pkicrypto.AlgorithmID, pas
 		keyBytes = k.Bytes()
 		pemType = "ML-DSA-87 PRIVATE KEY"
 
-	case *mlkem512.PrivateKey:
-		keyBytes, err = k.MarshalBinary()
+	case *mlkem512.PrivateKey, *mlkem768.PrivateKey, *mlkem1024.PrivateKey:
+		// Use PKCS#8 standard format for OpenSSL 3.6+ compatibility
+		keyBytes, err = marshalMLKEMPrivateKeyPKCS8(priv)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal ML-KEM-512 key: %w", err)
+			return nil, fmt.Errorf("failed to marshal ML-KEM key to PKCS#8: %w", err)
 		}
-		pemType = "ml-kem-512 PRIVATE KEY"
-
-	case *mlkem768.PrivateKey:
-		keyBytes, err = k.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal ML-KEM-768 key: %w", err)
-		}
-		pemType = "ml-kem-768 PRIVATE KEY"
-
-	case *mlkem1024.PrivateKey:
-		keyBytes, err = k.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal ML-KEM-1024 key: %w", err)
-		}
-		pemType = "ml-kem-1024 PRIVATE KEY"
+		pemType = "PRIVATE KEY"
 
 	case *slhdsa.PrivateKey:
 		keyBytes, err = k.MarshalBinary()

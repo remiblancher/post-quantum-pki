@@ -8,8 +8,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/binary"
 	"fmt"
@@ -41,7 +44,7 @@ type DecryptResult struct {
 	ContentType asn1.ObjectIdentifier
 }
 
-// Decrypt decrypts a CMS EnvelopedData structure.
+// Decrypt decrypts a CMS EnvelopedData or AuthEnvelopedData structure.
 // It finds the matching RecipientInfo for the provided private key,
 // decrypts the CEK, and then decrypts the content.
 func Decrypt(data []byte, opts *DecryptOptions) (*DecryptResult, error) {
@@ -59,8 +62,13 @@ func Decrypt(data []byte, opts *DecryptOptions) (*DecryptResult, error) {
 		return nil, fmt.Errorf("trailing data after ContentInfo")
 	}
 
+	// Route based on content type
+	if ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		return DecryptAuthEnveloped(ci.Content.Bytes, opts)
+	}
+
 	if !ci.ContentType.Equal(OIDEnvelopedData) {
-		return nil, fmt.Errorf("not an EnvelopedData: %v", ci.ContentType)
+		return nil, fmt.Errorf("not an EnvelopedData or AuthEnvelopedData: %v", ci.ContentType)
 	}
 
 	// Parse EnvelopedData
@@ -85,6 +93,84 @@ func Decrypt(data []byte, opts *DecryptOptions) (*DecryptResult, error) {
 		Content:     content,
 		ContentType: env.EncryptedContentInfo.ContentType,
 	}, nil
+}
+
+// DecryptAuthEnveloped decrypts a CMS AuthEnvelopedData structure (RFC 5083).
+// For AES-GCM, the MAC field contains the authentication tag.
+func DecryptAuthEnveloped(data []byte, opts *DecryptOptions) (*DecryptResult, error) {
+	if opts == nil || opts.PrivateKey == nil {
+		return nil, fmt.Errorf("private key is required")
+	}
+
+	// Parse AuthEnvelopedData
+	var authEnv AuthEnvelopedData
+	if _, err := asn1.Unmarshal(data, &authEnv); err != nil {
+		return nil, fmt.Errorf("failed to parse AuthEnvelopedData: %w", err)
+	}
+
+	// Find matching RecipientInfo and decrypt CEK
+	cek, err := decryptCEKAuth(&authEnv, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt CEK: %w", err)
+	}
+
+	// Decrypt content with MAC verification
+	content, err := decryptContentAuth(&authEnv, cek)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt content: %w", err)
+	}
+
+	return &DecryptResult{
+		Content:     content,
+		ContentType: authEnv.AuthEncryptedContentInfo.ContentType,
+	}, nil
+}
+
+// decryptCEKAuth finds the matching RecipientInfo and decrypts the CEK for AuthEnvelopedData.
+func decryptCEKAuth(authEnv *AuthEnvelopedData, opts *DecryptOptions) ([]byte, error) {
+	for _, riRaw := range authEnv.RecipientInfos {
+		cek, err := tryDecryptRecipientInfo(riRaw, opts)
+		if err == nil {
+			return cek, nil
+		}
+		// Continue trying other RecipientInfos
+	}
+
+	return nil, fmt.Errorf("no matching RecipientInfo found for provided key")
+}
+
+// decryptContentAuth decrypts the content from AuthEnvelopedData with MAC verification.
+// For AES-GCM, the MAC is the GCM authentication tag.
+func decryptContentAuth(authEnv *AuthEnvelopedData, cek []byte) ([]byte, error) {
+	alg := authEnv.AuthEncryptedContentInfo.ContentEncryptionAlgorithm.Algorithm
+
+	if !alg.Equal(OIDAES256GCM) && !alg.Equal(OIDAES128GCM) && !alg.Equal(OIDAES192GCM) {
+		return nil, fmt.Errorf("AuthEnvelopedData requires AES-GCM, got: %v", alg)
+	}
+
+	// Parse GCM parameters
+	var params GCMParameters
+	if _, err := asn1.Unmarshal(authEnv.AuthEncryptedContentInfo.ContentEncryptionAlgorithm.Parameters.FullBytes, &params); err != nil {
+		return nil, fmt.Errorf("failed to parse GCM parameters: %w", err)
+	}
+
+	block, err := aes.NewCipher(cek)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	// For AuthEnvelopedData, the ciphertext and tag are stored separately:
+	// - ciphertext in AuthEncryptedContentInfo.EncryptedContent
+	// - tag in MAC field
+	// GCM.Open expects ciphertext||tag, so we concatenate them
+	ciphertextWithTag := append(authEnv.AuthEncryptedContentInfo.EncryptedContent, authEnv.MAC...)
+
+	return gcm.Open(nil, params.Nonce, ciphertextWithTag, nil)
 }
 
 // decryptCEK finds the matching RecipientInfo and decrypts the CEK.
@@ -122,10 +208,10 @@ func tryDecryptRecipientInfo(riRaw asn1.RawValue, opts *DecryptOptions) ([]byte,
 		}
 		return decryptKeyAgree(kari, opts)
 
-	case riRaw.Tag == 2 && riRaw.Class == asn1.ClassContextSpecific:
-		// [2] KEMRecipientInfo
-		// Use manual parsing to handle RecipientIdentifier CHOICE
-		kemri, err := ParseKEMRecipientInfo(riRaw.Bytes)
+	case riRaw.Tag == 4 && riRaw.Class == asn1.ClassContextSpecific:
+		// [4] OtherRecipientInfo - contains KEMRecipientInfo per RFC 9629
+		// OtherRecipientInfo ::= SEQUENCE { oriType OID, oriValue ANY }
+		kemri, err := parseOtherRecipientInfoKEM(riRaw.Bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -134,6 +220,39 @@ func tryDecryptRecipientInfo(riRaw asn1.RawValue, opts *DecryptOptions) ([]byte,
 	default:
 		return nil, fmt.Errorf("unsupported RecipientInfo type: tag=%d, class=%d", riRaw.Tag, riRaw.Class)
 	}
+}
+
+// parseOtherRecipientInfoKEM parses OtherRecipientInfo containing KEMRecipientInfo.
+// Per RFC 9629: OtherRecipientInfo ::= SEQUENCE { oriType OID, oriValue ANY }
+func parseOtherRecipientInfoKEM(data []byte) (*KEMRecipientInfo, error) {
+	remaining := data
+
+	// Parse oriType OID
+	var oriType asn1.ObjectIdentifier
+	rest, err := asn1.Unmarshal(remaining, &oriType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse oriType: %w", err)
+	}
+
+	// Verify it's id-ori-kem
+	if !oriType.Equal(OIDOriKEM) {
+		return nil, fmt.Errorf("unsupported OtherRecipientInfo type: %v (expected id-ori-kem)", oriType)
+	}
+
+	// Parse oriValue as KEMRecipientInfo SEQUENCE
+	var oriValue asn1.RawValue
+	_, err = asn1.Unmarshal(rest, &oriValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse oriValue: %w", err)
+	}
+
+	// oriValue should be a SEQUENCE containing KEMRecipientInfo
+	if oriValue.Tag != asn1.TagSequence {
+		return nil, fmt.Errorf("oriValue is not a SEQUENCE: tag=%d", oriValue.Tag)
+	}
+
+	// Parse the KEMRecipientInfo from the SEQUENCE bytes
+	return ParseKEMRecipientInfo(oriValue.Bytes)
 }
 
 // decryptKeyTrans decrypts the CEK from a KeyTransRecipientInfo (RSA).
@@ -167,25 +286,55 @@ func decryptKeyAgree(kari *KeyAgreeRecipientInfo, opts *DecryptOptions) ([]byte,
 		return nil, fmt.Errorf("ECDSA private key required for KeyAgreeRecipientInfo")
 	}
 
+	// Determine the hash function from KeyEncryptionAlgorithm
+	keaOID := kari.KeyEncryptionAlgorithm.Algorithm
+	var kdfHash func() hash.Hash
+	switch {
+	case keaOID.Equal(OIDECDHStdSHA1KDF):
+		kdfHash = sha1.New
+	case keaOID.Equal(OIDECDHStdSHA256KDF):
+		kdfHash = sha256.New
+	case keaOID.Equal(OIDECDHStdSHA384KDF):
+		kdfHash = sha512.New384
+	case keaOID.Equal(OIDECDHStdSHA512KDF):
+		kdfHash = sha512.New
+	case keaOID.Equal(OIDAESWrap256), keaOID.Equal(OIDAESWrap128):
+		// Legacy format - use SHA-256 as default
+		kdfHash = sha256.New
+	default:
+		return nil, fmt.Errorf("unsupported key encryption algorithm: %v", keaOID)
+	}
+
 	// Parse OriginatorPublicKey from Originator
 	// The Originator is [0] EXPLICIT OriginatorIdentifierOrKey
 	// OriginatorIdentifierOrKey is a CHOICE, and we use originatorKey [1] OriginatorPublicKey
-	// So kari.Originator.Bytes contains [1] { SEQUENCE {...} }
-	// We need to first unwrap the [1] tag to get to the OriginatorPublicKey SEQUENCE
+	// With IMPLICIT tagging, the [1] tag replaces the SEQUENCE tag.
+	// So kari.Originator.Bytes contains [1] { <OriginatorPublicKey content> }
 	var originatorWrapper asn1.RawValue
 	if _, err := asn1.Unmarshal(kari.Originator.Bytes, &originatorWrapper); err != nil {
 		return nil, fmt.Errorf("failed to parse originator wrapper: %w", err)
 	}
 
-	// originatorWrapper should have Tag=1 for originatorKey
+	// originatorWrapper should have Tag=1 for originatorKey (IMPLICIT)
 	if originatorWrapper.Tag != 1 || originatorWrapper.Class != asn1.ClassContextSpecific {
 		return nil, fmt.Errorf("expected originatorKey [1], got tag=%d class=%d",
 			originatorWrapper.Tag, originatorWrapper.Class)
 	}
 
-	// Now parse the OriginatorPublicKey from the content
+	// With IMPLICIT tagging, originatorWrapper.Bytes contains the SEQUENCE content
+	// (without the SEQUENCE tag). We need to reconstruct the SEQUENCE for unmarshaling.
+	originatorKeySeq, err := asn1.Marshal(asn1.RawValue{
+		Class:      asn1.ClassUniversal,
+		Tag:        asn1.TagSequence,
+		IsCompound: true,
+		Bytes:      originatorWrapper.Bytes,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconstruct OriginatorPublicKey SEQUENCE: %w", err)
+	}
+
 	var originatorKey OriginatorPublicKey
-	if _, err := asn1.Unmarshal(originatorWrapper.Bytes, &originatorKey); err != nil {
+	if _, err := asn1.Unmarshal(originatorKeySeq, &originatorKey); err != nil {
 		return nil, fmt.Errorf("failed to parse OriginatorPublicKey: %w", err)
 	}
 
@@ -202,8 +351,29 @@ func decryptKeyAgree(kari *KeyAgreeRecipientInfo, opts *DecryptOptions) ([]byte,
 		return nil, fmt.Errorf("ECDH failed: %w", err)
 	}
 
-	// Derive KEK using ANSI X9.63 KDF
-	kek, err := ansix963KDFSHA256Decrypt(sharedSecret, 32, nil)
+	// Build ECC-CMS-SharedInfo for KDF (RFC 5753 Section 7.2)
+	// CRITICAL: Use the EXACT bytes from KeyEncryptionAlgorithm.parameters
+	// Do NOT rebuild the AlgorithmIdentifier - use it as-is to match OpenSSL
+	var wrapAlgBytes []byte
+	if kari.KeyEncryptionAlgorithm.Parameters.FullBytes != nil {
+		wrapAlgBytes = kari.KeyEncryptionAlgorithm.Parameters.FullBytes
+	} else {
+		// Fallback: build with NULL params for OpenSSL compatibility
+		nullParams, _ := asn1.Marshal(asn1.RawValue{Tag: asn1.TagNull})
+		defaultAlg := pkix.AlgorithmIdentifier{
+			Algorithm:  OIDAESWrap256,
+			Parameters: asn1.RawValue{FullBytes: nullParams},
+		}
+		wrapAlgBytes, _ = asn1.Marshal(defaultAlg)
+	}
+
+	sharedInfo, err := buildECCCMSSharedInfoDecryptRaw(wrapAlgBytes, 256)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build SharedInfo: %w", err)
+	}
+
+	// Derive KEK using ANSI X9.63 KDF with SharedInfo and selected hash
+	kek, err := ansix963KDFDecrypt(sharedSecret, 32, sharedInfo, kdfHash)
 	if err != nil {
 		return nil, fmt.Errorf("KDF failed: %w", err)
 	}
@@ -266,8 +436,14 @@ func decryptKEMRecipient(kemri *KEMRecipientInfo, opts *DecryptOptions) ([]byte,
 		return nil, fmt.Errorf("KEM decapsulation failed: %w", err)
 	}
 
-	// Derive KEK from shared secret using HKDF
-	kek, err := deriveKEKDecrypt(sharedSecret, kemri.KEKLength, []byte("CMS-KEMRecipientInfo"))
+	// Build CMSORIforKEMOtherInfo for HKDF info parameter (RFC 9629 Section 6)
+	kdfInfo, err := buildKEMKDFInfoDecrypt(kemri.Wrap, kemri.KEKLength, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build KDF info: %w", err)
+	}
+
+	// Derive KEK from shared secret using HKDF with RFC 9629 info
+	kek, err := deriveKEKDecrypt(sharedSecret, kemri.KEKLength, kdfInfo)
 	if err != nil {
 		return nil, fmt.Errorf("KDF failed: %w", err)
 	}
@@ -508,6 +684,22 @@ func ansix963KDFSHA256Decrypt(sharedSecret []byte, keySize int, sharedInfo []byt
 	return ansix963KDFDecrypt(sharedSecret, keySize, sharedInfo, sha256.New)
 }
 
+// CMSORIforKEMOtherInfoDecrypt is the structure for HKDF info in KEMRecipientInfo (RFC 9629 Section 6).
+type CMSORIforKEMOtherInfoDecrypt struct {
+	Wrap      pkix.AlgorithmIdentifier
+	KEKLength int
+	// UKM is optional and omitted if nil
+}
+
+// buildKEMKDFInfoDecrypt builds the DER-encoded CMSORIforKEMOtherInfo for HKDF info (RFC 9629).
+func buildKEMKDFInfoDecrypt(wrap pkix.AlgorithmIdentifier, kekLength int, ukm []byte) ([]byte, error) {
+	info := CMSORIforKEMOtherInfoDecrypt{
+		Wrap:      wrap,
+		KEKLength: kekLength,
+	}
+	return asn1.Marshal(info)
+}
+
 // deriveKEKDecrypt derives a KEK from shared secret using HKDF for decryption.
 func deriveKEKDecrypt(sharedSecret []byte, keySize int, info []byte) ([]byte, error) {
 	reader := hkdf.New(sha256.New, sharedSecret, nil, info)
@@ -533,5 +725,107 @@ func getMLKEMPrivateKeyBytes(priv crypto.PrivateKey) []byte {
 	default:
 		return nil
 	}
+}
+
+// buildECCCMSSharedInfoDecrypt builds the ECC-CMS-SharedInfo structure for KDF (RFC 5753).
+// ECC-CMS-SharedInfo ::= SEQUENCE {
+//
+//	keyInfo AlgorithmIdentifier,
+//	entityUInfo [0] EXPLICIT OCTET STRING OPTIONAL,
+//	suppPubInfo [2] EXPLICIT OCTET STRING
+//
+// }
+// suppPubInfo contains the key length in bits as a 4-byte big-endian integer.
+func buildECCCMSSharedInfoDecrypt(wrapAlgOID asn1.ObjectIdentifier, keyBits int) ([]byte, error) {
+	// keyInfo: AlgorithmIdentifier for wrap algorithm
+	// RFC 5753: AES wrap algorithms have absent parameters.
+	// This MUST match what's in KeyEncryptionAlgorithm.parameters in the CMS message.
+	keyInfo := pkix.AlgorithmIdentifier{
+		Algorithm: wrapAlgOID,
+	}
+	keyInfoBytes, err := asn1.Marshal(keyInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal keyInfo: %w", err)
+	}
+
+	// suppPubInfo: key length in bits as 4-byte big-endian in OCTET STRING
+	// wrapped in [2] EXPLICIT
+	keyLenBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(keyLenBytes, uint32(keyBits))
+	suppPubInfoOctetString, err := asn1.Marshal(keyLenBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal suppPubInfo octet string: %w", err)
+	}
+
+	// Wrap suppPubInfo with [2] EXPLICIT tag
+	suppPubInfoTagged, err := asn1.Marshal(asn1.RawValue{
+		Class:      asn1.ClassContextSpecific,
+		Tag:        2,
+		IsCompound: true,
+		Bytes:      suppPubInfoOctetString,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal suppPubInfo tagged: %w", err)
+	}
+
+	// Build complete ECC-CMS-SharedInfo SEQUENCE
+	// RFC 5753: "the ECC-CMS-SharedInfo value ... is DER encoded and passed
+	// as SharedInfo to the X9.63 KDF"
+	seqContent := append(keyInfoBytes, suppPubInfoTagged...)
+	sharedInfo, err := asn1.Marshal(asn1.RawValue{
+		Class:      asn1.ClassUniversal,
+		Tag:        asn1.TagSequence,
+		IsCompound: true,
+		Bytes:      seqContent,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal SharedInfo sequence: %w", err)
+	}
+
+	return sharedInfo, nil
+}
+
+// buildECCCMSSharedInfoDecryptRaw builds ECC-CMS-SharedInfo using raw keyInfo bytes.
+// This is used for decryption to preserve the exact bytes from the CMS message,
+// ensuring interoperability with different implementations (OpenSSL, BouncyCastle).
+func buildECCCMSSharedInfoDecryptRaw(keyInfoBytes []byte, keyBits int) ([]byte, error) {
+	// suppPubInfo: key length in bits as 4-byte big-endian in OCTET STRING
+	// wrapped in [2] EXPLICIT
+	keyLenBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(keyLenBytes, uint32(keyBits))
+	suppPubInfoOctetString, err := asn1.Marshal(keyLenBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal suppPubInfo octet string: %w", err)
+	}
+
+	// Wrap suppPubInfo with [2] EXPLICIT tag
+	suppPubInfoTagged, err := asn1.Marshal(asn1.RawValue{
+		Class:      asn1.ClassContextSpecific,
+		Tag:        2,
+		IsCompound: true,
+		Bytes:      suppPubInfoOctetString,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal suppPubInfo tagged: %w", err)
+	}
+
+	// Build complete ECC-CMS-SharedInfo SEQUENCE
+	// Use the EXACT keyInfoBytes as-is (do not re-marshal)
+	// IMPORTANT: Copy keyInfoBytes first! It may be a slice into a shared buffer
+	// (e.g., the original CMS message), and append would corrupt subsequent data.
+	seqContent := make([]byte, 0, len(keyInfoBytes)+len(suppPubInfoTagged))
+	seqContent = append(seqContent, keyInfoBytes...)
+	seqContent = append(seqContent, suppPubInfoTagged...)
+	sharedInfo, err := asn1.Marshal(asn1.RawValue{
+		Class:      asn1.ClassUniversal,
+		Tag:        asn1.TagSequence,
+		IsCompound: true,
+		Bytes:      seqContent,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal SharedInfo sequence: %w", err)
+	}
+
+	return sharedInfo, nil
 }
 

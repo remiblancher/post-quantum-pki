@@ -40,7 +40,7 @@ echo ""
 
 # Clean previous fixtures
 rm -rf "$OUT"
-mkdir -p "$OUT"/{classical,pqc/mldsa,pqc/slhdsa,catalyst,composite,csr}
+mkdir -p "$OUT"/{classical,rsa,pqc/mldsa,pqc/slhdsa,catalyst,composite,csr}
 
 # =============================================================================
 # Classical ECDSA
@@ -58,6 +58,21 @@ echo ">>> Generating Classical ECDSA..."
     --var cn="ECDSA TSA"
 "$PKI" crl gen -d "$OUT/classical/ca"
 echo "    Classical ECDSA: OK (CA + TLS + OCSP + Signing + TSA + CRL)"
+
+# =============================================================================
+# Classical RSA
+# =============================================================================
+echo ">>> Generating Classical RSA..."
+"$PKI" ca init --profile rsa/root-ca --var cn="Test RSA CA" --ca-dir "$OUT/rsa/ca"
+"$PKI" ca export -d "$OUT/rsa/ca" -o "$OUT/rsa/ca/ca.crt"
+"$PKI" credential enroll -d "$OUT/rsa/ca" -c "$OUT/rsa/ca/credentials" --profile rsa/tls-server \
+    --var cn=rsa.test.local --var dns_names=rsa.test.local
+"$PKI" credential enroll -d "$OUT/rsa/ca" -c "$OUT/rsa/ca/credentials" --profile rsa/signing \
+    --var cn="RSA Signer"
+"$PKI" credential enroll -d "$OUT/rsa/ca" -c "$OUT/rsa/ca/credentials" --profile rsa/timestamping \
+    --var cn="RSA TSA"
+"$PKI" crl gen -d "$OUT/rsa/ca"
+echo "    Classical RSA: OK (CA + TLS + Signing + TSA + CRL)"
 
 # =============================================================================
 # PQC ML-DSA-87
@@ -188,10 +203,103 @@ generate_protocol_fixtures() {
 
 # Generate for each CA type
 generate_protocol_fixtures "$OUT/classical/ca" "$OUT/classical" "Classical ECDSA"
+generate_protocol_fixtures "$OUT/rsa/ca" "$OUT/rsa" "Classical RSA"
 generate_protocol_fixtures "$OUT/pqc/mldsa/ca" "$OUT/pqc/mldsa" "PQC ML-DSA-87"
 generate_protocol_fixtures "$OUT/pqc/slhdsa/ca" "$OUT/pqc/slhdsa" "PQC SLH-DSA"
 generate_protocol_fixtures "$OUT/catalyst/ca" "$OUT/catalyst" "Catalyst Hybrid"
 generate_protocol_fixtures "$OUT/composite/ca" "$OUT/composite" "Composite Hybrid"
+
+# =============================================================================
+# CMS Encryption Fixtures Generation
+# =============================================================================
+echo ""
+echo ">>> Generating CMS Encryption fixtures..."
+
+# Function to generate CMS encryption fixtures
+generate_encryption_fixtures() {
+    local CA_DIR="$1"
+    local OUT_DIR="$2"
+    local NAME="$3"
+    local ENC_PROFILE="$4"
+
+    # Check if encryption profile exists
+    if [ -z "$ENC_PROFILE" ]; then
+        echo "    $NAME Encryption: SKIP (no encryption profile)"
+        return
+    fi
+
+    # Create encryption credential
+    local ENC_CRED_DIR="$OUT_DIR/encryption-cred"
+    mkdir -p "$ENC_CRED_DIR"
+
+    if ! "$PKI" credential enroll -d "$CA_DIR" -c "$ENC_CRED_DIR" --profile "$ENC_PROFILE" \
+        --var cn="$NAME Encryption Recipient" 2>/dev/null; then
+        echo "    $NAME Encryption: SKIP (enrollment failed)"
+        return
+    fi
+
+    # Find the created credential
+    local CRED=$(find "$ENC_CRED_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)
+    if [ -z "$CRED" ]; then
+        echo "    $NAME Encryption: SKIP (no credential found)"
+        return
+    fi
+
+    # Generate encrypted message
+    # Use AES-256-CBC for classical (ECDH/RSA) - EnvelopedData
+    # Use AES-256-GCM for ML-KEM - AuthEnvelopedData
+    local CONTENT_ENC="aes-256-gcm"
+    if [[ "$NAME" == "ECDH" ]] || [[ "$NAME" == "RSA" ]]; then
+        CONTENT_ENC="aes-256-cbc"
+    fi
+    if "$PKI" cms encrypt --recipient "$CRED/certificates.pem" \
+        --in "$OUT/testdata.txt" --out "$OUT_DIR/cms-enveloped.p7m" \
+        --content-enc "$CONTENT_ENC" 2>/dev/null; then
+        # Copy key for decryption tests
+        cp "$CRED/private-keys.pem" "$OUT_DIR/encryption-key.pem"
+        cp "$CRED/certificates.pem" "$OUT_DIR/encryption-cert.pem"
+        echo "    $NAME Encryption: OK (EnvelopedData)"
+    else
+        echo "    $NAME Encryption: FAIL (encryption error)"
+    fi
+}
+
+# Classical ECDH encryption (AES-CBC for EnvelopedData)
+generate_encryption_fixtures "$OUT/classical/ca" "$OUT/classical" "ECDH" "ec/encryption"
+
+# RSA encryption (AES-CBC for EnvelopedData)
+generate_encryption_fixtures "$OUT/rsa/ca" "$OUT/rsa" "RSA" "rsa/encryption"
+
+# Classical ECDH encryption (AES-GCM for AuthEnvelopedData)
+generate_encryption_fixtures_gcm() {
+    local CA_DIR="$1"
+    local OUT_DIR="$2"
+    local NAME="$3"
+    local ENC_PROFILE="$4"
+
+    # Reuse existing encryption credential
+    local CRED=$(find "$OUT_DIR/encryption-cred" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)
+    if [ -z "$CRED" ]; then
+        echo "    $NAME AuthEnveloped: SKIP (no credential found)"
+        return
+    fi
+
+    # Generate encrypted message with AES-256-GCM (AuthEnvelopedData)
+    if "$PKI" cms encrypt --recipient "$CRED/certificates.pem" \
+        --in "$OUT/testdata.txt" --out "$OUT_DIR/cms-auth-enveloped.p7m" \
+        --content-enc "aes-256-gcm" 2>/dev/null; then
+        echo "    $NAME AuthEnveloped: OK (AuthEnvelopedData + AES-GCM)"
+    else
+        echo "    $NAME AuthEnveloped: FAIL (encryption error)"
+    fi
+}
+generate_encryption_fixtures_gcm "$OUT/classical/ca" "$OUT/classical" "ECDH" "ec/encryption"
+
+# RSA encryption (AES-GCM for AuthEnvelopedData)
+generate_encryption_fixtures_gcm "$OUT/rsa/ca" "$OUT/rsa" "RSA" "rsa/encryption"
+
+# ML-KEM encryption (PQC)
+generate_encryption_fixtures "$OUT/pqc/mldsa/ca" "$OUT/pqc/mldsa" "ML-KEM" "ml/encryption"
 
 # =============================================================================
 # CSR Generation (for cross-testing CSR verification)
@@ -240,6 +348,7 @@ echo "=== Fixture Generation Complete ==="
 echo ""
 echo "Generated CA hierarchies:"
 echo "  - Classical ECDSA:    $OUT/classical/ca/"
+echo "  - Classical RSA:      $OUT/rsa/ca/"
 echo "  - PQC ML-DSA-87:      $OUT/pqc/mldsa/ca/"
 echo "  - PQC SLH-DSA:        $OUT/pqc/slhdsa/ca/"
 echo "  - Catalyst Hybrid:    $OUT/catalyst/ca/"
@@ -255,6 +364,7 @@ echo ""
 echo "Generated CMS/OCSP/TSA fixtures (per CA):"
 echo "  - cms-attached.p7s   (CMS SignedData with content)"
 echo "  - cms-detached.p7s   (CMS SignedData detached)"
+echo "  - cms-enveloped.p7m  (CMS EnvelopedData, if encryption supported)"
 echo "  - ocsp-good.der      (OCSP Response, status=good)"
 echo "  - timestamp.tsr      (RFC 3161 Timestamp Token)"
 echo ""
