@@ -15,6 +15,7 @@ import (
 // =============================================================================
 
 // TestF_EncryptDecrypt_RSA_AES256GCM tests RSA encryption with AES-256-GCM.
+// AES-GCM uses AuthEnvelopedData (RFC 5083) for authenticated encryption.
 func TestF_EncryptDecrypt_RSA_AES256GCM(t *testing.T) {
 	kp := generateRSAKeyPair(t, 2048)
 	cert := generateTestCertificate(t, kp)
@@ -30,14 +31,14 @@ func TestF_EncryptDecrypt_RSA_AES256GCM(t *testing.T) {
 		t.Fatalf("Encrypt failed: %v", err)
 	}
 
-	// Verify it's an EnvelopedData
+	// Verify it's an AuthEnvelopedData (GCM uses authenticated encryption)
 	var ci ContentInfo
 	_, err = asn1.Unmarshal(ciphertext, &ci)
 	if err != nil {
 		t.Fatalf("Failed to parse ContentInfo: %v", err)
 	}
-	if !ci.ContentType.Equal(OIDEnvelopedData) {
-		t.Errorf("Expected EnvelopedData OID, got %v", ci.ContentType)
+	if !ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		t.Errorf("Expected AuthEnvelopedData OID for AES-GCM, got %v", ci.ContentType)
 	}
 
 	// Decrypt
@@ -685,6 +686,361 @@ func TestF_EncryptDecrypt_MLKEM_LargeContent(t *testing.T) {
 
 	result, err := Decrypt(ciphertext, &DecryptOptions{
 		PrivateKey: kemKP.PrivateKey,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if !bytes.Equal(result.Content, plaintext) {
+		t.Errorf("Content mismatch for large content")
+	}
+}
+
+// =============================================================================
+// Functional Tests: AuthEnvelopedData (RFC 5083)
+// =============================================================================
+
+// TestF_AuthEnvelopedData_RSA_AES256GCM tests AuthEnvelopedData with RSA and AES-256-GCM.
+func TestF_AuthEnvelopedData_RSA_AES256GCM(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	plaintext := []byte("Hello, AuthEnvelopedData with RSA!")
+
+	// Encrypt with AES-256-GCM (should produce AuthEnvelopedData)
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Verify it's an AuthEnvelopedData
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+	if !ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		t.Errorf("Expected AuthEnvelopedData OID, got %v", ci.ContentType)
+	}
+
+	// Decrypt
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kp.PrivateKey,
+		Certificate: cert,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if !bytes.Equal(result.Content, plaintext) {
+		t.Errorf("Decrypted content mismatch: expected %q, got %q", plaintext, result.Content)
+	}
+}
+
+// TestF_AuthEnvelopedData_ECDH_AES256GCM tests AuthEnvelopedData with ECDH and AES-256-GCM.
+func TestF_AuthEnvelopedData_ECDH_AES256GCM(t *testing.T) {
+	kp := generateECDSAKeyPair(t, elliptic.P256())
+	cert := generateTestCertificate(t, kp)
+
+	plaintext := []byte("Hello, AuthEnvelopedData with ECDH!")
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Verify it's an AuthEnvelopedData
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+	if !ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		t.Errorf("Expected AuthEnvelopedData OID, got %v", ci.ContentType)
+	}
+
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kp.PrivateKey,
+		Certificate: cert,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if !bytes.Equal(result.Content, plaintext) {
+		t.Errorf("Decrypted content mismatch")
+	}
+}
+
+// TestF_AuthEnvelopedData_MLKEM_AES256GCM tests AuthEnvelopedData with ML-KEM and AES-256-GCM.
+func TestF_AuthEnvelopedData_MLKEM_AES256GCM(t *testing.T) {
+	kemKP := generateMLKEMKeyPair(t, pkicrypto.AlgMLKEM768)
+	cert := generateMLKEMCertificate(t, kemKP)
+
+	plaintext := []byte("Hello, AuthEnvelopedData with ML-KEM!")
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Verify it's an AuthEnvelopedData
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+	if !ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		t.Errorf("Expected AuthEnvelopedData OID, got %v", ci.ContentType)
+	}
+
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kemKP.PrivateKey,
+		Certificate: cert,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if !bytes.Equal(result.Content, plaintext) {
+		t.Errorf("Decrypted content mismatch")
+	}
+}
+
+// TestF_AuthEnvelopedData_Structure tests the AuthEnvelopedData structure is correct.
+func TestF_AuthEnvelopedData_Structure(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	plaintext := []byte("Test structure")
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Parse and verify structure
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+
+	var authEnv AuthEnvelopedData
+	_, err = asn1.Unmarshal(ci.Content.Bytes, &authEnv)
+	if err != nil {
+		t.Fatalf("Failed to parse AuthEnvelopedData: %v", err)
+	}
+
+	// Verify version (should be 0 per RFC 5083)
+	if authEnv.Version != 0 {
+		t.Errorf("Expected version 0, got %d", authEnv.Version)
+	}
+
+	// Verify MAC is present and has correct size (16 bytes for GCM tag)
+	if len(authEnv.MAC) != 16 {
+		t.Errorf("Expected 16-byte MAC (GCM tag), got %d bytes", len(authEnv.MAC))
+	}
+
+	// Verify RecipientInfos is not empty
+	if len(authEnv.RecipientInfos) == 0 {
+		t.Error("Expected at least one RecipientInfo")
+	}
+
+	// Verify content encryption algorithm is AES-256-GCM
+	if !authEnv.AuthEncryptedContentInfo.ContentEncryptionAlgorithm.Algorithm.Equal(OIDAES256GCM) {
+		t.Errorf("Expected AES-256-GCM algorithm")
+	}
+}
+
+// TestF_AuthEnvelopedData_AES128GCM tests AuthEnvelopedData with AES-128-GCM.
+func TestF_AuthEnvelopedData_AES128GCM(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	plaintext := []byte("Hello with AES-128-GCM!")
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES128GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Verify it's AuthEnvelopedData
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+	if !ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		t.Errorf("Expected AuthEnvelopedData OID")
+	}
+
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kp.PrivateKey,
+		Certificate: cert,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if !bytes.Equal(result.Content, plaintext) {
+		t.Errorf("Decrypted content mismatch")
+	}
+}
+
+// TestF_EnvelopedData_AES256CBC tests that AES-CBC still produces EnvelopedData.
+func TestF_EnvelopedData_AES256CBC(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	plaintext := []byte("Hello with AES-256-CBC!")
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256CBC,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Verify it's EnvelopedData (NOT AuthEnvelopedData)
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+	if !ci.ContentType.Equal(OIDEnvelopedData) {
+		t.Errorf("Expected EnvelopedData OID for AES-CBC, got %v", ci.ContentType)
+	}
+
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kp.PrivateKey,
+		Certificate: cert,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if !bytes.Equal(result.Content, plaintext) {
+		t.Errorf("Decrypted content mismatch")
+	}
+}
+
+// TestF_AuthEnvelopedData_MultipleRecipients tests AuthEnvelopedData with multiple recipients.
+func TestF_AuthEnvelopedData_MultipleRecipients(t *testing.T) {
+	// RSA recipient
+	rsaKP := generateRSAKeyPair(t, 2048)
+	rsaCert := generateTestCertificate(t, rsaKP)
+
+	// ECDH recipient
+	ecKP := generateECDSAKeyPair(t, elliptic.P256())
+	ecCert := generateTestCertificate(t, ecKP)
+
+	// ML-KEM recipient
+	kemKP := generateMLKEMKeyPair(t, pkicrypto.AlgMLKEM768)
+	kemCert := generateMLKEMCertificate(t, kemKP)
+
+	plaintext := []byte("Hello to all recipients with AuthEnvelopedData!")
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{rsaCert, ecCert, kemCert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Verify it's AuthEnvelopedData
+	var ci ContentInfo
+	_, err = asn1.Unmarshal(ciphertext, &ci)
+	if err != nil {
+		t.Fatalf("Failed to parse ContentInfo: %v", err)
+	}
+	if !ci.ContentType.Equal(OIDAuthEnvelopedData) {
+		t.Errorf("Expected AuthEnvelopedData OID")
+	}
+
+	// Each recipient can decrypt
+	for name, opts := range map[string]*DecryptOptions{
+		"RSA":    {PrivateKey: rsaKP.PrivateKey, Certificate: rsaCert},
+		"ECDH":   {PrivateKey: ecKP.PrivateKey, Certificate: ecCert},
+		"ML-KEM": {PrivateKey: kemKP.PrivateKey, Certificate: kemCert},
+	} {
+		result, err := Decrypt(ciphertext, opts)
+		if err != nil {
+			t.Fatalf("%s decrypt failed: %v", name, err)
+		}
+		if !bytes.Equal(result.Content, plaintext) {
+			t.Errorf("%s: decrypted content mismatch", name)
+		}
+	}
+}
+
+// TestF_AuthEnvelopedData_EmptyContent tests AuthEnvelopedData with empty content.
+func TestF_AuthEnvelopedData_EmptyContent(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	plaintext := []byte{}
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kp.PrivateKey,
+		Certificate: cert,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+
+	if len(result.Content) != 0 {
+		t.Errorf("Expected empty content, got %d bytes", len(result.Content))
+	}
+}
+
+// TestF_AuthEnvelopedData_LargeContent tests AuthEnvelopedData with large content.
+func TestF_AuthEnvelopedData_LargeContent(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	// 100 KB content
+	plaintext := make([]byte, 100*1024)
+	for i := range plaintext {
+		plaintext[i] = byte(i % 256)
+	}
+
+	ciphertext, err := Encrypt(plaintext, &EncryptOptions{
+		Recipients:        []*x509.Certificate{cert},
+		ContentEncryption: AES256GCM,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	result, err := Decrypt(ciphertext, &DecryptOptions{
+		PrivateKey:  kp.PrivateKey,
+		Certificate: cert,
 	})
 	if err != nil {
 		t.Fatalf("Decrypt failed: %v", err)

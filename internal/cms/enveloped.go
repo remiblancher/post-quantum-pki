@@ -23,6 +23,27 @@ type EnvelopedData struct {
 	UnprotectedAttrs     []Attribute          `asn1:"optional,set,tag:1"`
 }
 
+// AuthEnvelopedData represents CMS AuthEnvelopedData (RFC 5083).
+// Used for authenticated encryption (AES-GCM).
+//
+//	AuthEnvelopedData ::= SEQUENCE {
+//	  version CMSVersion,
+//	  originatorInfo [0] IMPLICIT OriginatorInfo OPTIONAL,
+//	  recipientInfos RecipientInfos,
+//	  authEncryptedContentInfo EncryptedContentInfo,
+//	  authAttrs [1] IMPLICIT AuthAttributes OPTIONAL,
+//	  mac MessageAuthenticationCode,
+//	  unauthAttrs [2] IMPLICIT UnauthAttributes OPTIONAL }
+type AuthEnvelopedData struct {
+	Version                  int
+	OriginatorInfo           asn1.RawValue   `asn1:"optional,tag:0"`
+	RecipientInfos           []asn1.RawValue `asn1:"set"`
+	AuthEncryptedContentInfo EncryptedContentInfo
+	AuthAttrs                []Attribute     `asn1:"optional,set,tag:1"`
+	MAC                      []byte
+	UnauthAttrs              []Attribute     `asn1:"optional,set,tag:2"`
+}
+
 // EncryptedContentInfo contains the encrypted content (RFC 5652 Section 6.1).
 //
 //	EncryptedContentInfo ::= SEQUENCE {
@@ -622,17 +643,18 @@ func MarshalKeyAgreeRecipientInfo(kari *KeyAgreeRecipientInfo) ([]byte, error) {
 	return result, nil
 }
 
-// MarshalKEMRecipientInfo marshals KEMRecipientInfo with [2] IMPLICIT tag.
+// MarshalKEMRecipientInfo marshals KEMRecipientInfo wrapped in OtherRecipientInfo [4].
+// Per RFC 9629, KEMRecipientInfo must be wrapped in OtherRecipientInfo with id-ori-kem OID.
 func MarshalKEMRecipientInfo(kemri *KEMRecipientInfo) ([]byte, error) {
-	// Build the SEQUENCE content manually for proper encoding
-	var b []byte
+	// Build the KEMRecipientInfo SEQUENCE content manually for proper encoding
+	var kemriContent []byte
 
 	// version INTEGER
 	versionBytes, err := asn1.Marshal(kemri.Version)
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, versionBytes...)
+	kemriContent = append(kemriContent, versionBytes...)
 
 	// rid RecipientIdentifier (IssuerAndSerialNumber)
 	if kemri.RID.IssuerAndSerial != nil {
@@ -640,7 +662,7 @@ func MarshalKEMRecipientInfo(kemri *KEMRecipientInfo) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		b = append(b, ridBytes...)
+		kemriContent = append(kemriContent, ridBytes...)
 	}
 
 	// kem AlgorithmIdentifier
@@ -648,28 +670,28 @@ func MarshalKEMRecipientInfo(kemri *KEMRecipientInfo) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, kemBytes...)
+	kemriContent = append(kemriContent, kemBytes...)
 
 	// kemct OCTET STRING
 	kemctBytes, err := asn1.Marshal(kemri.KEMCT)
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, kemctBytes...)
+	kemriContent = append(kemriContent, kemctBytes...)
 
 	// kdf AlgorithmIdentifier
 	kdfBytes, err := asn1.Marshal(kemri.KDF)
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, kdfBytes...)
+	kemriContent = append(kemriContent, kdfBytes...)
 
 	// kekLength INTEGER
 	kekLenBytes, err := asn1.Marshal(kemri.KEKLength)
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, kekLenBytes...)
+	kemriContent = append(kemriContent, kekLenBytes...)
 
 	// ukm [0] EXPLICIT OPTIONAL - skip if empty
 	if len(kemri.UKM) > 0 {
@@ -686,7 +708,7 @@ func MarshalKEMRecipientInfo(kemri *KEMRecipientInfo) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		b = append(b, ukmBytes...)
+		kemriContent = append(kemriContent, ukmBytes...)
 	}
 
 	// wrap AlgorithmIdentifier
@@ -694,21 +716,46 @@ func MarshalKEMRecipientInfo(kemri *KEMRecipientInfo) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, wrapBytes...)
+	kemriContent = append(kemriContent, wrapBytes...)
 
 	// encryptedKey OCTET STRING
 	encKeyBytes, err := asn1.Marshal(kemri.EncryptedKey)
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, encKeyBytes...)
+	kemriContent = append(kemriContent, encKeyBytes...)
 
-	// Wrap as [2] IMPLICIT SEQUENCE
+	// Build KEMRecipientInfo as SEQUENCE
+	kemriSeqBytes, err := asn1.Marshal(asn1.RawValue{
+		Class:      asn1.ClassUniversal,
+		Tag:        asn1.TagSequence,
+		IsCompound: true,
+		Bytes:      kemriContent,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build OtherRecipientInfo SEQUENCE content:
+	// OtherRecipientInfo ::= SEQUENCE { oriType OID, oriValue ANY }
+	var oriContent []byte
+
+	// oriType: id-ori-kem OID
+	oriTypeBytes, err := asn1.Marshal(OIDOriKEM)
+	if err != nil {
+		return nil, err
+	}
+	oriContent = append(oriContent, oriTypeBytes...)
+
+	// oriValue: KEMRecipientInfo (already a SEQUENCE)
+	oriContent = append(oriContent, kemriSeqBytes...)
+
+	// Wrap as [4] IMPLICIT SEQUENCE (OtherRecipientInfo)
 	return asn1.Marshal(asn1.RawValue{
 		Class:      asn1.ClassContextSpecific,
-		Tag:        2,
+		Tag:        4,
 		IsCompound: true,
-		Bytes:      b,
+		Bytes:      oriContent,
 	})
 }
 
@@ -820,21 +867,18 @@ func ParseRecipientInfo(raw asn1.RawValue) (interface{}, error) {
 	switch raw.Tag {
 	case asn1.TagSequence:
 		// KeyTransRecipientInfo (default, no tag)
-		var ktri KeyTransRecipientInfo
-		_, err := asn1.Unmarshal(raw.FullBytes, &ktri)
-		return &ktri, err
+		// Use custom parser to handle RecipientIdentifier CHOICE
+		return ParseKeyTransRecipientInfo(raw.FullBytes)
 
 	case 1:
 		// [1] KeyAgreeRecipientInfo
-		var kari KeyAgreeRecipientInfo
-		_, err := asn1.Unmarshal(raw.Bytes, &kari)
-		return &kari, err
+		// Use custom parser - raw.Bytes doesn't have SEQUENCE wrapper
+		return ParseKeyAgreeRecipientInfo(raw.Bytes)
 
 	case 2:
 		// [2] KEMRecipientInfo
-		var kemri KEMRecipientInfo
-		_, err := asn1.Unmarshal(raw.Bytes, &kemri)
-		return &kemri, err
+		// Use custom parser - raw.Bytes doesn't have SEQUENCE wrapper
+		return ParseKEMRecipientInfo(raw.Bytes)
 
 	default:
 		return nil, asn1.StructuralError{Msg: "unsupported RecipientInfo type"}
