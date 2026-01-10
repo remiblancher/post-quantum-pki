@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
@@ -47,13 +48,13 @@ func init() {
 
 func runList(cmd *cobra.Command, args []string) error {
 	absDir, _ := filepath.Abs(listCADir)
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 
 	if !store.Exists() {
 		return fmt.Errorf("CA not found at %s", absDir)
 	}
 
-	entries, err := store.ReadIndex()
+	entries, err := store.ReadIndex(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to read certificate index: %w", err)
 	}

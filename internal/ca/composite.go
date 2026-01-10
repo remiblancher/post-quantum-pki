@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
@@ -288,7 +289,7 @@ func CreateCompositeSignature(
 
 // InitializeCompositeCA creates a new composite CA with self-signed certificate.
 // The CA certificate uses IETF composite signature format.
-func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
+func InitializeCompositeCA(store Store, cfg CompositeCAConfig) (*CA, error) {
 	if store.Exists() {
 		return nil, fmt.Errorf("CA already exists at %s", store.BasePath())
 	}
@@ -299,7 +300,7 @@ func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("unsupported composite algorithm combination: %w", err)
 	}
 
-	if err := store.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -369,7 +370,7 @@ func InitializeCompositeCA(store *Store, cfg CompositeCAConfig) (*CA, error) {
 	}
 
 	// Generate serial number
-	serialBytes, err := store.NextSerial()
+	serialBytes, err := store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -556,7 +557,7 @@ func (ca *CA) IssueComposite(req CompositeRequest) (*x509.Certificate, error) {
 	}
 
 	// Generate serial number
-	serialBytes, err := ca.store.NextSerial()
+	serialBytes, err := ca.store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -651,7 +652,7 @@ func (ca *CA) IssueComposite(req CompositeRequest) (*x509.Certificate, error) {
 	}
 
 	// Save to store
-	if err := ca.store.SaveCert(parsedCert); err != nil {
+	if err := ca.store.SaveCert(context.Background(), parsedCert); err != nil {
 		return nil, fmt.Errorf("failed to save certificate: %w", err)
 	}
 

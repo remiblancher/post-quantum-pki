@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -135,7 +136,7 @@ func TestRotateCA_CANotFound(t *testing.T) {
 
 func TestRotateCA_DryRun(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -198,7 +199,7 @@ func TestRotateCA_DryRun(t *testing.T) {
 
 func TestRotateCA_ProfileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -252,7 +253,7 @@ func TestRotateCA_HybridProfileShowsBothAlgorithms(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			store := NewStore(tmpDir)
+			store := NewFileStore(tmpDir)
 
 			// Initialize classical CA
 			cfg := Config{
@@ -370,10 +371,10 @@ func TestFirstOrEmpty(t *testing.T) {
 
 func TestDetermineCurrentProfile_NoMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	// Initialize store without metadata
-	if err := store.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
 
@@ -415,7 +416,7 @@ func TestParseJSON(t *testing.T) {
 
 func TestInitializeCAInDir_Classical(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test CA",
@@ -447,7 +448,7 @@ func TestInitializeCAInDir_Classical(t *testing.T) {
 
 func TestInitializeCAInDir_RSA(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test RSA CA",
@@ -477,7 +478,7 @@ func TestInitializeCAInDir_RSA(t *testing.T) {
 
 func TestInitializeCAInDir_Ed25519(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Ed25519 CA",
@@ -507,7 +508,7 @@ func TestInitializeCAInDir_Ed25519(t *testing.T) {
 
 func TestInitializeCAInDir_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test CA",
@@ -533,7 +534,7 @@ func TestInitializeCAInDir_WithPassphrase(t *testing.T) {
 
 func TestInitializePQCCAInDir_MLDSA65(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test PQC CA",
@@ -563,7 +564,7 @@ func TestInitializePQCCAInDir_MLDSA65(t *testing.T) {
 
 func TestInitializePQCCAInDir_MLDSA87(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test PQC CA 87",
@@ -588,7 +589,7 @@ func TestInitializePQCCAInDir_MLDSA87(t *testing.T) {
 
 func TestInitializeHybridCAInDir(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
@@ -621,7 +622,7 @@ func TestInitializeHybridCAInDir(t *testing.T) {
 
 func TestInitializeHybridCAInDir_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
@@ -648,7 +649,7 @@ func TestInitializeHybridCAInDir_WithPassphrase(t *testing.T) {
 
 func TestCrossSign_Classical(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	// Create old CA
 	oldCfg := Config{
@@ -665,7 +666,7 @@ func TestCrossSign_Classical(t *testing.T) {
 
 	// Create new CA
 	newDir := t.TempDir()
-	newStore := NewStore(newDir)
+	newStore := NewFileStore(newDir)
 
 	newCfg := Config{
 		CommonName:    "New CA",

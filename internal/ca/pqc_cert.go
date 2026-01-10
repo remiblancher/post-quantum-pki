@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -125,7 +126,7 @@ type PQCCAConfig struct {
 // since Go's crypto/x509 doesn't support PQC algorithms.
 //
 // Supported algorithms: ml-dsa-44, ml-dsa-65, ml-dsa-87
-func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
+func InitializePQCCA(store Store, cfg PQCCAConfig) (*CA, error) {
 	if store.Exists() {
 		return nil, fmt.Errorf("CA already exists at %s", store.BasePath())
 	}
@@ -138,7 +139,7 @@ func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
 		return nil, fmt.Errorf("algorithm %s is not suitable for signing", cfg.Algorithm)
 	}
 
-	if err := store.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -196,7 +197,7 @@ func InitializePQCCA(store *Store, cfg PQCCAConfig) (*CA, error) {
 	}
 
 	// Generate serial number
-	serialBytes, err := store.NextSerial()
+	serialBytes, err := store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -547,7 +548,7 @@ func (ca *CA) IssuePQC(req IssueRequest) (*x509.Certificate, error) {
 	}
 
 	// Generate serial number
-	serialBytes, err := ca.store.NextSerial()
+	serialBytes, err := ca.store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -660,7 +661,7 @@ func (ca *CA) IssuePQC(req IssueRequest) (*x509.Certificate, error) {
 	}
 
 	// Save to store
-	if err := ca.store.SaveCert(parsedCert); err != nil {
+	if err := ca.store.SaveCert(context.Background(), parsedCert); err != nil {
 		return nil, fmt.Errorf("failed to save certificate: %w", err)
 	}
 

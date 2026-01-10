@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -43,7 +44,7 @@ type MultiProfileEnrollRequest struct {
 	Passphrase []byte
 
 	// CredentialStore to save the credential.
-	CredentialStore *credential.FileStore
+	CredentialStore credential.Store
 
 	// AutoActivate activates the credential immediately (default: false = PENDING).
 	AutoActivate bool
@@ -69,6 +70,9 @@ type MultiProfileEnrollResult struct {
 
 // CredentialRotateRequest holds parameters for rotating a versioned credential.
 type CredentialRotateRequest struct {
+	// Context for cancellation and timeouts.
+	Context context.Context
+
 	// CredentialID is the credential to rotate.
 	CredentialID string
 
@@ -79,7 +83,7 @@ type CredentialRotateRequest struct {
 	Passphrase []byte
 
 	// CredentialStore to load/save credentials.
-	CredentialStore *credential.FileStore
+	CredentialStore credential.Store
 
 	// KeyMode controls key generation (new keys vs reuse existing).
 	KeyMode KeyRotationMode
@@ -138,7 +142,7 @@ type EnrollmentResult struct {
 // Enroll creates a certificate according to a single profile.
 // Design: 1 profile = 1 certificate.
 // For credentials with multiple certificates, use EnrollMulti.
-func (ca *CA) Enroll(req EnrollmentRequest, profileStore *profile.ProfileStore) (*EnrollmentResult, error) {
+func (ca *CA) Enroll(req EnrollmentRequest, profileStore profile.Store) (*EnrollmentResult, error) {
 	if ca.signer == nil {
 		return nil, fmt.Errorf("CA signer not loaded")
 	}
@@ -533,7 +537,7 @@ func (ca *CA) EnrollMultiProfileVersioned(req MultiProfileEnrollRequest) (*Multi
 	cred.Versions[cred.Active] = ver
 
 	// Set base path for credential
-	credDir := req.CredentialStore.CredentialPath(credentialID)
+	credDir := credential.CredentialPath(req.CredentialStore.BasePath(), credentialID)
 	cred.SetBasePath(credDir)
 
 	result := &MultiProfileEnrollResult{
@@ -597,7 +601,7 @@ func (ca *CA) EnrollMultiProfileVersioned(req MultiProfileEnrollRequest) (*Multi
 
 		// Get algorithm family and save to version directory
 		algoFamily := profileAlgoFamily(prof)
-		if err := req.CredentialStore.SaveVersion(credentialID, cred.Active, algoFamily,
+		if err := credential.SaveVersion(req.CredentialStore.BasePath(), credentialID, cred.Active, algoFamily,
 			[]*x509.Certificate{cert}, signers, req.Passphrase); err != nil {
 			return nil, fmt.Errorf("failed to save version files for %s: %w", algoFamily, err)
 		}
@@ -622,8 +626,14 @@ func (ca *CA) RotateCredentialVersioned(req CredentialRotateRequest) (*Credentia
 		return nil, fmt.Errorf("credential store is required")
 	}
 
+	// Use provided context or fall back to background
+	ctx := req.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Load existing credential
-	cred, err := req.CredentialStore.Load(req.CredentialID)
+	cred, err := req.CredentialStore.Load(ctx, req.CredentialID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load credential: %w", err)
 	}
@@ -664,7 +674,7 @@ func (ca *CA) RotateCredentialVersioned(req CredentialRotateRequest) (*Credentia
 	}
 
 	// Set base path
-	credDir := req.CredentialStore.CredentialPath(req.CredentialID)
+	credDir := credential.CredentialPath(req.CredentialStore.BasePath(), req.CredentialID)
 	cred.SetBasePath(credDir)
 
 	result := &CredentialRotateResult{
@@ -720,7 +730,7 @@ func (ca *CA) RotateCredentialVersioned(req CredentialRotateRequest) (*Credentia
 
 		// Save certificate and keys to version directory
 		algoFamily := profileAlgoFamily(prof)
-		if err := req.CredentialStore.SaveVersion(req.CredentialID, newVersionID, algoFamily,
+		if err := credential.SaveVersion(req.CredentialStore.BasePath(), req.CredentialID, newVersionID, algoFamily,
 			[]*x509.Certificate{cert}, signers, req.Passphrase); err != nil {
 			return nil, fmt.Errorf("failed to save version files for %s: %w", algoFamily, err)
 		}
@@ -929,9 +939,9 @@ func compiledProfileAlgoFamily(cp *profile.CompiledProfile) string {
 // RotateCredential rotates all certificates in a credential.
 // keyMode controls whether to generate new keys (KeyRotateNew) or reuse existing (KeyRotateKeep).
 // If newProfiles is provided, use those instead of existing profiles (crypto-agility).
-func (ca *CA) RotateCredential(credentialID string, credentialStore *credential.FileStore, profileStore *profile.ProfileStore, passphrase []byte, keyMode KeyRotationMode, newProfiles []string) (*EnrollmentResult, error) {
+func (ca *CA) RotateCredential(ctx context.Context, credentialID string, credentialStore credential.Store, profileStore profile.Store, passphrase []byte, keyMode KeyRotationMode, newProfiles []string) (*EnrollmentResult, error) {
 	// Load existing credential
-	existingCredential, err := credentialStore.Load(credentialID)
+	existingCredential, err := credentialStore.Load(ctx, credentialID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load credential: %w", err)
 	}
@@ -967,7 +977,7 @@ func (ca *CA) RotateCredential(credentialID string, credentialStore *credential.
 
 	if keyMode == KeyRotateKeep {
 		// Load existing keys to reuse
-		existingSigners, err := credentialStore.LoadKeys(credentialID, passphrase)
+		existingSigners, err := credentialStore.LoadKeys(ctx, credentialID, passphrase)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load existing keys: %w", err)
 		}
@@ -993,12 +1003,12 @@ func (ca *CA) RotateCredential(credentialID string, credentialStore *credential.
 	}
 
 	// Save new credential
-	if err := credentialStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credentialStore.Save(ctx, result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		return nil, fmt.Errorf("failed to save credential: %w", err)
 	}
 
 	// Mark old credential as expired (non-fatal if it fails)
-	_ = credentialStore.UpdateStatus(credentialID, credential.StatusExpired, "rotated")
+	_ = credentialStore.UpdateStatus(ctx, credentialID, credential.StatusExpired, "rotated")
 
 	return result, nil
 }
@@ -1230,15 +1240,15 @@ func (ca *CA) issueCompositeCertWithExistingKeys(req EnrollmentRequest, prof *pr
 }
 
 // RevokeCredential revokes all certificates in a credential.
-func (ca *CA) RevokeCredential(credentialID string, reason RevocationReason, credentialStore *credential.FileStore) error {
+func (ca *CA) RevokeCredential(ctx context.Context, credentialID string, reason RevocationReason, credentialStore credential.Store) error {
 	// Load credential
-	cred, err := credentialStore.Load(credentialID)
+	cred, err := credentialStore.Load(ctx, credentialID)
 	if err != nil {
 		return fmt.Errorf("failed to load credential: %w", err)
 	}
 
 	// Load all certificates from active version and revoke them
-	certs, err := credentialStore.LoadCertificates(credentialID)
+	certs, err := credentialStore.LoadCertificates(ctx, credentialID)
 	if err != nil {
 		return fmt.Errorf("failed to load certificates: %w", err)
 	}
@@ -1252,7 +1262,7 @@ func (ca *CA) RevokeCredential(credentialID string, reason RevocationReason, cre
 
 	// Update credential status
 	cred.Revoke(reason.String())
-	if err := credentialStore.UpdateStatus(credentialID, credential.StatusRevoked, reason.String()); err != nil {
+	if err := credentialStore.UpdateStatus(ctx, credentialID, credential.StatusRevoked, reason.String()); err != nil {
 		return fmt.Errorf("failed to update credential status: %w", err)
 	}
 

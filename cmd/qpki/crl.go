@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -191,7 +192,7 @@ func runCRLGen(cmd *cobra.Command, args []string) error {
 	}
 
 	// Default: generate CRL from primary store
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 	if !store.Exists() {
 		return fmt.Errorf("CA not found at %s", absDir)
 	}
@@ -206,7 +207,7 @@ func runCRLGen(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get revoked certificates count
-	revoked, err := store.ListRevoked()
+	revoked, err := store.ListRevoked(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to list revoked certificates: %w", err)
 	}
@@ -267,14 +268,14 @@ func runCRLGenForAlgo(caDir, algoFamily string, versionStore *ca.VersionStore) e
 	}
 
 	// Use root store for index operations
-	rootStore := ca.NewStore(caDir)
+	rootStore := ca.NewFileStore(caDir)
 	caInstance, err := ca.NewWithSigner(rootStore, signer)
 	if err != nil {
 		return fmt.Errorf("failed to load CA for %s: %w", algoFamily, err)
 	}
 
 	// Get revoked certificates count
-	revoked, err := rootStore.ListRevoked()
+	revoked, err := rootStore.ListRevoked(context.Background())
 	if err != nil {
 		revoked = nil // Non-fatal: may not have any revocations
 	}

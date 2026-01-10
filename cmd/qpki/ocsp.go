@@ -427,7 +427,7 @@ func runOCSPVerify(cmd *cobra.Command, args []string) error {
 
 func runOCSPServe(cmd *cobra.Command, args []string) error {
 	// Load CA store
-	store := ca.NewStore(ocspServeCADir)
+	store := ca.NewFileStore(ocspServeCADir)
 
 	// Load CA certificate
 	caCertPath := ocspServeCADir + "/ca.crt"
@@ -554,7 +554,7 @@ func (h *ocspHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		responseData, _ = ocsp.NewMalformedResponse()
 	} else {
-		responseData, err = h.responder.Respond(req)
+		responseData, err = h.responder.Respond(r.Context(), req)
 		if err != nil {
 			responseData, _ = ocsp.NewInternalErrorResponse()
 		}

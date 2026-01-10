@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -100,12 +101,12 @@ func (ca *CA) Revoke(serial []byte, reason RevocationReason) error {
 
 	// Try to get the certificate subject for audit logging
 	subject := ""
-	if cert, err := ca.store.LoadCert(serial); err == nil && cert != nil {
+	if cert, err := ca.store.LoadCert(context.Background(), serial); err == nil && cert != nil {
 		subject = cert.Subject.String()
 	}
 
 	// Update index file
-	if err := ca.store.MarkRevoked(serial, reason); err != nil {
+	if err := ca.store.MarkRevoked(context.Background(), serial, reason); err != nil {
 		return fmt.Errorf("failed to mark certificate as revoked: %w", err)
 	}
 
@@ -140,12 +141,12 @@ func (ca *CA) GenerateCRL(nextUpdate time.Time) ([]byte, error) {
 		}
 
 		// Save CRL
-		if err := ca.store.SaveCRL(crlDER); err != nil {
+		if err := ca.store.SaveCRL(context.Background(), crlDER); err != nil {
 			return nil, fmt.Errorf("failed to save CRL: %w", err)
 		}
 
 		// Get count of revoked certs for audit
-		entries, _ := ca.store.ReadIndex()
+		entries, _ := ca.store.ReadIndex(context.Background())
 		revokedCount := 0
 		for _, e := range entries {
 			if e.Status == "R" {
@@ -162,7 +163,7 @@ func (ca *CA) GenerateCRL(nextUpdate time.Time) ([]byte, error) {
 	}
 
 	// Get all revoked certificates
-	entries, err := ca.store.ReadIndex()
+	entries, err := ca.store.ReadIndex(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read index: %w", err)
 	}
@@ -181,7 +182,7 @@ func (ca *CA) GenerateCRL(nextUpdate time.Time) ([]byte, error) {
 	}
 
 	// Get CRL number
-	crlNumber, err := ca.store.NextCRLNumber()
+	crlNumber, err := ca.store.NextCRLNumber(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CRL number: %w", err)
 	}
@@ -199,7 +200,7 @@ func (ca *CA) GenerateCRL(nextUpdate time.Time) ([]byte, error) {
 	}
 
 	// Save CRL
-	if err := ca.store.SaveCRL(crlDER); err != nil {
+	if err := ca.store.SaveCRL(context.Background(), crlDER); err != nil {
 		return nil, fmt.Errorf("failed to save CRL: %w", err)
 	}
 
@@ -212,7 +213,14 @@ func (ca *CA) GenerateCRL(nextUpdate time.Time) ([]byte, error) {
 }
 
 // MarkRevoked marks a certificate as revoked in the index file.
-func (s *Store) MarkRevoked(serial []byte, reason RevocationReason) error {
+func (s *FileStore) MarkRevoked(ctx context.Context, serial []byte, reason RevocationReason) error {
+	// Check for cancellation before I/O
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	indexPath := filepath.Join(s.basePath, "index.txt")
 
 	data, err := os.ReadFile(indexPath)
@@ -245,6 +253,13 @@ func (s *Store) MarkRevoked(serial []byte, reason RevocationReason) error {
 		return fmt.Errorf("certificate with serial %s not found", serialHex)
 	}
 
+	// Check for cancellation before write
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	content := strings.Join(newLines, "\n") + "\n"
 	if err := os.WriteFile(indexPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write index file: %w", err)
@@ -254,7 +269,14 @@ func (s *Store) MarkRevoked(serial []byte, reason RevocationReason) error {
 }
 
 // NextCRLNumber returns the next CRL number and increments the counter.
-func (s *Store) NextCRLNumber() ([]byte, error) {
+func (s *FileStore) NextCRLNumber(ctx context.Context) ([]byte, error) {
+	// Check for cancellation before I/O
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	crlNumPath := filepath.Join(s.basePath, "crlnumber")
 
 	// Initialize if doesn't exist
@@ -275,6 +297,13 @@ func (s *Store) NextCRLNumber() ([]byte, error) {
 		return nil, fmt.Errorf("failed to parse CRL number: %w", err)
 	}
 
+	// Check for cancellation before write
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	// Increment for next use
 	next := incrementSerial(num)
 	if err := os.WriteFile(crlNumPath, []byte(hex.EncodeToString(next)+"\n"), 0644); err != nil {
@@ -285,7 +314,14 @@ func (s *Store) NextCRLNumber() ([]byte, error) {
 }
 
 // SaveCRL saves the CRL to the store.
-func (s *Store) SaveCRL(crlDER []byte) error {
+func (s *FileStore) SaveCRL(ctx context.Context, crlDER []byte) error {
+	// Check for cancellation before I/O
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	crlPath := filepath.Join(s.basePath, "crl", "ca.crl")
 
 	block := &pem.Block{
@@ -303,6 +339,13 @@ func (s *Store) SaveCRL(crlDER []byte) error {
 		return fmt.Errorf("failed to write CRL: %w", err)
 	}
 
+	// Check for cancellation before second write
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// Also save as DER
 	derPath := filepath.Join(s.basePath, "crl", "ca.crl.der")
 	if err := os.WriteFile(derPath, crlDER, 0644); err != nil {
@@ -313,12 +356,12 @@ func (s *Store) SaveCRL(crlDER []byte) error {
 }
 
 // CRLPath returns the path to the current CRL.
-func (s *Store) CRLPath() string {
+func (s *FileStore) CRLPath() string {
 	return filepath.Join(s.basePath, "crl", "ca.crl")
 }
 
 // LoadCRL loads the current CRL from the store.
-func (s *Store) LoadCRL() (*x509.RevocationList, error) {
+func (s *FileStore) LoadCRL() (*x509.RevocationList, error) {
 	data, err := os.ReadFile(s.CRLPath())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -341,8 +384,8 @@ func (s *Store) LoadCRL() (*x509.RevocationList, error) {
 }
 
 // ListRevoked returns all revoked certificates.
-func (s *Store) ListRevoked() ([]RevokedCertificate, error) {
-	entries, err := s.ReadIndex()
+func (s *FileStore) ListRevoked(ctx context.Context) ([]RevokedCertificate, error) {
+	entries, err := s.ReadIndex(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -364,8 +407,8 @@ func (s *Store) ListRevoked() ([]RevokedCertificate, error) {
 }
 
 // IsRevoked checks if a certificate is revoked.
-func (s *Store) IsRevoked(serial []byte) (bool, error) {
-	entries, err := s.ReadIndex()
+func (s *FileStore) IsRevoked(ctx context.Context, serial []byte) (bool, error) {
+	entries, err := s.ReadIndex(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -381,25 +424,32 @@ func (s *Store) IsRevoked(serial []byte) (bool, error) {
 }
 
 // CRLDir returns the CRL directory path.
-func (s *Store) CRLDir() string {
+func (s *FileStore) CRLDir() string {
 	return filepath.Join(s.basePath, "crl")
 }
 
 // CRLPathForAlgorithm returns the CRL path for a specific algorithm.
 // Format: crl/ca.{algorithm}.crl
-func (s *Store) CRLPathForAlgorithm(algorithm string) string {
+func (s *FileStore) CRLPathForAlgorithm(algorithm string) string {
 	return filepath.Join(s.CRLDir(), fmt.Sprintf("ca.%s.crl", algorithm))
 }
 
 // CRLDERPathForAlgorithm returns the DER CRL path for a specific algorithm.
 // Format: crl/ca.{algorithm}.crl.der
-func (s *Store) CRLDERPathForAlgorithm(algorithm string) string {
+func (s *FileStore) CRLDERPathForAlgorithm(algorithm string) string {
 	return filepath.Join(s.CRLDir(), fmt.Sprintf("ca.%s.crl.der", algorithm))
 }
 
 // SaveCRLForAlgorithm saves a CRL for a specific algorithm.
 // Uses the new path structure: crl/ca.{algorithm}.crl
-func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algorithm string) error {
+func (s *FileStore) SaveCRLForAlgorithm(ctx context.Context, crlDER []byte, algorithm string) error {
+	// Check for cancellation before I/O
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	crlDir := s.CRLDir()
 	if err := os.MkdirAll(crlDir, 0755); err != nil {
 		return fmt.Errorf("failed to create CRL directory: %w", err)
@@ -422,6 +472,13 @@ func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algorithm string) error {
 		return fmt.Errorf("failed to write CRL: %w", err)
 	}
 
+	// Check for cancellation before second write
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// Also save as DER
 	derPath := s.CRLDERPathForAlgorithm(algorithm)
 	if err := os.WriteFile(derPath, crlDER, 0644); err != nil {
@@ -432,7 +489,7 @@ func (s *Store) SaveCRLForAlgorithm(crlDER []byte, algorithm string) error {
 }
 
 // LoadCRLForAlgorithm loads a CRL for a specific algorithm.
-func (s *Store) LoadCRLForAlgorithm(algorithm string) (*x509.RevocationList, error) {
+func (s *FileStore) LoadCRLForAlgorithm(algorithm string) (*x509.RevocationList, error) {
 	crlPath := s.CRLPathForAlgorithm(algorithm)
 	data, err := os.ReadFile(crlPath)
 	if err != nil {
@@ -457,7 +514,7 @@ func (s *Store) LoadCRLForAlgorithm(algorithm string) (*x509.RevocationList, err
 
 // ListCRLAlgorithms returns all algorithms that have CRLs.
 // Parses file names like ca.{algorithm}.crl to extract algorithms.
-func (s *Store) ListCRLAlgorithms() ([]string, error) {
+func (s *FileStore) ListCRLAlgorithms() ([]string, error) {
 	crlDir := filepath.Join(s.basePath, "crl")
 	entries, err := os.ReadDir(crlDir)
 	if err != nil {
@@ -505,7 +562,7 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 	}
 
 	// Get all revoked certificates for this algorithm family
-	entries, err := ca.store.ReadIndex()
+	entries, err := ca.store.ReadIndex(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read index: %w", err)
 	}
@@ -517,7 +574,7 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 		}
 
 		// Check if certificate belongs to this algorithm family
-		cert, err := ca.store.LoadCert(entry.Serial)
+		cert, err := ca.store.LoadCert(context.Background(), entry.Serial)
 		if err != nil || cert == nil {
 			continue
 		}
@@ -535,7 +592,7 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 	}
 
 	// Get shared CRL number
-	crlNumber, err := ca.store.NextCRLNumber()
+	crlNumber, err := ca.store.NextCRLNumber(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CRL number: %w", err)
 	}
@@ -556,7 +613,7 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 	signerAlgo := ca.signer.Algorithm()
 
 	// Save CRL for this algorithm
-	if err := ca.store.SaveCRLForAlgorithm(crlDER, string(signerAlgo)); err != nil {
+	if err := ca.store.SaveCRLForAlgorithm(context.Background(), crlDER, string(signerAlgo)); err != nil {
 		return nil, fmt.Errorf("failed to save CRL: %w", err)
 	}
 
@@ -571,7 +628,7 @@ func (ca *CA) GenerateCRLForAlgorithm(algoFamily string, nextUpdate time.Time) (
 // generatePQCCRLForAlgorithm generates a PQC CRL for a specific algorithm family.
 func (ca *CA) generatePQCCRLForAlgorithm(algoFamily string, nextUpdate time.Time) ([]byte, error) {
 	// Get all revoked certificates for this algorithm family
-	entries, err := ca.store.ReadIndex()
+	entries, err := ca.store.ReadIndex(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read index: %w", err)
 	}
@@ -583,7 +640,7 @@ func (ca *CA) generatePQCCRLForAlgorithm(algoFamily string, nextUpdate time.Time
 		}
 
 		// Check if certificate belongs to this algorithm family
-		cert, err := ca.store.LoadCert(entry.Serial)
+		cert, err := ca.store.LoadCert(context.Background(), entry.Serial)
 		if err != nil || cert == nil {
 			continue
 		}
@@ -601,7 +658,7 @@ func (ca *CA) generatePQCCRLForAlgorithm(algoFamily string, nextUpdate time.Time
 	}
 
 	// Get shared CRL number
-	crlNumber, err := ca.store.NextCRLNumber()
+	crlNumber, err := ca.store.NextCRLNumber(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CRL number: %w", err)
 	}
@@ -616,7 +673,7 @@ func (ca *CA) generatePQCCRLForAlgorithm(algoFamily string, nextUpdate time.Time
 	signerAlgo := ca.signer.Algorithm()
 
 	// Save CRL for this algorithm
-	if err := ca.store.SaveCRLForAlgorithm(crlDER, string(signerAlgo)); err != nil {
+	if err := ca.store.SaveCRLForAlgorithm(context.Background(), crlDER, string(signerAlgo)); err != nil {
 		return nil, fmt.Errorf("failed to save CRL: %w", err)
 	}
 
@@ -635,7 +692,7 @@ func (ca *CA) GenerateAllCRLs(nextUpdate time.Time) (map[string][]byte, error) {
 	}
 
 	// Find all algorithm families with revoked certificates
-	entries, err := ca.store.ReadIndex()
+	entries, err := ca.store.ReadIndex(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read index: %w", err)
 	}
@@ -646,7 +703,7 @@ func (ca *CA) GenerateAllCRLs(nextUpdate time.Time) (map[string][]byte, error) {
 			continue
 		}
 
-		cert, err := ca.store.LoadCert(entry.Serial)
+		cert, err := ca.store.LoadCert(context.Background(), entry.Serial)
 		if err != nil || cert == nil {
 			continue
 		}

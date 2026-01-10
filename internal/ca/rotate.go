@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -82,7 +83,7 @@ type RotateCAResult struct {
 
 // RotateCA rotates a CA, creating a new version with new keys.
 func RotateCA(req RotateCARequest) (*RotateCAResult, error) {
-	store := NewStore(req.CADir)
+	store := NewFileStore(req.CADir)
 	if !store.Exists() {
 		return nil, fmt.Errorf("CA not found at %s", req.CADir)
 	}
@@ -196,7 +197,7 @@ func executeRotation(req RotateCARequest, currentCA *CA, prof *profile.Profile, 
 	// Initialize new CA in version directory
 	algoFamily := prof.GetAlgorithmFamily()
 	versionDir := versionStore.VersionDir(version.ID)
-	newStore := NewStore(versionDir)
+	newStore := NewFileStore(versionDir)
 
 	// Generate new CA keys based on profile
 	var newCA *CA
@@ -316,13 +317,13 @@ func executeRotation(req RotateCARequest, currentCA *CA, prof *profile.Profile, 
 
 // initializeCAInDir initializes a regular CA in the given store directory.
 // Supports both classical algorithms (ECDSA, RSA, Ed25519) and PQC algorithms (ML-DSA, SLH-DSA).
-func initializeCAInDir(store *Store, cfg Config) (*CA, error) {
+func initializeCAInDir(store *FileStore, cfg Config) (*CA, error) {
 	// For PQC algorithms, use PQC-specific initialization
 	if cfg.Algorithm.IsPQC() {
 		return initializePQCCAInDir(store, cfg)
 	}
 
-	if err := store.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -363,7 +364,7 @@ func initializeCAInDir(store *Store, cfg Config) (*CA, error) {
 	}
 
 	// Generate serial number
-	serialBytes, err := store.NextSerial()
+	serialBytes, err := store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -422,8 +423,8 @@ func initializeCAInDir(store *Store, cfg Config) (*CA, error) {
 // initializePQCCAInDir initializes a PQC CA in the given store directory.
 // Uses manual DER construction since Go's crypto/x509 doesn't support PQC algorithms.
 // This version creates keys/certs directly in the store directory (for rotation context).
-func initializePQCCAInDir(store *Store, cfg Config) (*CA, error) {
-	if err := store.Init(); err != nil {
+func initializePQCCAInDir(store *FileStore, cfg Config) (*CA, error) {
+	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -489,8 +490,8 @@ func initializePQCCAInDir(store *Store, cfg Config) (*CA, error) {
 }
 
 // initializeHybridCAInDir initializes a hybrid CA in the given store directory.
-func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
-	if err := store.Init(); err != nil {
+func initializeHybridCAInDir(store *FileStore, cfg HybridCAConfig) (*CA, error) {
+	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -550,7 +551,7 @@ func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
 	}
 
 	// Generate serial number
-	serialBytes, err := store.NextSerial()
+	serialBytes, err := store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -666,14 +667,14 @@ func initializeHybridCAInDir(store *Store, cfg HybridCAConfig) (*CA, error) {
 
 // initializeCompositeCAInDir initializes a composite CA in the given store directory.
 // This creates a proper IETF composite certificate with combined signature.
-func initializeCompositeCAInDir(store *Store, cfg CompositeCAConfig) (*CA, error) {
+func initializeCompositeCAInDir(store *FileStore, cfg CompositeCAConfig) (*CA, error) {
 	// Get composite algorithm
 	compAlg, err := GetCompositeAlgorithm(cfg.ClassicalAlgorithm, cfg.PQCAlgorithm)
 	if err != nil {
 		return nil, fmt.Errorf("unsupported composite algorithm combination: %w", err)
 	}
 
-	if err := store.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -730,7 +731,7 @@ func initializeCompositeCAInDir(store *Store, cfg CompositeCAConfig) (*CA, error
 	}
 
 	// Generate serial number
-	serialBytes, err := store.NextSerial()
+	serialBytes, err := store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}
@@ -1023,13 +1024,13 @@ func saveCrossSignedCert(path string, cert *x509.Certificate) error {
 		return err
 	}
 
-	store := &Store{}
+	store := &FileStore{}
 	return store.saveCert(path, cert)
 }
 
 
 // determineCurrentProfile tries to determine the profile used for the current CA.
-func determineCurrentProfile(store *Store) string {
+func determineCurrentProfile(store *FileStore) string {
 	// Try to read from metadata file
 	metaPath := filepath.Join(store.BasePath(), "ca.meta.json")
 	data, err := os.ReadFile(metaPath)
@@ -1158,7 +1159,7 @@ func RotateCAMultiProfile(req MultiProfileRotateRequest) (*MultiProfileRotateRes
 	versionStore := NewVersionStore(req.CADir)
 	if !versionStore.IsVersioned() {
 		// Check for legacy CA
-		store := NewStore(req.CADir)
+		store := NewFileStore(req.CADir)
 		if !store.Exists() {
 			return nil, fmt.Errorf("CA not found at %s", req.CADir)
 		}
@@ -1277,7 +1278,7 @@ func executeMultiProfileRotation(
 		for _, certRef := range currentCerts {
 			// Load CA from the version directory
 			versionDir := versionStore.VersionDir(versionStore.getActiveVersionID())
-			store := NewStore(versionDir)
+			store := NewFileStore(versionDir)
 			ca, err := New(store)
 			if err != nil {
 				continue // Skip if can't load
@@ -1300,7 +1301,7 @@ func executeMultiProfileRotation(
 	}
 
 	versionDir := versionStore.VersionDir(version.ID)
-	versionStore2 := NewStore(versionDir)
+	versionStore2 := NewFileStore(versionDir)
 
 	// Create certificates for each profile
 	for _, prof := range req.Profiles {
@@ -1444,7 +1445,7 @@ func buildMultiProfileRotationSteps(versionID string, profiles []ProfileRotatePl
 
 // createPQCCACertificate creates a self-signed PQC CA certificate.
 // This is used during rotation to create certificates directly in the version directory.
-func createPQCCACertificate(store *Store, signer pkicrypto.Signer, cfg Config) (*x509.Certificate, error) {
+func createPQCCACertificate(store *FileStore, signer pkicrypto.Signer, cfg Config) (*x509.Certificate, error) {
 	// Get signature algorithm OID
 	sigAlgOID, err := algorithmToOID(cfg.Algorithm)
 	if err != nil {
@@ -1469,7 +1470,7 @@ func createPQCCACertificate(store *Store, signer pkicrypto.Signer, cfg Config) (
 	}
 
 	// Generate serial number
-	serialBytes, err := store.NextSerial()
+	serialBytes, err := store.NextSerial(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get serial number: %w", err)
 	}

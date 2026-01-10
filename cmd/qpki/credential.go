@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"os"
@@ -282,7 +283,7 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load CA
-	caStore := ca.NewStore(caDir)
+	caStore := ca.NewFileStore(caDir)
 	caInstance, err := ca.New(caStore)
 	if err != nil {
 		return fmt.Errorf("failed to load CA: %w", err)
@@ -415,7 +416,7 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 	// Save credential
 	credStore := credential.NewFileStore(credentialsDir)
 	passphrase := []byte(credPassphrase)
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
@@ -457,7 +458,7 @@ func runCredList(cmd *cobra.Command, args []string) error {
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
-	credentials, err := credStore.ListAll()
+	credentials, err := credStore.ListAll(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to list credentials: %w", err)
 	}
@@ -516,7 +517,7 @@ func runCredInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
-	b, err := credStore.Load(credID)
+	b, err := credStore.Load(context.Background(), credID)
 	if err != nil {
 		return fmt.Errorf("failed to load credential: %w", err)
 	}
@@ -584,7 +585,7 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load CA
-	caStore := ca.NewStore(caDir)
+	caStore := ca.NewFileStore(caDir)
 	caInstance, err := ca.New(caStore)
 	if err != nil {
 		return fmt.Errorf("failed to load CA: %w", err)
@@ -643,7 +644,7 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 		profileNames = credRotateProfiles
 	} else if len(credRotateAddProfiles) > 0 || len(credRotateRemoveProfiles) > 0 {
 		// Compute: current + add - remove
-		existingCred, err := credStore.Load(credID)
+		existingCred, err := credStore.Load(context.Background(), credID)
 		if err != nil {
 			return fmt.Errorf("failed to load credential: %w", err)
 		}
@@ -659,7 +660,7 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Use existing profiles from credential
-		existingCred, err := credStore.Load(credID)
+		existingCred, err := credStore.Load(context.Background(), credID)
 		if err != nil {
 			return fmt.Errorf("failed to load credential: %w", err)
 		}
@@ -683,6 +684,7 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 	// Rotate credential (versioned - creates PENDING version)
 	passphrase := []byte(credPassphrase)
 	req := ca.CredentialRotateRequest{
+		Context:         cmd.Context(),
 		CredentialID:    credID,
 		CredentialStore: credStore,
 		Profiles:        profiles,
@@ -770,7 +772,7 @@ func runCredRevoke(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load CA
-	caStore := ca.NewStore(caDir)
+	caStore := ca.NewFileStore(caDir)
 	caInstance, err := ca.New(caStore)
 	if err != nil {
 		return fmt.Errorf("failed to load CA: %w", err)
@@ -788,7 +790,7 @@ func runCredRevoke(cmd *cobra.Command, args []string) error {
 	reason := parseRevocationReason(credRevokeReason)
 
 	// Revoke
-	if err := caInstance.RevokeCredential(credID, reason, credStore); err != nil {
+	if err := caInstance.RevokeCredential(cmd.Context(), credID, reason, credStore); err != nil {
 		return fmt.Errorf("failed to revoke credential: %w", err)
 	}
 
@@ -849,7 +851,7 @@ func runCredExport(cmd *cobra.Command, args []string) error {
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
-	versionStore := credStore.GetVersionStore(credID)
+	versionStore := credential.NewVersionStore(credential.CredentialPath(credentialsDir, credID))
 
 	// Handle --all flag (export all versions)
 	if credExportAll {
@@ -877,7 +879,7 @@ func runCredExport(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Non-versioned credential: load from root
-		certs, err = credStore.LoadCertificates(credID)
+		certs, err = credStore.LoadCertificates(context.Background(), credID)
 		if err != nil {
 			return fmt.Errorf("failed to load certificates: %w", err)
 		}
@@ -885,8 +887,8 @@ func runCredExport(cmd *cobra.Command, args []string) error {
 
 	// Load CA chain if bundle=chain
 	if credExportBundle == "chain" {
-		caStore := ca.NewStore(caDir)
-		caCerts, err := caStore.LoadAllCACerts()
+		caStore := ca.NewFileStore(caDir)
+		caCerts, err := caStore.LoadAllCACerts(context.Background())
 		if err != nil {
 			return fmt.Errorf("failed to load CA certificates for chain: %w", err)
 		}

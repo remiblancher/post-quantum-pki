@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -349,7 +350,7 @@ func runCAInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if directory already exists
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 	if store.Exists() {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
@@ -521,7 +522,7 @@ func runCAInitMultiProfile(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if directory already exists
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 	if store.Exists() {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
@@ -700,7 +701,7 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if directory already exists
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 	if store.Exists() {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
@@ -900,7 +901,7 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid parent directory path: %w", err)
 	}
 
-	parentStore := ca.NewStore(parentAbsDir)
+	parentStore := ca.NewFileStore(parentAbsDir)
 	if !parentStore.Exists() {
 		return fmt.Errorf("parent CA not found at %s", parentAbsDir)
 	}
@@ -921,13 +922,13 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if directory already exists
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 	if store.Exists() {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
 
 	// Initialize store directory structure
-	if err := store.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
 
@@ -1044,7 +1045,7 @@ func runCAInfo(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid CA directory: %w", err)
 	}
 
-	store := ca.NewStore(absDir)
+	store := ca.NewFileStore(absDir)
 	if !store.Exists() {
 		return fmt.Errorf("CA not found at %s", absDir)
 	}
@@ -1137,11 +1138,11 @@ func runCAExport(cmd *cobra.Command, args []string) error {
 	if caExportAll {
 		if info == nil || len(info.Versions) == 0 {
 			// Not versioned, just export the current CA
-			store := ca.NewStore(absDir)
+			store := ca.NewFileStore(absDir)
 			if !store.Exists() {
 				return fmt.Errorf("CA not found at %s", absDir)
 			}
-			caCert, err := store.LoadCACert()
+			caCert, err := store.LoadCACert(context.Background())
 			if err != nil {
 				return fmt.Errorf("failed to load CA certificate: %w", err)
 			}
@@ -1160,7 +1161,7 @@ func runCAExport(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Determine which store to use based on --version flag
-		var store *ca.Store
+		var store ca.Store
 		if caExportVersion != "" {
 			if info == nil || len(info.Versions) == 0 {
 				return fmt.Errorf("CA is not versioned, cannot use --version flag")
@@ -1190,7 +1191,7 @@ func runCAExport(cmd *cobra.Command, args []string) error {
 				}
 			}
 		} else {
-			store = ca.NewStore(absDir)
+			store = ca.NewFileStore(absDir)
 		}
 
 		// If we loaded certs from multi-profile version, skip store-based loading
@@ -1203,7 +1204,7 @@ func runCAExport(cmd *cobra.Command, args []string) error {
 			}
 
 			// Load CA certificate
-			caCert, err := store.LoadCACert()
+			caCert, err := store.LoadCACert(context.Background())
 			if err != nil {
 				return fmt.Errorf("failed to load CA certificate: %w", err)
 			}
@@ -1216,7 +1217,7 @@ func runCAExport(cmd *cobra.Command, args []string) error {
 				certs = append(certs, caCert)
 
 				// Load cross-signed certificates (for CA rotation scenarios)
-				crossCerts, err := store.LoadCrossSignedCerts()
+				crossCerts, err := store.LoadCrossSignedCerts(context.Background())
 				if err == nil && len(crossCerts) > 0 {
 					certs = append(certs, crossCerts...)
 				}
@@ -1327,12 +1328,12 @@ func runCAList(cmd *cobra.Command, args []string) error {
 		}
 
 		caDir := filepath.Join(absDir, entry.Name())
-		store := ca.NewStore(caDir)
+		store := ca.NewFileStore(caDir)
 		if !store.Exists() {
 			continue
 		}
 
-		cert, err := store.LoadCACert()
+		cert, err := store.LoadCACert(context.Background())
 		if err != nil {
 			continue
 		}

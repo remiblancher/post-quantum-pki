@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -22,7 +23,7 @@ import (
 
 func TestCA_Enroll_Simple(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -93,7 +94,7 @@ func TestCA_Enroll_Simple(t *testing.T) {
 
 func TestCA_Enroll_ProfileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -122,7 +123,7 @@ func TestCA_Enroll_ProfileNotFound(t *testing.T) {
 
 func TestCA_Enroll_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -158,7 +159,7 @@ func TestCA_Enroll_NoSigner(t *testing.T) {
 
 func TestCA_EnrollWithProfile_Simple(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -207,7 +208,7 @@ func TestCA_EnrollWithProfile_Simple(t *testing.T) {
 
 func TestCA_EnrollWithProfile_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -245,7 +246,7 @@ func TestCA_EnrollWithProfile_NoSigner(t *testing.T) {
 
 func TestCA_EnrollMulti_SingleProfile(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -286,7 +287,7 @@ func TestCA_EnrollMulti_SingleProfile(t *testing.T) {
 
 func TestCA_EnrollMulti_NoProfiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -312,7 +313,7 @@ func TestCA_EnrollMulti_NoProfiles(t *testing.T) {
 
 func TestCA_EnrollMulti_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -468,7 +469,7 @@ func (s *testSigner) SavePrivateKey(path string, passphrase []byte) error {
 
 func TestCA_EnrollWithCompiledProfile_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -511,7 +512,7 @@ func TestCA_EnrollWithCompiledProfile_NoSigner(t *testing.T) {
 
 func TestCA_EnrollWithCompiledProfile_Simple(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -577,7 +578,7 @@ func TestKeyRotationMode_Constants(t *testing.T) {
 
 func TestCA_RotateCredential_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -622,14 +623,14 @@ func TestCA_RotateCredential_Success(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
 	credentialID := result.Credential.ID
 
 	// Rotate credential with new keys
-	rotatedResult, err := ca.RotateCredential(credentialID, credStore, profileStore, passphrase, KeyRotateNew, nil)
+	rotatedResult, err := ca.RotateCredential(context.Background(), credentialID, credStore, profileStore, passphrase, KeyRotateNew, nil)
 	if err != nil {
 		t.Fatalf("RotateCredential() error = %v", err)
 	}
@@ -654,7 +655,7 @@ func TestCA_RotateCredential_Success(t *testing.T) {
 
 func TestCA_RotateCredential_KeepKeys(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -699,14 +700,14 @@ func TestCA_RotateCredential_KeepKeys(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
 	credentialID := result.Credential.ID
 
 	// Rotate credential keeping existing keys
-	rotatedResult, err := ca.RotateCredential(credentialID, credStore, profileStore, passphrase, KeyRotateKeep, nil)
+	rotatedResult, err := ca.RotateCredential(context.Background(), credentialID, credStore, profileStore, passphrase, KeyRotateKeep, nil)
 	if err != nil {
 		t.Fatalf("RotateCredential(KeyRotateKeep) error = %v", err)
 	}
@@ -722,7 +723,7 @@ func TestCA_RotateCredential_KeepKeys(t *testing.T) {
 
 func TestCA_RotateCredential_CredentialNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -743,7 +744,7 @@ func TestCA_RotateCredential_CredentialNotFound(t *testing.T) {
 	}
 
 	// Try to rotate non-existent credential
-	_, err = ca.RotateCredential("nonexistent", credStore, profileStore, nil, KeyRotateNew, nil)
+	_, err = ca.RotateCredential(context.Background(), "nonexistent", credStore, profileStore, nil, KeyRotateNew, nil)
 	if err == nil {
 		t.Error("RotateCredential() should fail for non-existent credential")
 	}
@@ -751,7 +752,7 @@ func TestCA_RotateCredential_CredentialNotFound(t *testing.T) {
 
 func TestCA_RotateCredential_ProfileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -792,14 +793,14 @@ func TestCA_RotateCredential_ProfileNotFound(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
 	credentialID := result.Credential.ID
 
 	// Try to rotate - should fail because profile not found
-	_, err = ca.RotateCredential(credentialID, credStore, profileStore, passphrase, KeyRotateNew, nil)
+	_, err = ca.RotateCredential(context.Background(), credentialID, credStore, profileStore, passphrase, KeyRotateNew, nil)
 	if err == nil {
 		t.Error("RotateCredential() should fail when profile not found")
 	}
@@ -807,7 +808,7 @@ func TestCA_RotateCredential_ProfileNotFound(t *testing.T) {
 
 func TestCA_RotateCredential_WithNewProfiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -861,14 +862,14 @@ func TestCA_RotateCredential_WithNewProfiles(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
 	credentialID := result.Credential.ID
 
 	// Rotate credential with new profile (crypto-agility)
-	rotatedResult, err := ca.RotateCredential(credentialID, credStore, profileStore, passphrase, KeyRotateNew, []string{"new-profile"})
+	rotatedResult, err := ca.RotateCredential(context.Background(), credentialID, credStore, profileStore, passphrase, KeyRotateNew, []string{"new-profile"})
 	if err != nil {
 		t.Fatalf("RotateCredential() error = %v", err)
 	}
@@ -890,7 +891,7 @@ func TestCA_RotateCredential_WithNewProfiles(t *testing.T) {
 
 func TestCA_RevokeCredential_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -928,20 +929,20 @@ func TestCA_RevokeCredential_Success(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
 	credentialID := result.Credential.ID
 
 	// Revoke credential
-	err = ca.RevokeCredential(credentialID, ReasonKeyCompromise, credStore)
+	err = ca.RevokeCredential(context.Background(), credentialID, ReasonKeyCompromise, credStore)
 	if err != nil {
 		t.Fatalf("RevokeCredential() error = %v", err)
 	}
 
 	// Verify credential status is revoked
-	revokedCred, err := credStore.Load(credentialID)
+	revokedCred, err := credStore.Load(context.Background(),credentialID)
 	if err != nil {
 		t.Fatalf("Load revoked credential error = %v", err)
 	}
@@ -953,7 +954,7 @@ func TestCA_RevokeCredential_Success(t *testing.T) {
 
 func TestCA_RevokeCredential_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -973,7 +974,7 @@ func TestCA_RevokeCredential_NotFound(t *testing.T) {
 	}
 
 	// Try to revoke non-existent credential
-	err = ca.RevokeCredential("nonexistent", ReasonKeyCompromise, credStore)
+	err = ca.RevokeCredential(context.Background(), "nonexistent", ReasonKeyCompromise, credStore)
 	if err == nil {
 		t.Error("RevokeCredential() should fail for non-existent credential")
 	}
@@ -981,7 +982,7 @@ func TestCA_RevokeCredential_NotFound(t *testing.T) {
 
 func TestCA_RevokeCredential_WithReason(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
@@ -1016,7 +1017,7 @@ func TestCA_RevokeCredential_WithReason(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -1039,18 +1040,18 @@ func TestCA_RevokeCredential_WithReason(t *testing.T) {
 			t.Fatalf("EnrollWithProfile() error = %v", err)
 		}
 
-		if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+		if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 			t.Fatalf("credStore.Save() error = %v", err)
 		}
 
-		err = ca.RevokeCredential(result.Credential.ID, reason, credStore)
+		err = ca.RevokeCredential(context.Background(), result.Credential.ID, reason, credStore)
 		if err != nil {
 			t.Errorf("RevokeCredential(reason=%d) error = %v", reason, err)
 		}
 
 		if i == 0 {
 			// Also verify the original credential
-			err = ca.RevokeCredential(credentialID, ReasonSuperseded, credStore)
+			err = ca.RevokeCredential(context.Background(), credentialID, ReasonSuperseded, credStore)
 			if err != nil {
 				t.Fatalf("RevokeCredential(original) error = %v", err)
 			}
@@ -1064,7 +1065,7 @@ func TestCA_RevokeCredential_WithReason(t *testing.T) {
 
 func TestCA_rotateWithExistingKeys_NoProfiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := NewStore(tmpDir)
+	store := NewFileStore(tmpDir)
 
 	cfg := Config{
 		CommonName:    "Test Root CA",
