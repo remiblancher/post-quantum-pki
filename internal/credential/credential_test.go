@@ -1376,14 +1376,13 @@ func TestFileStore_List_EmptyDir(t *testing.T) {
 // FileStore Version Functions Tests
 // =============================================================================
 
-func TestU_FileStore_GetVersionStore(t *testing.T) {
+func TestU_NewVersionStore(t *testing.T) {
 	tmpDir := t.TempDir()
 	credentialsDir := filepath.Join(tmpDir, "credentials")
-	store := NewFileStore(credentialsDir)
 
-	vs := store.GetVersionStore("test-cred")
+	vs := NewVersionStore(CredentialPath(credentialsDir, "test-cred"))
 	if vs == nil {
-		t.Fatal("GetVersionStore returned nil")
+		t.Fatal("NewVersionStore returned nil")
 	}
 
 	expectedBase := filepath.Join(credentialsDir, "test-cred")
@@ -1403,7 +1402,7 @@ func TestU_FileStore_SaveVersion(t *testing.T) {
 	}
 
 	// Create version store and version
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, err := vs.CreateVersion([]string{"ec/tls-server"})
 	if err != nil {
 		t.Fatalf("CreateVersion failed: %v", err)
@@ -1419,7 +1418,7 @@ func TestU_FileStore_SaveVersion(t *testing.T) {
 	})
 
 	// Save version
-	err = store.SaveVersion(cred.ID, version.ID, "ec", []*x509.Certificate{cert}, []pkicrypto.Signer{signer}, nil)
+	err = SaveVersion(tmpDir, cred.ID, version.ID, "ec", []*x509.Certificate{cert}, []pkicrypto.Signer{signer}, nil)
 	if err != nil {
 		t.Fatalf("SaveVersion failed: %v", err)
 	}
@@ -1442,13 +1441,13 @@ func TestU_FileStore_SaveVersion_CertsOnly(t *testing.T) {
 	cred := NewCredential("version-certs", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
 
 	cert := generateTestCertificate(t)
 
 	// Save version with certs only
-	err := store.SaveVersion(cred.ID, version.ID, "ec", []*x509.Certificate{cert}, nil, nil)
+	err := SaveVersion(tmpDir, cred.ID, version.ID, "ec", []*x509.Certificate{cert}, nil, nil)
 	if err != nil {
 		t.Fatalf("SaveVersion failed: %v", err)
 	}
@@ -1471,14 +1470,14 @@ func TestU_FileStore_LoadVersionCertificates(t *testing.T) {
 	cred := NewCredential("load-version-certs", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
 
 	cert := generateTestCertificate(t)
-	_ = store.SaveVersion(cred.ID, version.ID, "ec", []*x509.Certificate{cert}, nil, nil)
+	_ = SaveVersion(tmpDir, cred.ID, version.ID, "ec", []*x509.Certificate{cert}, nil, nil)
 
 	// Load version certificates
-	certs, err := store.LoadVersionCertificates(cred.ID, version.ID, "ec")
+	certs, err := LoadVersionCertificates(tmpDir, cred.ID, version.ID, "ec")
 	if err != nil {
 		t.Fatalf("LoadVersionCertificates failed: %v", err)
 	}
@@ -1496,11 +1495,11 @@ func TestU_FileStore_LoadVersionCertificates_NotFound(t *testing.T) {
 	cred := NewCredential("load-no-certs", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
 
 	// Load non-existent certs
-	certs, err := store.LoadVersionCertificates(cred.ID, version.ID, "ec")
+	certs, err := LoadVersionCertificates(tmpDir, cred.ID, version.ID, "ec")
 	if err != nil {
 		t.Fatalf("LoadVersionCertificates should not error for missing file: %v", err)
 	}
@@ -1517,7 +1516,7 @@ func TestU_FileStore_LoadVersionKeys(t *testing.T) {
 	cred := NewCredential("load-version-keys", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
 
 	// Save with keys
@@ -1527,10 +1526,10 @@ func TestU_FileStore_LoadVersionKeys(t *testing.T) {
 		PrivateKey: privateKey,
 		PublicKey:  &privateKey.PublicKey,
 	})
-	_ = store.SaveVersion(cred.ID, version.ID, "ec", nil, []pkicrypto.Signer{signer}, nil)
+	_ = SaveVersion(tmpDir, cred.ID, version.ID, "ec", nil, []pkicrypto.Signer{signer}, nil)
 
 	// Load version keys
-	signers, err := store.LoadVersionKeys(cred.ID, version.ID, "ec", nil)
+	signers, err := LoadVersionKeys(tmpDir, cred.ID, version.ID, "ec", nil)
 	if err != nil {
 		t.Fatalf("LoadVersionKeys failed: %v", err)
 	}
@@ -1548,11 +1547,11 @@ func TestU_FileStore_LoadVersionKeys_NotFound(t *testing.T) {
 	cred := NewCredential("load-no-keys", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
 
 	// Load non-existent keys
-	signers, err := store.LoadVersionKeys(cred.ID, version.ID, "ec", nil)
+	signers, err := LoadVersionKeys(tmpDir, cred.ID, version.ID, "ec", nil)
 	if err != nil {
 		t.Fatalf("LoadVersionKeys should not error for missing file: %v", err)
 	}
@@ -1569,12 +1568,12 @@ func TestU_FileStore_ActivateVersion(t *testing.T) {
 	cred := NewCredential("activate-version", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
 	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "ec"})
 
-	// Activate via store
-	err := store.ActivateVersion(cred.ID, version.ID)
+	// Activate via standalone function
+	err := ActivateVersion(tmpDir, cred.ID, version.ID)
 	if err != nil {
 		t.Fatalf("ActivateVersion failed: %v", err)
 	}
@@ -1594,12 +1593,12 @@ func TestU_FileStore_ListVersions(t *testing.T) {
 	cred := NewCredential("list-versions", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
 	_, _ = vs.CreateVersion([]string{"ml-dsa/tls-server"})
 
-	// List via store
-	versions, err := store.ListVersions(cred.ID)
+	// List via standalone function
+	versions, err := ListVersions(tmpDir, cred.ID)
 	if err != nil {
 		t.Fatalf("ListVersions failed: %v", err)
 	}
@@ -1617,7 +1616,7 @@ func TestU_FileStore_IsVersioned_False(t *testing.T) {
 	cred := NewCredential("non-versioned", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	if store.IsVersioned(cred.ID) {
+	if IsVersioned(tmpDir, cred.ID) {
 		t.Error("credential should not be versioned")
 	}
 }
@@ -1630,10 +1629,10 @@ func TestU_FileStore_IsVersioned_True(t *testing.T) {
 	cred := NewCredential("versioned", Subject{CommonName: "Test"})
 	_ = store.Save(cred, nil, nil, nil)
 
-	vs := store.GetVersionStore(cred.ID)
+	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
 	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
 
-	if !store.IsVersioned(cred.ID) {
+	if !IsVersioned(tmpDir, cred.ID) {
 		t.Error("credential should be versioned after creating version")
 	}
 }

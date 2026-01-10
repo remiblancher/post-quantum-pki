@@ -1,12 +1,15 @@
 package credential
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
+
+	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
 // VersionStatus represents the status of a credential version.
@@ -648,4 +651,109 @@ func copyDir(src, dst string) error {
 	}
 
 	return nil
+}
+
+// ============================================================================
+// Standalone functions (public API)
+// These functions provide a decoupled interface for version operations,
+// following the same pattern as ca.LoadCAInfo() and ca.SaveCAInfo().
+// ============================================================================
+
+// CredentialPath returns the path to a credential directory.
+func CredentialPath(basePath, credentialID string) string {
+	return filepath.Join(basePath, credentialID)
+}
+
+// IsVersioned returns true if a credential uses versioning.
+func IsVersioned(basePath, credentialID string) bool {
+	vs := NewVersionStore(CredentialPath(basePath, credentialID))
+	return vs.IsVersioned()
+}
+
+// ListVersions returns all versions for a credential.
+func ListVersions(basePath, credentialID string) ([]Version, error) {
+	vs := NewVersionStore(CredentialPath(basePath, credentialID))
+	return vs.ListVersions()
+}
+
+// ActivateVersion activates a pending version for a credential.
+func ActivateVersion(basePath, credentialID, versionID string) error {
+	vs := NewVersionStore(CredentialPath(basePath, credentialID))
+	return vs.Activate(versionID)
+}
+
+// SaveVersion saves a credential version with its certificates and keys in the version directory.
+// This is used for multi-profile versioned credentials.
+func SaveVersion(basePath, credentialID, versionID, algoFamily string, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
+	vs := NewVersionStore(CredentialPath(basePath, credentialID))
+	profileDir := vs.ProfileDir(versionID, algoFamily)
+
+	// Create profile directory
+	if err := os.MkdirAll(profileDir, 0700); err != nil {
+		return fmt.Errorf("failed to create profile directory: %w", err)
+	}
+
+	// Save certificates
+	if len(certs) > 0 {
+		certsPEM, err := EncodeCertificatesPEM(certs)
+		if err != nil {
+			return fmt.Errorf("failed to encode certificates: %w", err)
+		}
+
+		certPath := filepath.Join(profileDir, "certificates.pem")
+		if err := os.WriteFile(certPath, certsPEM, 0644); err != nil {
+			return fmt.Errorf("failed to write certificates: %w", err)
+		}
+	}
+
+	// Save private keys (encrypted)
+	if len(signers) > 0 {
+		keysPEM, err := EncodePrivateKeysPEM(signers, passphrase)
+		if err != nil {
+			return fmt.Errorf("failed to encode private keys: %w", err)
+		}
+
+		if len(keysPEM) > 0 {
+			keyPath := filepath.Join(profileDir, "private-keys.pem")
+			if err := os.WriteFile(keyPath, keysPEM, 0600); err != nil {
+				return fmt.Errorf("failed to write private keys: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadVersionCertificates loads certificates from a specific version and algorithm family.
+func LoadVersionCertificates(basePath, credentialID, versionID, algoFamily string) ([]*x509.Certificate, error) {
+	vs := NewVersionStore(CredentialPath(basePath, credentialID))
+	profileDir := vs.ProfileDir(versionID, algoFamily)
+	certPath := filepath.Join(profileDir, "certificates.pem")
+
+	data, err := os.ReadFile(certPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read certificates: %w", err)
+	}
+
+	return DecodeCertificatesPEM(data)
+}
+
+// LoadVersionKeys loads private keys from a specific version and algorithm family.
+func LoadVersionKeys(basePath, credentialID, versionID, algoFamily string, passphrase []byte) ([]pkicrypto.Signer, error) {
+	vs := NewVersionStore(CredentialPath(basePath, credentialID))
+	profileDir := vs.ProfileDir(versionID, algoFamily)
+	keyPath := filepath.Join(profileDir, "private-keys.pem")
+
+	data, err := os.ReadFile(keyPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read private keys: %w", err)
+	}
+
+	return DecodePrivateKeysPEM(data, passphrase)
 }
