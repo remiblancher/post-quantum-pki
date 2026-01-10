@@ -849,7 +849,7 @@ func runCredExport(cmd *cobra.Command, args []string) error {
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
-	versionStore := credStore.GetVersionStore(credID)
+	versionStore := credential.NewVersionStore(credential.CredentialPath(credentialsDir, credID))
 
 	// Handle --all flag (export all versions)
 	if credExportAll {
