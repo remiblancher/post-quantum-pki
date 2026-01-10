@@ -416,7 +416,7 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 	// Save credential
 	credStore := credential.NewFileStore(credentialsDir)
 	passphrase := []byte(credPassphrase)
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
@@ -458,7 +458,7 @@ func runCredList(cmd *cobra.Command, args []string) error {
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
-	credentials, err := credStore.ListAll()
+	credentials, err := credStore.ListAll(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to list credentials: %w", err)
 	}
@@ -517,7 +517,7 @@ func runCredInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
-	b, err := credStore.Load(credID)
+	b, err := credStore.Load(context.Background(), credID)
 	if err != nil {
 		return fmt.Errorf("failed to load credential: %w", err)
 	}
@@ -644,7 +644,7 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 		profileNames = credRotateProfiles
 	} else if len(credRotateAddProfiles) > 0 || len(credRotateRemoveProfiles) > 0 {
 		// Compute: current + add - remove
-		existingCred, err := credStore.Load(credID)
+		existingCred, err := credStore.Load(context.Background(), credID)
 		if err != nil {
 			return fmt.Errorf("failed to load credential: %w", err)
 		}
@@ -660,7 +660,7 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Use existing profiles from credential
-		existingCred, err := credStore.Load(credID)
+		existingCred, err := credStore.Load(context.Background(), credID)
 		if err != nil {
 			return fmt.Errorf("failed to load credential: %w", err)
 		}
@@ -878,7 +878,7 @@ func runCredExport(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Non-versioned credential: load from root
-		certs, err = credStore.LoadCertificates(credID)
+		certs, err = credStore.LoadCertificates(context.Background(), credID)
 		if err != nil {
 			return fmt.Errorf("failed to load certificates: %w", err)
 		}
