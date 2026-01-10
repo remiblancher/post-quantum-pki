@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -70,7 +71,7 @@ func runCredentialActivate(cmd *cobra.Command, args []string) error {
 
 	// Load credential from store
 	credStore := credential.NewFileStore(credentialsDir)
-	cred, err := credStore.Load(credentialID)
+	cred, err := credStore.Load(context.Background(), credentialID)
 	if err != nil {
 		return fmt.Errorf("failed to load credential: %w", err)
 	}
@@ -126,7 +127,7 @@ func runCredentialVersions(cmd *cobra.Command, args []string) error {
 
 	// Load credential from store
 	credStore := credential.NewFileStore(credentialsDir)
-	cred, err := credStore.Load(credentialID)
+	cred, err := credStore.Load(context.Background(), credentialID)
 	if err != nil {
 		// Credential not found - just indicate no versioning
 		fmt.Printf("Credential %s not found or does not use versioning.\n", credentialID)
