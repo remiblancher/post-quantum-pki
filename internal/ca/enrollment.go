@@ -43,7 +43,7 @@ type MultiProfileEnrollRequest struct {
 	Passphrase []byte
 
 	// CredentialStore to save the credential.
-	CredentialStore *credential.FileStore
+	CredentialStore credential.Store
 
 	// AutoActivate activates the credential immediately (default: false = PENDING).
 	AutoActivate bool
@@ -79,7 +79,7 @@ type CredentialRotateRequest struct {
 	Passphrase []byte
 
 	// CredentialStore to load/save credentials.
-	CredentialStore *credential.FileStore
+	CredentialStore credential.Store
 
 	// KeyMode controls key generation (new keys vs reuse existing).
 	KeyMode KeyRotationMode
@@ -533,7 +533,7 @@ func (ca *CA) EnrollMultiProfileVersioned(req MultiProfileEnrollRequest) (*Multi
 	cred.Versions[cred.Active] = ver
 
 	// Set base path for credential
-	credDir := req.CredentialStore.CredentialPath(credentialID)
+	credDir := credential.CredentialPath(req.CredentialStore.BasePath(), credentialID)
 	cred.SetBasePath(credDir)
 
 	result := &MultiProfileEnrollResult{
@@ -597,7 +597,7 @@ func (ca *CA) EnrollMultiProfileVersioned(req MultiProfileEnrollRequest) (*Multi
 
 		// Get algorithm family and save to version directory
 		algoFamily := profileAlgoFamily(prof)
-		if err := req.CredentialStore.SaveVersion(credentialID, cred.Active, algoFamily,
+		if err := credential.SaveVersion(req.CredentialStore.BasePath(), credentialID, cred.Active, algoFamily,
 			[]*x509.Certificate{cert}, signers, req.Passphrase); err != nil {
 			return nil, fmt.Errorf("failed to save version files for %s: %w", algoFamily, err)
 		}
@@ -664,7 +664,7 @@ func (ca *CA) RotateCredentialVersioned(req CredentialRotateRequest) (*Credentia
 	}
 
 	// Set base path
-	credDir := req.CredentialStore.CredentialPath(req.CredentialID)
+	credDir := credential.CredentialPath(req.CredentialStore.BasePath(), req.CredentialID)
 	cred.SetBasePath(credDir)
 
 	result := &CredentialRotateResult{
@@ -720,7 +720,7 @@ func (ca *CA) RotateCredentialVersioned(req CredentialRotateRequest) (*Credentia
 
 		// Save certificate and keys to version directory
 		algoFamily := profileAlgoFamily(prof)
-		if err := req.CredentialStore.SaveVersion(req.CredentialID, newVersionID, algoFamily,
+		if err := credential.SaveVersion(req.CredentialStore.BasePath(), req.CredentialID, newVersionID, algoFamily,
 			[]*x509.Certificate{cert}, signers, req.Passphrase); err != nil {
 			return nil, fmt.Errorf("failed to save version files for %s: %w", algoFamily, err)
 		}
@@ -929,7 +929,7 @@ func compiledProfileAlgoFamily(cp *profile.CompiledProfile) string {
 // RotateCredential rotates all certificates in a credential.
 // keyMode controls whether to generate new keys (KeyRotateNew) or reuse existing (KeyRotateKeep).
 // If newProfiles is provided, use those instead of existing profiles (crypto-agility).
-func (ca *CA) RotateCredential(credentialID string, credentialStore *credential.FileStore, profileStore profile.Store, passphrase []byte, keyMode KeyRotationMode, newProfiles []string) (*EnrollmentResult, error) {
+func (ca *CA) RotateCredential(credentialID string, credentialStore credential.Store, profileStore profile.Store, passphrase []byte, keyMode KeyRotationMode, newProfiles []string) (*EnrollmentResult, error) {
 	// Load existing credential
 	existingCredential, err := credentialStore.Load(credentialID)
 	if err != nil {
@@ -1230,7 +1230,7 @@ func (ca *CA) issueCompositeCertWithExistingKeys(req EnrollmentRequest, prof *pr
 }
 
 // RevokeCredential revokes all certificates in a credential.
-func (ca *CA) RevokeCredential(credentialID string, reason RevocationReason, credentialStore *credential.FileStore) error {
+func (ca *CA) RevokeCredential(credentialID string, reason RevocationReason, credentialStore credential.Store) error {
 	// Load credential
 	cred, err := credentialStore.Load(credentialID)
 	if err != nil {
