@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -622,7 +623,7 @@ func TestCA_RotateCredential_Success(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -699,7 +700,7 @@ func TestCA_RotateCredential_KeepKeys(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -792,7 +793,7 @@ func TestCA_RotateCredential_ProfileNotFound(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -861,7 +862,7 @@ func TestCA_RotateCredential_WithNewProfiles(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -928,7 +929,7 @@ func TestCA_RevokeCredential_Success(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -941,7 +942,7 @@ func TestCA_RevokeCredential_Success(t *testing.T) {
 	}
 
 	// Verify credential status is revoked
-	revokedCred, err := credStore.Load(credentialID)
+	revokedCred, err := credStore.Load(context.Background(),credentialID)
 	if err != nil {
 		t.Fatalf("Load revoked credential error = %v", err)
 	}
@@ -1016,7 +1017,7 @@ func TestCA_RevokeCredential_WithReason(t *testing.T) {
 	}
 
 	passphrase := []byte("testpass")
-	if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		t.Fatalf("credStore.Save() error = %v", err)
 	}
 
@@ -1039,7 +1040,7 @@ func TestCA_RevokeCredential_WithReason(t *testing.T) {
 			t.Fatalf("EnrollWithProfile() error = %v", err)
 		}
 
-		if err := credStore.Save(result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
+		if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 			t.Fatalf("credStore.Save() error = %v", err)
 		}
 

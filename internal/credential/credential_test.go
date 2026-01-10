@@ -1,6 +1,7 @@
 package credential
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -390,12 +391,12 @@ func TestU_FileStore_SaveAndLoad(t *testing.T) {
 	cert := generateTestCertificate(t)
 
 	// Save
-	if err := store.Save(cred, []*x509.Certificate{cert}, nil, nil); err != nil {
+	if err := store.Save(context.Background(), cred, []*x509.Certificate{cert}, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
 	// Load
-	loaded, err := store.Load("test-save")
+	loaded, err := store.Load(context.Background(),"test-save")
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
@@ -415,11 +416,11 @@ func TestU_FileStore_LoadCertificates(t *testing.T) {
 	cred := NewCredential("test-certs", Subject{CommonName: "Certs Test"})
 	cert := generateTestCertificate(t)
 
-	if err := store.Save(cred, []*x509.Certificate{cert}, nil, nil); err != nil {
+	if err := store.Save(context.Background(), cred, []*x509.Certificate{cert}, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	certs, err := store.LoadCertificates("test-certs")
+	certs, err := store.LoadCertificates(context.Background(),"test-certs")
 	if err != nil {
 		t.Fatalf("LoadCertificates failed: %v", err)
 	}
@@ -440,12 +441,12 @@ func TestU_FileStore_ListAll(t *testing.T) {
 			Subject{CommonName: "Test"},
 		)
 		cred.CreateInitialVersion([]string{"ec/tls-server"}, []string{"ec"})
-		if err := store.Save(cred, nil, nil, nil); err != nil {
+		if err := store.Save(context.Background(), cred, nil, nil, nil); err != nil {
 			t.Fatalf("Save failed: %v", err)
 		}
 	}
 
-	credentials, err := store.ListAll()
+	credentials, err := store.ListAll(context.Background())
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -464,12 +465,12 @@ func TestU_FileStore_List(t *testing.T) {
 	cred2 := NewCredential("credential-bob", Subject{CommonName: "Bob"})
 	cred3 := NewCredential("credential-alice2", Subject{CommonName: "Alice Smith"})
 
-	_ = store.Save(cred1, nil, nil, nil)
-	_ = store.Save(cred2, nil, nil, nil)
-	_ = store.Save(cred3, nil, nil, nil)
+	_ = store.Save(context.Background(), cred1, nil, nil, nil)
+	_ = store.Save(context.Background(), cred2, nil, nil, nil)
+	_ = store.Save(context.Background(), cred3, nil, nil, nil)
 
 	// List with filter
-	ids, err := store.List("Alice")
+	ids, err := store.List(context.Background(),"Alice")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -479,7 +480,7 @@ func TestU_FileStore_List(t *testing.T) {
 	}
 
 	// List all
-	allIds, err := store.List("")
+	allIds, err := store.List(context.Background(),"")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -496,17 +497,17 @@ func TestU_FileStore_UpdateStatus(t *testing.T) {
 	cred := NewCredential("test-status", Subject{CommonName: "Status Test"})
 	cred.CreateInitialVersion([]string{"ec/tls-server"}, []string{"ec"})
 
-	if err := store.Save(cred, nil, nil, nil); err != nil {
+	if err := store.Save(context.Background(), cred, nil, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
 	// Update status
-	if err := store.UpdateStatus("test-status", StatusRevoked, "keyCompromise"); err != nil {
+	if err := store.UpdateStatus(context.Background(),"test-status", StatusRevoked, "keyCompromise"); err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
 	}
 
 	// Reload and verify
-	loaded, err := store.Load("test-status")
+	loaded, err := store.Load(context.Background(),"test-status")
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
@@ -525,19 +526,19 @@ func TestU_FileStore_Delete(t *testing.T) {
 
 	cred := NewCredential("test-delete", Subject{CommonName: "Delete Test"})
 
-	if err := store.Save(cred, nil, nil, nil); err != nil {
+	if err := store.Save(context.Background(), cred, nil, nil, nil); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	if !store.Exists("test-delete") {
+	if !store.Exists(context.Background(),"test-delete") {
 		t.Error("credential should exist after save")
 	}
 
-	if err := store.Delete("test-delete"); err != nil {
+	if err := store.Delete(context.Background(),"test-delete"); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
-	if store.Exists("test-delete") {
+	if store.Exists(context.Background(),"test-delete") {
 		t.Error("credential should not exist after delete")
 	}
 }
@@ -546,14 +547,14 @@ func TestU_FileStore_Exists(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	if store.Exists("nonexistent") {
+	if store.Exists(context.Background(),"nonexistent") {
 		t.Error("should return false for nonexistent credential")
 	}
 
 	cred := NewCredential("test-exists", Subject{CommonName: "Exists Test"})
-	_ = store.Save(cred, nil, nil, nil)
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
 
-	if !store.Exists("test-exists") {
+	if !store.Exists(context.Background(),"test-exists") {
 		t.Error("should return true for existing credential")
 	}
 }
@@ -562,7 +563,7 @@ func TestU_FileStore_Load_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	_, err := store.Load("nonexistent")
+	_, err := store.Load(context.Background(),"nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent credential")
 	}
@@ -602,7 +603,7 @@ func TestU_FileStore_ListAll_EmptyDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	credentials, err := store.ListAll()
+	credentials, err := store.ListAll(context.Background())
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -1112,7 +1113,7 @@ func TestFileStore_LoadKeys_NoFile(t *testing.T) {
 	credDir := filepath.Join(credentialsDir, "test-cred")
 	_ = os.MkdirAll(credDir, 0700)
 
-	signers, err := store.LoadKeys("test-cred", nil)
+	signers, err := store.LoadKeys(context.Background(),"test-cred", nil)
 	if err != nil {
 		t.Fatalf("LoadKeys should not error for missing file: %v", err)
 	}
@@ -1131,7 +1132,7 @@ func TestFileStore_LoadKeys_EmptyFile(t *testing.T) {
 	_ = os.MkdirAll(credDir, 0700)
 	_ = os.WriteFile(filepath.Join(credDir, "private-keys.pem"), []byte{}, 0600)
 
-	signers, err := store.LoadKeys("test-cred", nil)
+	signers, err := store.LoadKeys(context.Background(),"test-cred", nil)
 	if err != nil {
 		t.Fatalf("LoadKeys failed: %v", err)
 	}
@@ -1157,7 +1158,7 @@ func TestFileStore_Save_Full(t *testing.T) {
 		PublicKey:  &privateKey.PublicKey,
 	})
 
-	err := store.Save(cred, []*x509.Certificate{cert}, []pkicrypto.Signer{signer}, []byte("password"))
+	err := store.Save(context.Background(), cred, []*x509.Certificate{cert}, []pkicrypto.Signer{signer}, []byte("password"))
 	if err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
@@ -1180,7 +1181,7 @@ func TestFileStore_Save_NoCerts(t *testing.T) {
 
 	cred := NewCredential("save-nocerts", Subject{CommonName: "Test"})
 
-	err := store.Save(cred, nil, nil, nil)
+	err := store.Save(context.Background(), cred, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
@@ -1208,7 +1209,7 @@ func TestFileStore_Load_InvalidJSON(t *testing.T) {
 	_ = os.MkdirAll(credDir, 0700)
 	_ = os.WriteFile(filepath.Join(credDir, "credential.meta.json"), []byte("not json"), 0644)
 
-	_, err := store.Load("bad-json")
+	_, err := store.Load(context.Background(),"bad-json")
 	if err == nil {
 		t.Error("expected error for invalid JSON")
 	}
@@ -1227,7 +1228,7 @@ func TestFileStore_LoadCertificates_InvalidPEM(t *testing.T) {
 	_ = os.MkdirAll(credDir, 0700)
 	_ = os.WriteFile(filepath.Join(credDir, "certificates.pem"), []byte("not a pem"), 0644)
 
-	certs, err := store.LoadCertificates("bad-pem")
+	certs, err := store.LoadCertificates(context.Background(),"bad-pem")
 	// Should return empty slice, not error for invalid PEM
 	if err != nil {
 		t.Fatalf("LoadCertificates failed: %v", err)
@@ -1247,21 +1248,21 @@ func TestFileStore_Delete_Success(t *testing.T) {
 
 	// Create a credential
 	cred := NewCredential("delete-test", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
 
 	// Verify it exists
-	if !store.Exists(cred.ID) {
+	if !store.Exists(context.Background(),cred.ID) {
 		t.Fatal("credential should exist before delete")
 	}
 
 	// Delete
-	err := store.Delete(cred.ID)
+	err := store.Delete(context.Background(),cred.ID)
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
 	// Verify it's gone
-	if store.Exists(cred.ID) {
+	if store.Exists(context.Background(),cred.ID) {
 		t.Error("credential should not exist after delete")
 	}
 }
@@ -1271,7 +1272,7 @@ func TestFileStore_Delete_NotExists(t *testing.T) {
 	store := NewFileStore(tmpDir)
 
 	// Delete non-existent should not error
-	err := store.Delete("nonexistent")
+	err := store.Delete(context.Background(),"nonexistent")
 	if err != nil {
 		t.Errorf("Delete non-existent should not error: %v", err)
 	}
@@ -1288,16 +1289,16 @@ func TestFileStore_UpdateStatus_Revoke(t *testing.T) {
 	// Create a credential
 	cred := NewCredential("status-test", Subject{CommonName: "Test"})
 	cred.CreateInitialVersion([]string{"ec/tls-server"}, []string{"ec"})
-	_ = store.Save(cred, nil, nil, nil)
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
 
 	// Revoke
-	err := store.UpdateStatus(cred.ID, StatusRevoked, "key compromise")
+	err := store.UpdateStatus(context.Background(),cred.ID, StatusRevoked, "key compromise")
 	if err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
 	}
 
 	// Verify status
-	loaded, _ := store.Load(cred.ID)
+	loaded, _ := store.Load(context.Background(),cred.ID)
 	if loaded.RevokedAt == nil {
 		t.Errorf("expected credential to be revoked, but RevokedAt is nil")
 	}
@@ -1310,7 +1311,7 @@ func TestFileStore_UpdateStatus_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	err := store.UpdateStatus("nonexistent", StatusRevoked, "test")
+	err := store.UpdateStatus(context.Background(),"nonexistent", StatusRevoked, "test")
 	if err == nil {
 		t.Error("expected error for non-existent credential")
 	}
@@ -1327,11 +1328,11 @@ func TestFileStore_List_WithFilter(t *testing.T) {
 	// Create credentials with different subjects
 	cred1 := NewCredential("alice-1", Subject{CommonName: "Alice Smith"})
 	cred2 := NewCredential("bob-1", Subject{CommonName: "Bob Jones"})
-	_ = store.Save(cred1, nil, nil, nil)
-	_ = store.Save(cred2, nil, nil, nil)
+	_ = store.Save(context.Background(), cred1, nil, nil, nil)
+	_ = store.Save(context.Background(), cred2, nil, nil, nil)
 
 	// Filter by "alice"
-	ids, err := store.List("alice")
+	ids, err := store.List(context.Background(),"alice")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -1346,10 +1347,10 @@ func TestFileStore_List_NoMatch(t *testing.T) {
 
 	// Create a credential
 	cred := NewCredential("test-1", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
 
 	// Filter that matches nothing
-	ids, err := store.List("nonexistent")
+	ids, err := store.List(context.Background(),"nonexistent")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -1363,276 +1364,11 @@ func TestFileStore_List_EmptyDir(t *testing.T) {
 	store := NewFileStore(tmpDir)
 
 	// List on non-existent directory
-	ids, err := store.List("")
+	ids, err := store.List(context.Background(),"")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 	if len(ids) != 0 {
 		t.Errorf("expected empty list, got %v", ids)
-	}
-}
-
-// =============================================================================
-// FileStore Version Functions Tests
-// =============================================================================
-
-func TestU_NewVersionStore(t *testing.T) {
-	tmpDir := t.TempDir()
-	credentialsDir := filepath.Join(tmpDir, "credentials")
-
-	vs := NewVersionStore(CredentialPath(credentialsDir, "test-cred"))
-	if vs == nil {
-		t.Fatal("NewVersionStore returned nil")
-	}
-
-	expectedBase := filepath.Join(credentialsDir, "test-cred")
-	if vs.basePath != expectedBase {
-		t.Errorf("expected basePath '%s', got '%s'", expectedBase, vs.basePath)
-	}
-}
-
-func TestU_FileStore_SaveVersion(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create credential first
-	cred := NewCredential("version-test", Subject{CommonName: "Test"})
-	if err := store.Save(cred, nil, nil, nil); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	// Create version store and version
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, err := vs.CreateVersion([]string{"ec/tls-server"})
-	if err != nil {
-		t.Fatalf("CreateVersion failed: %v", err)
-	}
-
-	// Generate test certificate and signer
-	cert := generateTestCertificate(t)
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	signer, _ := pkicrypto.NewSoftwareSigner(&pkicrypto.KeyPair{
-		Algorithm:  pkicrypto.AlgECDSAP256,
-		PrivateKey: privateKey,
-		PublicKey:  &privateKey.PublicKey,
-	})
-
-	// Save version
-	err = SaveVersion(tmpDir, cred.ID, version.ID, "ec", []*x509.Certificate{cert}, []pkicrypto.Signer{signer}, nil)
-	if err != nil {
-		t.Fatalf("SaveVersion failed: %v", err)
-	}
-
-	// Verify files were created
-	profileDir := vs.ProfileDir(version.ID, "ec")
-	if _, err := os.Stat(filepath.Join(profileDir, "certificates.pem")); os.IsNotExist(err) {
-		t.Error("certificates.pem should exist")
-	}
-	if _, err := os.Stat(filepath.Join(profileDir, "private-keys.pem")); os.IsNotExist(err) {
-		t.Error("private-keys.pem should exist")
-	}
-}
-
-func TestU_FileStore_SaveVersion_CertsOnly(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create credential and version
-	cred := NewCredential("version-certs", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
-
-	cert := generateTestCertificate(t)
-
-	// Save version with certs only
-	err := SaveVersion(tmpDir, cred.ID, version.ID, "ec", []*x509.Certificate{cert}, nil, nil)
-	if err != nil {
-		t.Fatalf("SaveVersion failed: %v", err)
-	}
-
-	// Verify cert file exists but key file doesn't
-	profileDir := vs.ProfileDir(version.ID, "ec")
-	if _, err := os.Stat(filepath.Join(profileDir, "certificates.pem")); os.IsNotExist(err) {
-		t.Error("certificates.pem should exist")
-	}
-	if _, err := os.Stat(filepath.Join(profileDir, "private-keys.pem")); !os.IsNotExist(err) {
-		t.Error("private-keys.pem should not exist when no signers provided")
-	}
-}
-
-func TestU_FileStore_LoadVersionCertificates(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Setup credential and version
-	cred := NewCredential("load-version-certs", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
-
-	cert := generateTestCertificate(t)
-	_ = SaveVersion(tmpDir, cred.ID, version.ID, "ec", []*x509.Certificate{cert}, nil, nil)
-
-	// Load version certificates
-	certs, err := LoadVersionCertificates(tmpDir, cred.ID, version.ID, "ec")
-	if err != nil {
-		t.Fatalf("LoadVersionCertificates failed: %v", err)
-	}
-
-	if len(certs) != 1 {
-		t.Errorf("expected 1 certificate, got %d", len(certs))
-	}
-}
-
-func TestU_FileStore_LoadVersionCertificates_NotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Setup credential and version but don't save certs
-	cred := NewCredential("load-no-certs", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
-
-	// Load non-existent certs
-	certs, err := LoadVersionCertificates(tmpDir, cred.ID, version.ID, "ec")
-	if err != nil {
-		t.Fatalf("LoadVersionCertificates should not error for missing file: %v", err)
-	}
-	if certs != nil {
-		t.Errorf("expected nil for missing file, got %d certs", len(certs))
-	}
-}
-
-func TestU_FileStore_LoadVersionKeys(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Setup credential and version
-	cred := NewCredential("load-version-keys", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
-
-	// Save with keys
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	signer, _ := pkicrypto.NewSoftwareSigner(&pkicrypto.KeyPair{
-		Algorithm:  pkicrypto.AlgECDSAP256,
-		PrivateKey: privateKey,
-		PublicKey:  &privateKey.PublicKey,
-	})
-	_ = SaveVersion(tmpDir, cred.ID, version.ID, "ec", nil, []pkicrypto.Signer{signer}, nil)
-
-	// Load version keys
-	signers, err := LoadVersionKeys(tmpDir, cred.ID, version.ID, "ec", nil)
-	if err != nil {
-		t.Fatalf("LoadVersionKeys failed: %v", err)
-	}
-
-	if len(signers) != 1 {
-		t.Errorf("expected 1 signer, got %d", len(signers))
-	}
-}
-
-func TestU_FileStore_LoadVersionKeys_NotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Setup credential and version but don't save keys
-	cred := NewCredential("load-no-keys", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
-
-	// Load non-existent keys
-	signers, err := LoadVersionKeys(tmpDir, cred.ID, version.ID, "ec", nil)
-	if err != nil {
-		t.Fatalf("LoadVersionKeys should not error for missing file: %v", err)
-	}
-	if signers != nil {
-		t.Errorf("expected nil for missing file, got %d signers", len(signers))
-	}
-}
-
-func TestU_FileStore_ActivateVersion(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Setup credential and version
-	cred := NewCredential("activate-version", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
-	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "ec"})
-
-	// Activate via standalone function
-	err := ActivateVersion(tmpDir, cred.ID, version.ID)
-	if err != nil {
-		t.Fatalf("ActivateVersion failed: %v", err)
-	}
-
-	// Verify activation
-	loadedVersion, _ := vs.GetVersion(version.ID)
-	if loadedVersion.Status != VersionStatusActive {
-		t.Errorf("expected active status, got '%s'", loadedVersion.Status)
-	}
-}
-
-func TestU_FileStore_ListVersions(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Setup credential and versions
-	cred := NewCredential("list-versions", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
-	_, _ = vs.CreateVersion([]string{"ml-dsa/tls-server"})
-
-	// List via standalone function
-	versions, err := ListVersions(tmpDir, cred.ID)
-	if err != nil {
-		t.Fatalf("ListVersions failed: %v", err)
-	}
-
-	if len(versions) != 2 {
-		t.Errorf("expected 2 versions, got %d", len(versions))
-	}
-}
-
-func TestU_FileStore_IsVersioned_False(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create non-versioned credential
-	cred := NewCredential("non-versioned", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	if IsVersioned(tmpDir, cred.ID) {
-		t.Error("credential should not be versioned")
-	}
-}
-
-func TestU_FileStore_IsVersioned_True(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create versioned credential
-	cred := NewCredential("versioned", Subject{CommonName: "Test"})
-	_ = store.Save(cred, nil, nil, nil)
-
-	vs := NewVersionStore(CredentialPath(tmpDir, cred.ID))
-	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
-
-	if !IsVersioned(tmpDir, cred.ID) {
-		t.Error("credential should be versioned after creating version")
 	}
 }

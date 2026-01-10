@@ -1,6 +1,7 @@
 package credential
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
@@ -16,31 +17,31 @@ import (
 // Store manages credential persistence.
 type Store interface {
 	// Save saves a credential with its certificates and keys.
-	Save(cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error
+	Save(ctx context.Context, cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error
 
 	// Load loads a credential by ID.
-	Load(credentialID string) (*Credential, error)
+	Load(ctx context.Context, credentialID string) (*Credential, error)
 
 	// LoadCertificates loads the certificates for a credential.
-	LoadCertificates(credentialID string) ([]*x509.Certificate, error)
+	LoadCertificates(ctx context.Context, credentialID string) ([]*x509.Certificate, error)
 
 	// LoadKeys loads the private keys for a credential.
-	LoadKeys(credentialID string, passphrase []byte) ([]pkicrypto.Signer, error)
+	LoadKeys(ctx context.Context, credentialID string, passphrase []byte) ([]pkicrypto.Signer, error)
 
 	// List returns all credential IDs, optionally filtered by subject.
-	List(subjectFilter string) ([]string, error)
+	List(ctx context.Context, subjectFilter string) ([]string, error)
 
 	// ListAll returns all credentials.
-	ListAll() ([]*Credential, error)
+	ListAll(ctx context.Context) ([]*Credential, error)
 
 	// UpdateStatus updates the status of a credential.
-	UpdateStatus(credentialID string, status Status, reason string) error
+	UpdateStatus(ctx context.Context, credentialID string, status Status, reason string) error
 
 	// Delete deletes a credential.
-	Delete(credentialID string) error
+	Delete(ctx context.Context, credentialID string) error
 
 	// Exists checks if a credential exists.
-	Exists(credentialID string) bool
+	Exists(ctx context.Context, credentialID string) bool
 
 	// BasePath returns the credentials directory path.
 	BasePath() string
@@ -102,7 +103,8 @@ func (s *FileStore) keysPath(credentialID string) string {
 }
 
 // Save saves a credential with its certificates and keys.
-func (s *FileStore) Save(cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
+func (s *FileStore) Save(ctx context.Context, cred *Credential, certs []*x509.Certificate, signers []pkicrypto.Signer, passphrase []byte) error {
+	_ = ctx
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -156,7 +158,8 @@ func (s *FileStore) Save(cred *Credential, certs []*x509.Certificate, signers []
 }
 
 // Load loads a credential by ID.
-func (s *FileStore) Load(credentialID string) (*Credential, error) {
+func (s *FileStore) Load(ctx context.Context, credentialID string) (*Credential, error) {
+	_ = ctx
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -181,7 +184,8 @@ func (s *FileStore) Load(credentialID string) (*Credential, error) {
 
 // LoadCertificates loads the certificates for a credential.
 // For versioned credentials, this loads from active/ directory.
-func (s *FileStore) LoadCertificates(credentialID string) ([]*x509.Certificate, error) {
+func (s *FileStore) LoadCertificates(ctx context.Context, credentialID string) ([]*x509.Certificate, error) {
+	_ = ctx
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -248,7 +252,8 @@ func (s *FileStore) loadActiveCertificatesUnlocked(credentialID string) ([]*x509
 
 // LoadKeys loads the private keys for a credential.
 // For versioned credentials, this loads from active/ directory.
-func (s *FileStore) LoadKeys(credentialID string, passphrase []byte) ([]pkicrypto.Signer, error) {
+func (s *FileStore) LoadKeys(ctx context.Context, credentialID string, passphrase []byte) ([]pkicrypto.Signer, error) {
+	_ = ctx
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -314,7 +319,8 @@ func (s *FileStore) loadActiveKeysUnlocked(credentialID string, passphrase []byt
 }
 
 // List returns all credential IDs, optionally filtered by subject.
-func (s *FileStore) List(subjectFilter string) ([]string, error) {
+func (s *FileStore) List(ctx context.Context, subjectFilter string) ([]string, error) {
+	_ = ctx
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -372,7 +378,8 @@ func (s *FileStore) loadUnlocked(credentialID string) (*Credential, error) {
 }
 
 // ListAll returns all credentials.
-func (s *FileStore) ListAll() ([]*Credential, error) {
+func (s *FileStore) ListAll(ctx context.Context) ([]*Credential, error) {
+	_ = ctx
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -402,7 +409,8 @@ func (s *FileStore) ListAll() ([]*Credential, error) {
 }
 
 // UpdateStatus updates the status of a credential.
-func (s *FileStore) UpdateStatus(credentialID string, status Status, reason string) error {
+func (s *FileStore) UpdateStatus(ctx context.Context, credentialID string, status Status, reason string) error {
+	_ = ctx
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -426,7 +434,8 @@ func (s *FileStore) UpdateStatus(credentialID string, status Status, reason stri
 }
 
 // Delete deletes a credential.
-func (s *FileStore) Delete(credentialID string) error {
+func (s *FileStore) Delete(ctx context.Context, credentialID string) error {
+	_ = ctx
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -440,7 +449,8 @@ func (s *FileStore) Delete(credentialID string) error {
 }
 
 // Exists checks if a credential exists.
-func (s *FileStore) Exists(credentialID string) bool {
+func (s *FileStore) Exists(ctx context.Context, credentialID string) bool {
+	_ = ctx
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
