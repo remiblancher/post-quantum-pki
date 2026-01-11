@@ -170,19 +170,22 @@ func buildPreTBSCertList(crlDER []byte) ([]byte, error) {
 		remaining = rest
 	}
 
-	// TBSCertList structure (RFC 5280):
-	//   version                 [0] INTEGER OPTIONAL (DEFAULT v1)
-	//   signature                   AlgorithmIdentifier        <- index 1 (or 0 if no version)
+	// TBSCertList structure (RFC 5280 Section 5.1):
+	//   version                     INTEGER OPTIONAL (DEFAULT v1) -- BARE integer, not tagged!
+	//   signature                   AlgorithmIdentifier
 	//   issuer                      Name
 	//   thisUpdate                  Time
 	//   nextUpdate                  Time OPTIONAL
 	//   revokedCertificates         SEQUENCE OF ... OPTIONAL
 	//   crlExtensions           [0] Extensions OPTIONAL
+	//
+	// NOTE: Unlike TBSCertificate where version is [0] EXPLICIT INTEGER,
+	// in TBSCertList version is a bare INTEGER (not tagged).
 
 	// Find and remove signature algorithm (skip version if present)
 	sigAlgIndex := 0
-	if len(components) > 0 && components[0].Tag == 0 {
-		// Has explicit version tag [0]
+	if len(components) > 0 && components[0].Class == asn1.ClassUniversal && components[0].Tag == asn1.TagInteger {
+		// Version is present as a bare INTEGER (not tagged like in certificates)
 		sigAlgIndex = 1
 	}
 
