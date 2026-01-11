@@ -557,3 +557,248 @@ func TestU_MustLog_Success(t *testing.T) {
 		t.Errorf("VerifyChain() count = %d, want 1", count)
 	}
 }
+
+// =============================================================================
+// FileWriter Error Handling Tests
+// =============================================================================
+
+func TestU_FileWriter_InvalidPath(t *testing.T) {
+	// Try to create in a non-existent directory
+	invalidPath := "/nonexistent/directory/audit.jsonl"
+	_, err := NewFileWriter(invalidPath)
+	if err == nil {
+		t.Error("NewFileWriter() should fail with invalid path")
+	}
+}
+
+func TestU_FileWriter_CloseIdempotent(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	writer, err := NewFileWriter(logPath)
+	if err != nil {
+		t.Fatalf("NewFileWriter() error = %v", err)
+	}
+
+	// First close should succeed
+	if err := writer.Close(); err != nil {
+		t.Errorf("First Close() error = %v", err)
+	}
+
+	// Second close should not panic (may return error for closed file)
+	_ = writer.Close()
+}
+
+func TestU_FileWriter_WriteAfterClose(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	writer, err := NewFileWriter(logPath)
+	if err != nil {
+		t.Fatalf("NewFileWriter() error = %v", err)
+	}
+
+	// Close the writer
+	_ = writer.Close()
+
+	// Write after close should fail
+	event := NewEvent(EventCertIssued, ResultSuccess)
+	err = writer.Write(event)
+	if err == nil {
+		t.Error("Write() after Close() should fail")
+	}
+}
+
+func TestU_FileWriter_LargeEvent(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	writer, err := NewFileWriter(logPath)
+	if err != nil {
+		t.Fatalf("NewFileWriter() error = %v", err)
+	}
+	defer func() { _ = writer.Close() }()
+
+	// Create event with large payload
+	largeSubject := strings.Repeat("CN=Test,O=Organization,C=US,", 1000)
+	event := NewEvent(EventCertIssued, ResultSuccess).
+		WithObject(Object{Type: "certificate", Subject: largeSubject})
+
+	if err := writer.Write(event); err != nil {
+		t.Errorf("Write() with large event error = %v", err)
+	}
+
+	// Verify it was written correctly
+	_ = writer.Close()
+	count, err := VerifyChain(logPath)
+	if err != nil {
+		t.Errorf("VerifyChain() error = %v", err)
+	}
+	if count != 1 {
+		t.Errorf("VerifyChain() count = %d, want 1", count)
+	}
+}
+
+func TestU_FileWriter_SpecialChars(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	writer, err := NewFileWriter(logPath)
+	if err != nil {
+		t.Fatalf("NewFileWriter() error = %v", err)
+	}
+	defer func() { _ = writer.Close() }()
+
+	// Create event with special characters (UTF-8, quotes, newlines in subject)
+	event := NewEvent(EventCertIssued, ResultSuccess).
+		WithObject(Object{
+			Type:    "certificate",
+			Subject: `CN=Test "Quoted",O=日本語,C=🔐`,
+		})
+
+	if err := writer.Write(event); err != nil {
+		t.Errorf("Write() with special chars error = %v", err)
+	}
+
+	// Verify it was written correctly
+	_ = writer.Close()
+	count, err := VerifyChain(logPath)
+	if err != nil {
+		t.Errorf("VerifyChain() error = %v", err)
+	}
+	if count != 1 {
+		t.Errorf("VerifyChain() count = %d, want 1", count)
+	}
+}
+
+// =============================================================================
+// MultiWriter Edge Cases Tests
+// =============================================================================
+
+func TestU_MultiWriter_Empty(t *testing.T) {
+	// Create MultiWriter with no writers
+	multi := NewMultiWriter()
+
+	// Write should succeed (no writers to fail)
+	event := NewEvent(EventCertIssued, ResultSuccess)
+	if err := multi.Write(event); err != nil {
+		t.Errorf("MultiWriter.Write() with no writers error = %v", err)
+	}
+
+	// LastHash should return genesis
+	if multi.LastHash() != GenesisHash {
+		t.Errorf("MultiWriter.LastHash() = %s, want %s", multi.LastHash(), GenesisHash)
+	}
+
+	// Close should succeed
+	if err := multi.Close(); err != nil {
+		t.Errorf("MultiWriter.Close() error = %v", err)
+	}
+}
+
+func TestU_MultiWriter_Single(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	writer, err := NewFileWriter(logPath)
+	if err != nil {
+		t.Fatalf("NewFileWriter() error = %v", err)
+	}
+
+	// Create MultiWriter with single writer
+	multi := NewMultiWriter(writer)
+
+	event := NewEvent(EventCertIssued, ResultSuccess)
+	if err := multi.Write(event); err != nil {
+		t.Errorf("MultiWriter.Write() error = %v", err)
+	}
+
+	// LastHash should match the single writer
+	if multi.LastHash() != writer.LastHash() {
+		t.Errorf("MultiWriter.LastHash() = %s, want %s", multi.LastHash(), writer.LastHash())
+	}
+
+	_ = multi.Close()
+
+	// Verify event was written
+	count, err := VerifyChain(logPath)
+	if err != nil {
+		t.Errorf("VerifyChain() error = %v", err)
+	}
+	if count != 1 {
+		t.Errorf("VerifyChain() count = %d, want 1", count)
+	}
+}
+
+// failingWriter is a mock writer that fails on Write.
+type failingWriter struct {
+	failOnWrite bool
+	failOnClose bool
+}
+
+func (f *failingWriter) Write(*Event) error {
+	if f.failOnWrite {
+		return os.ErrPermission
+	}
+	return nil
+}
+
+func (f *failingWriter) Close() error {
+	if f.failOnClose {
+		return os.ErrClosed
+	}
+	return nil
+}
+
+func (f *failingWriter) LastHash() string {
+	return GenesisHash
+}
+
+func TestU_MultiWriter_FirstFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	failing := &failingWriter{failOnWrite: true}
+	working, _ := NewFileWriter(logPath)
+	defer func() { _ = working.Close() }()
+
+	// First writer fails
+	multi := NewMultiWriter(failing, working)
+
+	event := NewEvent(EventCertIssued, ResultSuccess)
+	err := multi.Write(event)
+	if err == nil {
+		t.Error("MultiWriter.Write() should fail when first writer fails")
+	}
+}
+
+func TestU_MultiWriter_SecondFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.jsonl")
+
+	working, _ := NewFileWriter(logPath)
+	failing := &failingWriter{failOnWrite: true}
+	defer func() { _ = working.Close() }()
+
+	// Second writer fails
+	multi := NewMultiWriter(working, failing)
+
+	event := NewEvent(EventCertIssued, ResultSuccess)
+	err := multi.Write(event)
+	if err == nil {
+		t.Error("MultiWriter.Write() should fail when second writer fails")
+	}
+}
+
+func TestU_MultiWriter_CloseErrors(t *testing.T) {
+	failing1 := &failingWriter{failOnClose: true}
+	failing2 := &failingWriter{failOnClose: true}
+
+	multi := NewMultiWriter(failing1, failing2)
+
+	// Close should return an error (the last one)
+	err := multi.Close()
+	if err == nil {
+		t.Error("MultiWriter.Close() should return error when writers fail")
+	}
+}
