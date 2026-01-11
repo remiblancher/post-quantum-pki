@@ -68,6 +68,7 @@ signs:
       - "${artifact}"
 
 changelog:
+  skip: true
   sort: asc
   filters:
     exclude:
@@ -102,7 +103,13 @@ release:
 
     ---
 
-    ## Changelog
+    ## What's New
+
+    - **Config Validation**: New `Config.Validate()` for CA configuration
+    - **Unified Crypto Interface**: `CryptoContext` for all crypto operations
+    - **HSM Documentation**: Verified PQC vendor capabilities with sources
+    - **Major Refactoring**: `context.Context` propagation, modular code structure
+    - **CLA**: Contributor License Agreement added
 
 # Linux packages (.deb, .rpm)
 nfpms:
