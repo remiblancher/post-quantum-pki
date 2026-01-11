@@ -504,7 +504,7 @@ Artifacts are validated using **OpenSSL 3.6+** and **BouncyCastle 1.83+**.
 |---------|--------|-------|
 | Composite signatures | ⚠️ Partial | BC 1.83 uses draft-07 OIDs, we use IETF draft-13 |
 | OpenSSL Catalyst | ⚠️ Partial | Only ECDSA signature verified, PQC ignored |
-| HSM support (PKCS#11) | ✅ Experimental | Tested with SoftHSM |
+| HSM support (PKCS#11) | ✅ | Tested with SoftHSM; hardware HSM not yet validated |
 
 *\*Composite: BC 1.83 implements draft-07 (Entrust OIDs `2.16.840.1.114027.80.8.1.x`), our implementation uses draft-13 (IETF standard OIDs `1.3.6.1.5.5.7.6.x`). Certificates parse correctly but signature verification requires OID migration in BC.*
 
@@ -557,7 +557,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for details on the testing strate
 
 ## About
 
-Developed and maintained by **Rémi Blancher**, cryptography and PKI specialist with 20+ years of experience in cryptographic infrastructures and post-quantum migration.
+Developed and maintained by **Remi Blancher**, cryptography and PKI specialist with 20+ years of experience in cryptographic infrastructures and post-quantum migration.
 
 For questions, feedback, or professional inquiries:
 - Email: remi.blancher@proton.me
