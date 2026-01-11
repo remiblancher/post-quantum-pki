@@ -82,6 +82,20 @@ type HybridConfig struct {
 	Policy x509util.HybridPolicy
 }
 
+// Validate checks that the Config has all required fields.
+func (c *Config) Validate() error {
+	if c.CommonName == "" {
+		return fmt.Errorf("common_name is required")
+	}
+	if c.Algorithm == "" {
+		return fmt.Errorf("algorithm is required")
+	}
+	if c.ValidityYears <= 0 {
+		return fmt.Errorf("validity_years must be positive")
+	}
+	return nil
+}
+
 // New loads an existing CA from the store.
 func New(store Store) (*CA, error) {
 	// Load CAInfo - required for all CAs
@@ -275,6 +289,10 @@ func Initialize(store Store, cfg Config) (*CA, error) {
 		return nil, fmt.Errorf("CA already exists at %s", store.BasePath())
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+
 	if err := store.Init(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize store: %w", err)
 	}
@@ -445,6 +463,10 @@ func saveCertToPath(path string, cert *x509.Certificate) error {
 func InitializeWithSigner(store Store, cfg Config, signer pkicrypto.Signer) (*CA, error) {
 	if store.Exists() {
 		return nil, fmt.Errorf("CA already exists at %s", store.BasePath())
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	if err := store.Init(context.Background()); err != nil {
