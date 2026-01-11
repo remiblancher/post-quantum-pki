@@ -437,30 +437,87 @@ make lint
 make build
 ```
 
-## Cross-Validation
+## Interoperability & Compatibility
 
-All artifacts are verified by **at least 2 independent implementations**:
+This project focuses on **real-world Post-Quantum PKI interoperability**.
+All artifacts are designed to be compatible with standard PKI tooling and are **cross-tested with external implementations**.
 
-### Certificates
+### Standards Compliance
 
-| Type | QPKI | OpenSSL 3.6 | BouncyCastle 1.83 |
-|------|------|-------------|-------------------|
+| Standard | Description | Status |
+|----------|-------------|--------|
+| RFC 5280 | X.509 Certificates and CRL | ✅ |
+| RFC 2986 | PKCS#10 CSR | ✅ |
+| RFC 9883 | ML-KEM CSR Attestation | ✅ |
+| RFC 6960 | OCSP | ✅ |
+| RFC 3161 | TSA Timestamping | ✅ |
+| RFC 5652 | CMS Signed Data | ✅ |
+| FIPS 203 | ML-KEM | ✅ |
+| FIPS 204 | ML-DSA | ✅ |
+| FIPS 205 | SLH-DSA | ✅ |
+| ITU-T X.509 9.8 | Catalyst (dual-key extensions) | ✅ |
+| IETF draft-13 | Composite Signatures | ✅ |
+
+### Interoperability Matrix
+
+Artifacts are validated using **OpenSSL 3.6+** and **BouncyCastle 1.83+**.
+
+#### Certificates
+
+| Type | QPKI | OpenSSL | BouncyCastle |
+|------|------|---------|--------------|
 | Classical (ECDSA/RSA) | ✅ | ✅ verify | ✅ verify |
 | PQC (ML-DSA, SLH-DSA) | ✅ | ✅ verify | ✅ verify |
 | Catalyst Hybrid | ✅ both sigs | ✅ ECDSA only | ✅ both sigs |
 | Composite (IETF) | ✅ both sigs | ❌ | ⚠️ parse only* |
 
-**Cross-tested with:**
-- **OpenSSL 3.6+** (full PQC support)
-- **BouncyCastle 1.83+** (full PQC support)
+#### CSR (Certificate Signing Requests)
 
-*\*Composite: BC 1.83 implements draft-07 (Entrust OIDs), our implementation uses draft-13 (IETF standard OIDs). Certificates parse correctly but signature verification requires OID migration in BC.*
+| Type | QPKI | OpenSSL | BouncyCastle |
+|------|------|---------|--------------|
+| Classical | ✅ | ✅ verify | ✅ verify |
+| PQC (ML-DSA) | ✅ | ✅ verify | ✅ verify |
+| ML-KEM (RFC 9883) | ✅ | ✅ parse | ✅ verify |
+| Hybrid | ✅ | ✅ primary | ✅ both sigs |
 
-Run cross-tests locally:
+#### CRL (Certificate Revocation Lists)
+
+| Type | QPKI | OpenSSL | BouncyCastle |
+|------|------|---------|--------------|
+| Classical | ✅ | ✅ verify | ✅ verify |
+| PQC (ML-DSA, SLH-DSA) | ✅ | ✅ verify | ✅ verify |
+| Catalyst Hybrid | ✅ both sigs | ✅ ECDSA only | ✅ both sigs |
+| Composite (IETF) | ✅ both sigs | ❌ | ⚠️ parse only* |
+
+#### OCSP, TSA, CMS
+
+| Artifact | QPKI | OpenSSL | BouncyCastle |
+|----------|------|---------|--------------|
+| OCSP Response | ✅ | ✅ verify | ✅ verify |
+| TSA Timestamp | ✅ | ✅ verify | ✅ verify |
+| CMS Signed Data | ✅ | ✅ verify | ✅ verify |
+| CMS Enveloped (ML-KEM) | ✅ | ❌ | ✅ decrypt |
+
+### Known Limitations
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Composite signatures | ⚠️ Partial | BC 1.83 uses draft-07 OIDs, we use IETF draft-13 |
+| OpenSSL Catalyst | ⚠️ Partial | Only ECDSA signature verified, PQC ignored |
+| HSM support (PKCS#11) | ✅ Experimental | Tested with SoftHSM |
+
+*\*Composite: BC 1.83 implements draft-07 (Entrust OIDs `2.16.840.1.114027.80.8.1.x`), our implementation uses draft-13 (IETF standard OIDs `1.3.6.1.5.5.7.6.x`). Certificates parse correctly but signature verification requires OID migration in BC.*
+
+### Running Cross-Tests
+
 ```bash
-make crosstest        # All cross-tests (OpenSSL + BouncyCastle)
-make crosstest-bc     # BouncyCastle only (requires Java 17+)
+make crosstest          # All (OpenSSL + BouncyCastle)
+make crosstest-openssl  # OpenSSL only
+make crosstest-bc       # BouncyCastle only (requires Java 17+)
 ```
+
+> OpenSSL and BouncyCastle are used **for interoperability validation only**.
+> This project does **not embed nor depend on** these libraries.
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for details on the testing strategy.
 
