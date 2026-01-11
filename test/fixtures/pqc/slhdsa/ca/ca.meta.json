@@ -1,14 +1,36 @@
 {
-    "profile": "pqc",
-    "created": "2026-01-04T00:22:08.889952+01:00",
-    "keys": [
-        {
-            "id": "default",
-            "algorithm": "slh-dsa-256f",
-            "storage": {
-                "type": "software",
-                "path": "private/ca.slh-dsa-256f.key"
-            }
-        }
+  "subject": {
+    "common_name": "Test SLH-DSA CA",
+    "organization": [
+      "ACME Corp"
+    ],
+    "country": [
+      "US"
     ]
+  },
+  "created": "2026-01-11T14:17:19.670651+01:00",
+  "keys": [
+    {
+      "id": "default",
+      "algorithm": "slh-dsa-256f",
+      "storage": {
+        "type": "software",
+        "path": "versions/v1/keys/ca.slh-dsa-256f.key"
+      }
+    }
+  ],
+  "active": "v1",
+  "versions": {
+    "v1": {
+      "profiles": [
+        "pqc"
+      ],
+      "algos": [
+        "slh-dsa-256f"
+      ],
+      "status": "active",
+      "created": "2026-01-11T14:17:19.670655+01:00",
+      "activated_at": "2026-01-11T14:17:19.670655+01:00"
+    }
+  }
 }

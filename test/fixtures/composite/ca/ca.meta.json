@@ -1,22 +1,45 @@
 {
-    "profile": "composite",
-    "created": "2026-01-04T00:22:10.394521+01:00",
-    "keys": [
-        {
-            "id": "classical",
-            "algorithm": "ecdsa-p384",
-            "storage": {
-                "type": "software",
-                "path": "private/ca.ecdsa-p384.key"
-            }
-        },
-        {
-            "id": "pqc",
-            "algorithm": "ml-dsa-87",
-            "storage": {
-                "type": "software",
-                "path": "private/ca.ml-dsa-87.key"
-            }
-        }
+  "subject": {
+    "common_name": "Test Composite CA",
+    "organization": [
+      "ACME Corp"
+    ],
+    "country": [
+      "US"
     ]
+  },
+  "created": "2026-01-11T14:17:21.340909+01:00",
+  "keys": [
+    {
+      "id": "classical",
+      "algorithm": "ecdsa-p384",
+      "storage": {
+        "type": "software",
+        "path": "versions/v1/keys/ca.ecdsa-p384.key"
+      }
+    },
+    {
+      "id": "pqc",
+      "algorithm": "ml-dsa-87",
+      "storage": {
+        "type": "software",
+        "path": "versions/v1/keys/ca.ml-dsa-87.key"
+      }
+    }
+  ],
+  "active": "v1",
+  "versions": {
+    "v1": {
+      "profiles": [
+        "composite"
+      ],
+      "algos": [
+        "ecdsa-p384",
+        "ml-dsa-87"
+      ],
+      "status": "active",
+      "created": "2026-01-11T14:17:21.340913+01:00",
+      "activated_at": "2026-01-11T14:17:21.340913+01:00"
+    }
+  }
 }

@@ -1,14 +1,36 @@
 {
-    "profile": "pqc",
-    "created": "2026-01-04T00:22:08.519249+01:00",
-    "keys": [
-        {
-            "id": "default",
-            "algorithm": "ml-dsa-87",
-            "storage": {
-                "type": "software",
-                "path": "private/ca.ml-dsa-87.key"
-            }
-        }
+  "subject": {
+    "common_name": "Test ML-DSA CA",
+    "organization": [
+      "ACME Corp"
+    ],
+    "country": [
+      "US"
     ]
+  },
+  "created": "2026-01-11T14:17:19.440636+01:00",
+  "keys": [
+    {
+      "id": "default",
+      "algorithm": "ml-dsa-87",
+      "storage": {
+        "type": "software",
+        "path": "versions/v1/keys/ca.ml-dsa-87.key"
+      }
+    }
+  ],
+  "active": "v1",
+  "versions": {
+    "v1": {
+      "profiles": [
+        "pqc"
+      ],
+      "algos": [
+        "ml-dsa-87"
+      ],
+      "status": "active",
+      "created": "2026-01-11T14:17:19.440658+01:00",
+      "activated_at": "2026-01-11T14:17:19.440658+01:00"
+    }
+  }
 }
