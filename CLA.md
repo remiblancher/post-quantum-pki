@@ -33,5 +33,5 @@ for your contributions.
 
 ---
 
-**Project owner:** Rémi Blancher
+**Project owner:** Remi Blancher
 **License:** Apache License, Version 2.0
