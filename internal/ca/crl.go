@@ -15,11 +15,23 @@ import (
 
 // GenerateCRL generates a Certificate Revocation List.
 //
-// For PQC signers (ML-DSA, SLH-DSA), this delegates to GeneratePQCCRL since
-// Go's crypto/x509.CreateRevocationList doesn't support PQC algorithms.
+// For hybrid CAs (Catalyst, Composite), this delegates to the appropriate
+// CRL generation function. For PQC signers (ML-DSA, SLH-DSA), this delegates
+// to GeneratePQCCRL since Go's crypto/x509.CreateRevocationList doesn't
+// support PQC algorithms.
 func (ca *CA) GenerateCRL(nextUpdate time.Time) ([]byte, error) {
 	if ca.signer == nil {
 		return nil, fmt.Errorf("CA signer not loaded - call LoadSigner first")
+	}
+
+	// Check for Catalyst CA (has HybridSigner + Catalyst extensions)
+	if IsCatalystCertificate(ca.cert) {
+		return ca.GenerateCatalystCRL(nextUpdate)
+	}
+
+	// Check for Composite CA (uses Composite OID)
+	if IsCompositeCertificate(ca.cert) {
+		return ca.GenerateCompositeCRL(nextUpdate)
 	}
 
 	// Delegate to PQC implementation if using a PQC signer

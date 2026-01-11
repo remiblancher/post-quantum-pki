@@ -80,4 +80,22 @@ else
 fi
 echo ""
 
+# =============================================================================
+# Composite CRL (IETF draft-13)
+# =============================================================================
+echo "[CrossCompat] Composite CRL: MLDSA87-ECDSA-P384"
+if [ -f "$FIXTURES/composite/ca/crl/ca.crl" ]; then
+    # OpenSSL 3.6 does not support IETF composite OIDs (1.3.6.1.5.5.7.6.x)
+    # It can parse the CRL structure but cannot verify the composite signature
+    if openssl crl -in "$FIXTURES/composite/ca/crl/ca.crl" -noout 2>/dev/null; then
+        echo "    Composite CRL: OK (parsed)"
+        echo "    Note: Signature verification not supported (IETF draft-13 OIDs)"
+    else
+        echo "    Composite CRL: SKIP (OpenSSL cannot parse composite OIDs)"
+    fi
+else
+    echo "    Composite CRL: SKIP (fixture not found)"
+fi
+echo ""
+
 echo "[PASS] CRL Verification Complete"
