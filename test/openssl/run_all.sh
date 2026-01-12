@@ -94,6 +94,7 @@ run_test "verify_ocsp.sh" "OCSP Response Verification"
 run_test "verify_tsa.sh" "TSA Token Verification"
 run_test "verify_cms.sh" "CMS Signature Verification"
 run_test "verify_cms_encrypt.sh" "CMS Encryption Verification"
+run_test "verify_extensions.sh" "RFC 5280 Extension Compliance"
 
 # Summary
 echo "[CrossCompat] =============================================="
