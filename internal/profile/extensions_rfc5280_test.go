@@ -305,19 +305,68 @@ func TestU_Extension_SubjectAltName_Email(t *testing.T) {
 
 func TestU_Extension_SubjectAltName_URI(t *testing.T) {
 	// RFC 5280: uniformResourceIdentifier is IA5String (implicitly tagged as [6])
-	// Note: URI support may not be implemented in the profile package
 
 	ext := &ExtensionsConfig{
 		SubjectAltName: &SubjectAltNameConfig{
-			URI: []string{"https://example.com"},
+			URI: []string{"https://example.com/path", "http://other.example.org"},
 		},
 	}
 
 	cert := createTestCertificate(t, ext, false)
 
-	// URI might not be supported - check if implemented
-	if len(cert.URIs) == 0 {
-		t.Skip("URI in SubjectAltName not implemented")
+	if len(cert.URIs) != 2 {
+		t.Errorf("expected 2 URIs, got %d", len(cert.URIs))
+	}
+
+	// Verify first URI
+	if cert.URIs[0].String() != "https://example.com/path" {
+		t.Errorf("expected https://example.com/path, got %s", cert.URIs[0].String())
+	}
+
+	// Verify second URI
+	if cert.URIs[1].String() != "http://other.example.org" {
+		t.Errorf("expected http://other.example.org, got %s", cert.URIs[1].String())
+	}
+}
+
+func TestU_Extension_SubjectAltName_URI_InvalidScheme(t *testing.T) {
+	// URI without scheme should fail
+	ext := &ExtensionsConfig{
+		SubjectAltName: &SubjectAltNameConfig{
+			URI: []string{"example.com/path"},
+		},
+	}
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "URI Test",
+		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(24 * time.Hour),
+	}
+
+	err := ext.Apply(tmpl)
+	if err == nil {
+		t.Error("expected error for URI without scheme")
+	}
+}
+
+func TestU_Extension_SubjectAltName_URI_MultipleTypes(t *testing.T) {
+	// Test combining URI with DNS and Email
+	ext := &ExtensionsConfig{
+		SubjectAltName: &SubjectAltNameConfig{
+			DNS:   []string{"example.com"},
+			Email: []string{"test@example.com"},
+			URI:   []string{"https://example.com"},
+		},
+	}
+
+	cert := createTestCertificate(t, ext, false)
+
+	if len(cert.DNSNames) != 1 || len(cert.EmailAddresses) != 1 || len(cert.URIs) != 1 {
+		t.Errorf("expected 1 DNS, 1 Email, 1 URI; got %d, %d, %d",
+			len(cert.DNSNames), len(cert.EmailAddresses), len(cert.URIs))
 	}
 }
 

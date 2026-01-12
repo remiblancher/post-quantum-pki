@@ -8,6 +8,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -344,7 +345,16 @@ func (e *ExtensionsConfig) Apply(cert *x509.Certificate) error {
 			}
 			cert.IPAddresses = append(cert.IPAddresses, ip)
 		}
-		// URIs would need url.Parse - skipping for now
+		for _, uriStr := range e.SubjectAltName.URI {
+			u, err := url.Parse(uriStr)
+			if err != nil {
+				return fmt.Errorf("invalid URI in SAN: %s: %w", uriStr, err)
+			}
+			if u.Scheme == "" {
+				return fmt.Errorf("URI in SAN must have a scheme: %s", uriStr)
+			}
+			cert.URIs = append(cert.URIs, u)
+		}
 	}
 
 	// CRL Distribution Points
