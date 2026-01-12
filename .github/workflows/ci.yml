@@ -1469,7 +1469,6 @@ jobs:
           repository: remiblancher/post-quantum-pki-lab
           ref: main
           path: lab
-          token: ${{ secrets.LAB_REPO_TOKEN }}
 
       - name: "[E2E] Download Binary"
         uses: actions/download-artifact@v4
