@@ -200,45 +200,6 @@ func CreateHybridCSR(req HybridCSRRequest) (*HybridCSR, error) {
 	}, nil
 }
 
-// mustMarshalSet wraps a value in an ASN.1 SET using proper DER length encoding.
-func mustMarshalSet(data []byte) []byte {
-	length := len(data)
-	var result []byte
-
-	if length <= 127 {
-		// Short form: single byte for length
-		result = make([]byte, 2+length)
-		result[0] = 0x31 // SET tag
-		result[1] = byte(length)
-		copy(result[2:], data)
-	} else if length <= 255 {
-		// Long form: 0x81 + 1 byte length
-		result = make([]byte, 3+length)
-		result[0] = 0x31
-		result[1] = 0x81
-		result[2] = byte(length)
-		copy(result[3:], data)
-	} else if length <= 65535 {
-		// Long form: 0x82 + 2 byte length
-		result = make([]byte, 4+length)
-		result[0] = 0x31
-		result[1] = 0x82
-		result[2] = byte(length >> 8)
-		result[3] = byte(length)
-		copy(result[4:], data)
-	} else {
-		// Long form: 0x83 + 3 byte length (for very large data)
-		result = make([]byte, 5+length)
-		result[0] = 0x31
-		result[1] = 0x83
-		result[2] = byte(length >> 16)
-		result[3] = byte(length >> 8)
-		result[4] = byte(length)
-		copy(result[5:], data)
-	}
-	return result
-}
-
 // mustMarshalBitString marshals data as an ASN.1 BIT STRING.
 func mustMarshalBitString(data []byte) []byte {
 	bs := asn1.BitString{Bytes: data, BitLength: len(data) * 8}
