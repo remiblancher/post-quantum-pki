@@ -1959,45 +1959,45 @@ func TestU_TSAError_Unwrap(t *testing.T) {
 
 func TestU_TSAError_ErrorsIs(t *testing.T) {
 	tests := []struct {
-		name       string
-		err        error
-		target     error
+		name        string
+		err         error
+		target      error
 		shouldMatch bool
 	}{
 		{
-			name:       "wrapped ErrInvalidRequest",
-			err:        NewTSAError("request", ErrInvalidRequest),
-			target:     ErrInvalidRequest,
+			name:        "wrapped ErrInvalidRequest",
+			err:         NewTSAError("request", ErrInvalidRequest),
+			target:      ErrInvalidRequest,
 			shouldMatch: true,
 		},
 		{
-			name:       "wrapped ErrHashMismatch",
-			err:        NewTSAError("verify", ErrHashMismatch),
-			target:     ErrHashMismatch,
+			name:        "wrapped ErrHashMismatch",
+			err:         NewTSAError("verify", ErrHashMismatch),
+			target:      ErrHashMismatch,
 			shouldMatch: true,
 		},
 		{
-			name:       "wrapped ErrNonceMismatch",
-			err:        NewTSAError("verify", ErrNonceMismatch),
-			target:     ErrNonceMismatch,
+			name:        "wrapped ErrNonceMismatch",
+			err:         NewTSAError("verify", ErrNonceMismatch),
+			target:      ErrNonceMismatch,
 			shouldMatch: true,
 		},
 		{
-			name:       "wrapped ErrPolicyMismatch",
-			err:        NewTSAError("verify", ErrPolicyMismatch),
-			target:     ErrPolicyMismatch,
+			name:        "wrapped ErrPolicyMismatch",
+			err:         NewTSAError("verify", ErrPolicyMismatch),
+			target:      ErrPolicyMismatch,
 			shouldMatch: true,
 		},
 		{
-			name:       "wrapped ErrTimestampExpired",
-			err:        NewTSAError("verify", ErrTimestampExpired),
-			target:     ErrTimestampExpired,
+			name:        "wrapped ErrTimestampExpired",
+			err:         NewTSAError("verify", ErrTimestampExpired),
+			target:      ErrTimestampExpired,
 			shouldMatch: true,
 		},
 		{
-			name:       "different error",
-			err:        NewTSAError("request", ErrInvalidRequest),
-			target:     ErrHashMismatch,
+			name:        "different error",
+			err:         NewTSAError("request", ErrInvalidRequest),
+			target:      ErrHashMismatch,
 			shouldMatch: false,
 		},
 	}

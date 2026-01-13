@@ -28,11 +28,13 @@ type mockCAStore struct {
 	caCert   *x509.Certificate
 }
 
-func (m *mockCAStore) Init(ctx context.Context) error                              { return nil }
-func (m *mockCAStore) Exists() bool                                                { return true }
-func (m *mockCAStore) BasePath() string                                            { return "/mock" }
+func (m *mockCAStore) Init(ctx context.Context) error                               { return nil }
+func (m *mockCAStore) Exists() bool                                                 { return true }
+func (m *mockCAStore) BasePath() string                                             { return "/mock" }
 func (m *mockCAStore) SaveCACert(ctx context.Context, cert *x509.Certificate) error { return nil }
-func (m *mockCAStore) LoadCACert(ctx context.Context) (*x509.Certificate, error)   { return m.caCert, nil }
+func (m *mockCAStore) LoadCACert(ctx context.Context) (*x509.Certificate, error) {
+	return m.caCert, nil
+}
 func (m *mockCAStore) LoadAllCACerts(ctx context.Context) ([]*x509.Certificate, error) {
 	return []*x509.Certificate{m.caCert}, nil
 }
@@ -46,9 +48,11 @@ func (m *mockCAStore) SaveCertAt(ctx context.Context, path string, cert *x509.Ce
 func (m *mockCAStore) LoadCert(ctx context.Context, serial []byte) (*x509.Certificate, error) {
 	return nil, nil
 }
-func (m *mockCAStore) CACertPath() string                             { return "/mock/ca.crt" }
-func (m *mockCAStore) CAKeyPath() string                              { return "/mock/ca.key" }
-func (m *mockCAStore) CertPath(serial []byte) string                  { return "/mock/certs/" + hex.EncodeToString(serial) + ".crt" }
+func (m *mockCAStore) CACertPath() string { return "/mock/ca.crt" }
+func (m *mockCAStore) CAKeyPath() string  { return "/mock/ca.key" }
+func (m *mockCAStore) CertPath(serial []byte) string {
+	return "/mock/certs/" + hex.EncodeToString(serial) + ".crt"
+}
 func (m *mockCAStore) NextSerial(ctx context.Context) ([]byte, error) { return []byte{1}, nil }
 func (m *mockCAStore) ReadIndex(ctx context.Context) ([]ca.IndexEntry, error) {
 	if m.indexErr != nil {
@@ -1036,4 +1040,3 @@ func TestF_Responder_RoundTrip(t *testing.T) {
 		t.Fatal("ServeOCSP(expired) returned nil")
 	}
 }
-
