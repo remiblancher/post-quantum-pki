@@ -46,14 +46,14 @@ get_result() {
     echo "${result:-N/A}"
 }
 
-# Get emoji for status
-get_emoji() {
+# Get badge for status (Shields.io)
+get_badge() {
     case "$1" in
-        PASS) echo "✅" ;;
-        FAIL) echo "❌" ;;
-        SKIP) echo "⚠️" ;;
-        N/A)  echo "❌" ;;
-        *)    echo "❓" ;;
+        PASS) echo "![PASS](https://img.shields.io/badge/-PASS-success)" ;;
+        FAIL) echo "![FAIL](https://img.shields.io/badge/-FAIL-critical)" ;;
+        SKIP) echo "![SKIP](https://img.shields.io/badge/-SKIP-yellow)" ;;
+        N/A)  echo "-" ;;
+        *)    echo "-" ;;
     esac
 }
 
@@ -158,25 +158,69 @@ if [ -n "$GITHUB_STEP_SUMMARY" ]; then
     SUMMARY_OUTPUT="$GITHUB_STEP_SUMMARY"
 fi
 
-# Build summary content
-SUMMARY_CONTENT="## 🔐 OpenSSL 3.6 Interoperability
+# Count results first for executive summary
+TOTAL_PASS=$(grep '=PASS$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
+TOTAL_FAIL=$(grep '=FAIL$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
+TOTAL_SKIP=$(grep '=SKIP$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
+TOTAL_TESTS=$((TOTAL_PASS + TOTAL_FAIL + TOTAL_SKIP))
 
-| Artefact | Classical | ML-DSA | SLH-DSA | ML-KEM | Catalyst | Composite |
+# Build summary content with executive summary
+SUMMARY_CONTENT="## OpenSSL Cross-Compatibility
+
+![OpenSSL 3.6](https://img.shields.io/badge/OpenSSL-3.6-blue) ![QPKI](https://img.shields.io/badge/QPKI-fixtures-green)
+
+### Summary
+
+| ![PASS](https://img.shields.io/badge/-Verified-success) | ![SKIP](https://img.shields.io/badge/-Parsed-yellow) | ![FAIL](https://img.shields.io/badge/-Failed-critical) | Total |
+|:-----------:|:---------:|:---------:|:-----:|
+| $TOTAL_PASS | $TOTAL_SKIP | $TOTAL_FAIL | $TOTAL_TESTS |
+
+### Results
+
+| Artifact | Classical | ML-DSA | SLH-DSA | ML-KEM | Catalyst | Composite |
 |----------|:---------:|:------:|:-------:|:------:|:--------:|:---------:|"
 
-# Add result rows
+# Add result rows (clean - badges)
 for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
     ROW="| $artifact"
     for algo in EC ML SLH KEM CAT COMP; do
         TC_ID="TC-XOSL-${artifact}-${algo}"
         STATUS=$(get_result "$TC_ID")
-        EMOJI=$(get_emoji "$STATUS")
-        if [ "$STATUS" = "PASS" ] || [ "$STATUS" = "SKIP" ]; then
-            ROW="$ROW | $EMOJI $TC_ID"
-        elif [ "$STATUS" = "N/A" ]; then
+        BADGE=$(get_badge "$STATUS")
+        ROW="$ROW | $BADGE"
+    done
+    ROW="$ROW |"
+    SUMMARY_CONTENT="$SUMMARY_CONTENT
+$ROW"
+done
+
+# Add legend and known limitations
+SUMMARY_CONTENT="$SUMMARY_CONTENT
+
+**Legend:** ![PASS](https://img.shields.io/badge/-PASS-success) Verified | ![SKIP](https://img.shields.io/badge/-SKIP-yellow) Parsed only | ![FAIL](https://img.shields.io/badge/-FAIL-critical) Failed | - N/A
+
+### Known Limitations
+
+| Status | Component | Issue |
+|:------:|-----------|-------|
+| - | Composite | Not supported by OpenSSL (IETF composite OIDs) |
+
+<details>
+<summary>Test Case IDs (for traceability)</summary>
+
+| Artifact | EC | ML-DSA | SLH-DSA | ML-KEM | Catalyst | Composite |
+|----------|:---|:-------|:--------|:-------|:---------|:----------|"
+
+# Add TC-IDs in collapsible section
+for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
+    ROW="| $artifact"
+    for algo in EC ML SLH KEM CAT COMP; do
+        TC_ID="TC-XOSL-${artifact}-${algo}"
+        STATUS=$(get_result "$TC_ID")
+        if [ "$STATUS" = "N/A" ]; then
             ROW="$ROW | -"
         else
-            ROW="$ROW | $EMOJI $TC_ID"
+            ROW="$ROW | $TC_ID"
         fi
     done
     ROW="$ROW |"
@@ -184,10 +228,9 @@ for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
 $ROW"
 done
 
-# Add legend
 SUMMARY_CONTENT="$SUMMARY_CONTENT
 
-**Legend:** ✅ Verified | ⚠️ Parsed only | ❌ Failed | - Not applicable"
+</details>"
 
 # Output summary
 if [ -n "$SUMMARY_OUTPUT" ]; then
@@ -201,11 +244,6 @@ echo ""
 # =============================================================================
 # Final Status
 # =============================================================================
-
-# Count results
-TOTAL_PASS=$(grep '=PASS$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
-TOTAL_FAIL=$(grep '=FAIL$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
-TOTAL_SKIP=$(grep '=SKIP$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
 
 echo "============================================================"
 echo "Results: $TOTAL_PASS passed, $TOTAL_FAIL failed, $TOTAL_SKIP skipped"
