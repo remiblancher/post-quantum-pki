@@ -58,13 +58,13 @@ run_crl_tests() {
     echo ">>> PQC (ML-DSA-87)"
     _verify_crl "TC-XOSL-CRL-ML" "ML-DSA-87 CRL" \
         "$FIXTURES/pqc/mldsa/ca/crl/ca.crl" \
-        "$FIXTURES/pqc/mldsa/ca/ca.crt" "true"
+        "$FIXTURES/pqc/mldsa/ca/ca.crt"
 
     # PQC SLH-DSA
     echo ">>> PQC (SLH-DSA)"
     _verify_crl "TC-XOSL-CRL-SLH" "SLH-DSA CRL" \
         "$FIXTURES/pqc/slhdsa/ca/crl/ca.crl" \
-        "$FIXTURES/pqc/slhdsa/ca/ca.crt" "true"
+        "$FIXTURES/pqc/slhdsa/ca/ca.crt"
 
     # Catalyst Hybrid
     echo ">>> Hybrid (Catalyst)"
