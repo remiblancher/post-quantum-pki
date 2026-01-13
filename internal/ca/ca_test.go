@@ -615,7 +615,7 @@ func TestU_CA_Info(t *testing.T) {
 
 	info := ca.Info()
 	if info == nil {
-		t.Error("Info() should not return nil")
+		t.Fatal("Info() should not return nil")
 	}
 	if info.Subject.CommonName != "Test Root CA" {
 		t.Errorf("Info().Subject.CommonName = %q, want %q", info.Subject.CommonName, "Test Root CA")

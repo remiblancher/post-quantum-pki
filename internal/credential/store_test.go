@@ -730,8 +730,8 @@ func TestU_FileStore_ListAll_NonExistentDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
-	if credentials != nil && len(credentials) != 0 {
-		t.Errorf("expected nil/empty credentials, got %d", len(credentials))
+	if len(credentials) != 0 {
+		t.Errorf("expected empty credentials, got %d", len(credentials))
 	}
 }
 
@@ -744,8 +744,8 @@ func TestU_FileStore_List_NonExistentDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
-	if ids != nil && len(ids) != 0 {
-		t.Errorf("expected nil/empty ids, got %d", len(ids))
+	if len(ids) != 0 {
+		t.Errorf("expected empty ids, got %d", len(ids))
 	}
 }
 

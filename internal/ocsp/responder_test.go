@@ -3,7 +3,6 @@ package ocsp
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
@@ -337,7 +336,9 @@ func TestU_Respond_WithNonce(t *testing.T) {
 
 	// Create request with nonce manually
 	nonce := make([]byte, 16)
-	rand.Read(nonce)
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatalf("Failed to generate nonce: %v", err)
+	}
 	nonceValue, _ := asn1.Marshal(nonce)
 
 	req := &OCSPRequest{
@@ -1036,46 +1037,3 @@ func TestF_Responder_RoundTrip(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Helper function for testing (extend testhelper_test.go functionality)
-// =============================================================================
-
-func generateTestCAForOCSP(t *testing.T) (*x509.Certificate, *ecdsa.PrivateKey) {
-	t.Helper()
-
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("Failed to generate ECDSA key: %v", err)
-	}
-
-	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		t.Fatalf("Failed to generate serial number: %v", err)
-	}
-
-	template := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName:   "Test CA for OCSP",
-			Organization: []string{"Test Org"},
-		},
-		NotBefore:             time.Now().Add(-1 * time.Hour),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		MaxPathLen:            1,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
-	if err != nil {
-		t.Fatalf("Failed to create CA certificate: %v", err)
-	}
-
-	cert, err := x509.ParseCertificate(certDER)
-	if err != nil {
-		t.Fatalf("Failed to parse CA certificate: %v", err)
-	}
-
-	return cert, priv
-}
