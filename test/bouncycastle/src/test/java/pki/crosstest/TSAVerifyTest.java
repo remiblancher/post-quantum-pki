@@ -22,6 +22,7 @@ import java.security.Security;
 import java.util.Collection;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Cross-test: Verify TSA Tokens (RFC 3161) with BouncyCastle.
@@ -52,7 +53,7 @@ public class TSAVerifyTest {
     // =========================================================================
 
     @Test
-    @DisplayName("[CrossCompat] Verify: TSA Classical ECDSA")
+    @DisplayName("[TC-XBC-TSA-EC] Verify: TSA Classical ECDSA")
     public void testCrossCompat_Verify_TSA_Classical() throws Exception {
         Path tsaFile = Paths.get(FIXTURES, "classical/timestamp.tsr");
         assertTrue(Files.exists(tsaFile), "Classical TSA fixture must exist");
@@ -65,7 +66,7 @@ public class TSAVerifyTest {
     // =========================================================================
 
     @Test
-    @DisplayName("[CrossCompat] Verify: TSA ML-DSA-87")
+    @DisplayName("[TC-XBC-TSA-ML] Verify: TSA ML-DSA-87")
     public void testCrossCompat_Verify_TSA_MLDSA() throws Exception {
         Path tsaFile = Paths.get(FIXTURES, "pqc/mldsa/timestamp.tsr");
         assertTrue(Files.exists(tsaFile), "ML-DSA TSA fixture must exist");
@@ -78,7 +79,7 @@ public class TSAVerifyTest {
     // =========================================================================
 
     @Test
-    @DisplayName("[CrossCompat] Verify: TSA SLH-DSA")
+    @DisplayName("[TC-XBC-TSA-SLH] Verify: TSA SLH-DSA")
     public void testCrossCompat_Verify_TSA_SLHDSA() throws Exception {
         Path tsaFile = Paths.get(FIXTURES, "pqc/slhdsa/timestamp.tsr");
         assertTrue(Files.exists(tsaFile), "SLH-DSA TSA fixture must exist");
@@ -91,7 +92,7 @@ public class TSAVerifyTest {
     // =========================================================================
 
     @Test
-    @DisplayName("[CrossCompat] Verify: TSA Catalyst Hybrid")
+    @DisplayName("[TC-XBC-TSA-CAT] Verify: TSA Catalyst Hybrid")
     public void testCrossCompat_Verify_TSA_Catalyst() throws Exception {
         Path tsaFile = Paths.get(FIXTURES, "catalyst/timestamp.tsr");
         assertTrue(Files.exists(tsaFile), "Catalyst TSA fixture must exist");
@@ -105,12 +106,33 @@ public class TSAVerifyTest {
 
     @Test
     @Disabled("BC 1.83 uses Composite draft-07, we use IETF draft-13")
-    @DisplayName("[CrossCompat] Verify: TSA Composite Hybrid")
+    @DisplayName("[TC-XBC-TSA-COMP] Verify: TSA Composite Hybrid")
     public void testCrossCompat_Verify_TSA_Composite() throws Exception {
         Path tsaFile = Paths.get(FIXTURES, "composite/timestamp.tsr");
         assertTrue(Files.exists(tsaFile), "Composite TSA fixture must exist");
 
         verifyTSAToken(Files.readAllBytes(tsaFile), "Composite Hybrid");
+    }
+
+    @Test
+    @DisplayName("[TC-XBC-TSA-COMP] Parse: TSA Composite Structure")
+    public void testCrossCompat_Parse_TSA_Composite() throws Exception {
+        Path tsaFile = Paths.get(FIXTURES, "composite/timestamp.tsr");
+        assumeTrue(Files.exists(tsaFile), "Composite TSA fixture not generated");
+
+        TimeStampResponse tsResp = new TimeStampResponse(Files.readAllBytes(tsaFile));
+        assertEquals(0, tsResp.getStatus(), "TSA response status should be GRANTED");
+
+        TimeStampToken token = tsResp.getTimeStampToken();
+        assertNotNull(token, "Token should exist");
+
+        TimeStampTokenInfo info = token.getTimeStampInfo();
+        assertNotNull(info, "Token info should exist");
+
+        System.out.println("Composite TSA Structure: PARSED");
+        System.out.println("  GenTime: " + info.getGenTime());
+        System.out.println("  Serial: " + info.getSerialNumber());
+        System.out.println("  Note: Signature verification skipped (BC draft-07 vs QPKI draft-13)");
     }
 
     // =========================================================================

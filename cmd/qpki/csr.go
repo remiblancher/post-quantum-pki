@@ -58,23 +58,38 @@ Mode 4: PQC KEM algorithms (ML-KEM) with RFC 9883 attestation
   qpki csr gen --algorithm ml-kem-768 --keyout kem.key --cn example.com \
       --attest-cert sign.crt --attest-key sign.key -o request.csr
 
-Mode 5: Hybrid CSR (classical + PQC dual signatures)
-  qpki csr gen --algorithm ecdsa-p256 --keyout classical.key \
-      --hybrid ml-dsa-65 --hybrid-keyout pqc.key --cn example.com -o request.csr
+Mode 5: Catalyst Hybrid CSR (ITU-T X.509 dual signatures)
+  qpki csr gen --algorithm ecdsa-p384 --hybrid ml-dsa-87 --keyout classical.key \
+      --hybrid-keyout pqc.key --cn example.com -o request.csr
 
-Mode 6: HSM key generation
+Mode 6: Composite CSR (IETF draft-13 combined signature)
+  qpki csr gen --algorithm ecdsa-p384 --composite ml-dsa-87 --keyout classical.key \
+      --hybrid-keyout pqc.key --cn example.com -o request.csr
+
+Mode 7: HSM key generation
   qpki csr gen --algorithm ecdsa-p384 --hsm-config hsm.yaml --key-label mykey \
       --cn example.com -o request.csr
 
 Supported algorithms:
   Classical:
-    ecdsa-p256, ecdsa-p384, ecdsa-p521, ed25519
+    ecdsa-p256, ecdsa-p384, ecdsa-p521, ed25519, ed448
     rsa-2048, rsa-3072, rsa-4096
   PQC Signature (direct signing):
     ml-dsa-44, ml-dsa-65, ml-dsa-87
     slh-dsa-128f, slh-dsa-128s, slh-dsa-192f, slh-dsa-192s, slh-dsa-256f, slh-dsa-256s
   PQC KEM (requires --attest-cert/--attest-key):
-    ml-kem-512, ml-kem-768, ml-kem-1024`,
+    ml-kem-512, ml-kem-768, ml-kem-1024
+
+Catalyst combinations (--algorithm + --hybrid):
+  ecdsa-p256 + ml-dsa-44/ml-dsa-65
+  ecdsa-p384 + ml-dsa-65/ml-dsa-87
+  ecdsa-p521 + ml-dsa-87
+  ed25519 + ml-dsa-44/ml-dsa-65
+  ed448 + ml-dsa-87
+
+Composite combinations (--algorithm + --composite):
+  ecdsa-p256 + ml-dsa-44/ml-dsa-65
+  ecdsa-p384 + ml-dsa-87`,
 	RunE: runCSRGen,
 }
 
@@ -142,6 +157,9 @@ var (
 	csrGenHybridAlg     string
 	csrGenHybridKeyOut  string
 	csrGenHybridKeyPass string
+
+	// Composite CSR flag (IETF draft-13)
+	csrGenComposite string
 )
 
 func init() {
@@ -186,32 +204,56 @@ func init() {
 	flags.StringVar(&csrGenAttestPass, "attest-passphrase", "", "Passphrase for attestation key")
 	flags.BoolVar(&csrGenIncludeCert, "include-cert", false, "Include attestation cert in CSR (RFC 9883)")
 
-	// Hybrid CSR flags
-	flags.StringVar(&csrGenHybridAlg, "hybrid", "", "PQC algorithm for hybrid CSR (e.g., ml-dsa-65)")
+	// Hybrid CSR flags (Catalyst mode: --algorithm + --hybrid)
+	flags.StringVar(&csrGenHybridAlg, "hybrid", "", "PQC algorithm for hybrid/Catalyst CSR (e.g., ml-dsa-65)")
 	flags.StringVar(&csrGenHybridKeyOut, "hybrid-keyout", "", "Output file for hybrid PQC private key")
 	flags.StringVar(&csrGenHybridKeyPass, "hybrid-passphrase", "", "Passphrase for hybrid PQC private key")
+
+	// Composite CSR flag (IETF draft-13: --algorithm + --composite)
+	flags.StringVar(&csrGenComposite, "composite", "", "PQC algorithm for Composite CSR (e.g., ml-dsa-87)")
 }
 
 // csrGenMode represents the CSR generation mode determined from flags.
 type csrGenMode struct {
-	hasKey    bool
-	hasGen    bool
-	hasHSM    bool
-	hasAttest bool
-	hasHybrid bool
+	hasKey       bool
+	hasGen       bool
+	hasHSM       bool
+	hasAttest    bool
+	hasHybrid    bool
+	hasComposite bool
 }
 
 func parseCSRGenMode() csrGenMode {
 	return csrGenMode{
-		hasKey:    csrGenKey != "",
-		hasGen:    csrGenAlgorithm != "" || csrGenKeyOut != "",
-		hasHSM:    csrGenHSMConfig != "",
-		hasAttest: csrGenAttestCert != "" || csrGenAttestKey != "",
-		hasHybrid: csrGenHybridAlg != "",
+		hasKey:       csrGenKey != "",
+		hasGen:       csrGenAlgorithm != "", // Only algorithm triggers gen mode (keyout is just output path)
+		hasHSM:       csrGenHSMConfig != "",
+		hasAttest:    csrGenAttestCert != "" || csrGenAttestKey != "",
+		hasHybrid:    csrGenHybridAlg != "",
+		hasComposite: csrGenComposite != "",
 	}
 }
 
 func validateCSRGenFlags(mode csrGenMode) error {
+	// Composite mode requires --algorithm (like --hybrid)
+	if mode.hasComposite {
+		if !mode.hasGen {
+			return fmt.Errorf("--composite requires --algorithm (e.g., --algorithm ecdsa-p384 --composite ml-dsa-87)")
+		}
+		if mode.hasKey || mode.hasHSM {
+			return fmt.Errorf("--composite is mutually exclusive with --key and --hsm-config")
+		}
+		if mode.hasHybrid {
+			return fmt.Errorf("--composite is mutually exclusive with --hybrid")
+		}
+		if csrGenKeyOut == "" {
+			return fmt.Errorf("--keyout is required when using --composite (for classical key)")
+		}
+		if csrGenHybridKeyOut == "" {
+			return fmt.Errorf("--hybrid-keyout is required when using --composite (for PQC key)")
+		}
+	}
+
 	if mode.hasKey && mode.hasGen {
 		return fmt.Errorf("--key and --algorithm/--keyout are mutually exclusive")
 	}
@@ -279,9 +321,17 @@ func createCSRWithNewKey(mode csrGenMode, subject pkix.Name) ([]byte, string, er
 	if alg.IsPQC() && mode.hasHybrid {
 		return nil, "", fmt.Errorf("--hybrid is only valid with classical algorithms")
 	}
+	if alg.IsPQC() && mode.hasComposite {
+		return nil, "", fmt.Errorf("--composite is only valid with classical algorithms")
+	}
+	if mode.hasComposite {
+		csrDER, err := createCompositeCSRGen(alg, subject)
+		desc := fmt.Sprintf("Composite (%s + %s)", alg.Description(), csrGenComposite)
+		return csrDER, desc, err
+	}
 	if mode.hasHybrid {
 		csrDER, err := createHybridCSRGen(alg, subject)
-		desc := fmt.Sprintf("Hybrid (%s + %s)", alg.Description(), csrGenHybridAlg)
+		desc := fmt.Sprintf("Catalyst (%s + %s)", alg.Description(), csrGenHybridAlg)
 		return csrDER, desc, err
 	}
 	if alg.IsPQC() {
@@ -548,18 +598,23 @@ func createKEMCSRGen(alg crypto.AlgorithmID, subject pkix.Name) ([]byte, error) 
 	return csrDER, nil
 }
 
-// createHybridCSRGen creates a hybrid CSR with classical + PQC signatures.
+// createHybridCSRGen creates a Catalyst hybrid CSR with classical + PQC signatures.
 func createHybridCSRGen(classicalAlg crypto.AlgorithmID, subject pkix.Name) ([]byte, error) {
+	// Validate the combination
+	if err := validateHybridCombination(string(classicalAlg), csrGenHybridAlg); err != nil {
+		return nil, err
+	}
+
 	pqcAlg, err := crypto.ParseAlgorithm(csrGenHybridAlg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid hybrid algorithm: %w", err)
 	}
 
 	if !pqcAlg.IsPQC() || !pqcAlg.IsSignature() {
-		return nil, fmt.Errorf("--hybrid requires a PQC signature algorithm (ml-dsa-*, slh-dsa-*)")
+		return nil, fmt.Errorf("--hybrid requires a PQC signature algorithm (ml-dsa-*)")
 	}
 
-	fmt.Printf("Generating hybrid key pairs: %s + %s...\n", classicalAlg.Description(), pqcAlg.Description())
+	fmt.Printf("Generating Catalyst hybrid key pairs: %s + %s...\n", classicalAlg.Description(), pqcAlg.Description())
 
 	classicalKeyCfg := crypto.KeyStorageConfig{
 		Type:       crypto.KeyProviderTypeSoftware,
@@ -636,6 +691,127 @@ func createHybridCSRWithExistingKeyGen(classicalSigner crypto.Signer, subject pk
 	}
 
 	return hybridCSR.DER(), nil
+}
+
+// validHybridCombinations defines valid Catalyst/Hybrid combinations per ITU-T X.509.
+// Maps classical algorithm to list of valid PQC algorithms.
+var validHybridCombinations = map[string][]string{
+	"ecdsa-p256": {"ml-dsa-44", "ml-dsa-65"},
+	"ecdsa-p384": {"ml-dsa-65", "ml-dsa-87"},
+	"ecdsa-p521": {"ml-dsa-87"},
+	"ed25519":    {"ml-dsa-44", "ml-dsa-65"},
+	"ed448":      {"ml-dsa-87"},
+}
+
+// validateHybridCombination validates a Catalyst/Hybrid algorithm combination.
+func validateHybridCombination(classical, pqc string) error {
+	classical = strings.ToLower(strings.TrimSpace(classical))
+	pqc = strings.ToLower(strings.TrimSpace(pqc))
+
+	validPQC, ok := validHybridCombinations[classical]
+	if !ok {
+		var validClassical []string
+		for k := range validHybridCombinations {
+			validClassical = append(validClassical, k)
+		}
+		return fmt.Errorf("algorithm %q not supported for hybrid mode\nValid classical algorithms: %s",
+			classical, strings.Join(validClassical, ", "))
+	}
+
+	for _, v := range validPQC {
+		if v == pqc {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid hybrid combination: %s + %s\nValid PQC for %s: %s",
+		classical, pqc, classical, strings.Join(validPQC, ", "))
+}
+
+// validCompositeCombinations defines valid Composite combinations per IETF draft-13.
+// Maps classical algorithm to list of valid PQC algorithms.
+var validCompositeCombinations = map[string][]string{
+	"ecdsa-p256": {"ml-dsa-44", "ml-dsa-65"},
+	"ecdsa-p384": {"ml-dsa-87"},
+}
+
+// validateCompositeCombination validates a Composite algorithm combination.
+func validateCompositeCombination(classical, pqc string) error {
+	classical = strings.ToLower(strings.TrimSpace(classical))
+	pqc = strings.ToLower(strings.TrimSpace(pqc))
+
+	validPQC, ok := validCompositeCombinations[classical]
+	if !ok {
+		var validClassical []string
+		for k := range validCompositeCombinations {
+			validClassical = append(validClassical, k)
+		}
+		return fmt.Errorf("algorithm %q not supported for composite mode\nValid classical algorithms: %s",
+			classical, strings.Join(validClassical, ", "))
+	}
+
+	for _, v := range validPQC {
+		if v == pqc {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid composite combination: %s + %s\nValid PQC for %s: %s",
+		classical, pqc, classical, strings.Join(validPQC, ", "))
+}
+
+// createCompositeCSRGen creates a Composite CSR using --algorithm + --composite flags.
+func createCompositeCSRGen(classicalAlg crypto.AlgorithmID, subject pkix.Name) ([]byte, error) {
+	// Validate the combination
+	if err := validateCompositeCombination(string(classicalAlg), csrGenComposite); err != nil {
+		return nil, err
+	}
+
+	pqcAlg, err := crypto.ParseAlgorithm(csrGenComposite)
+	if err != nil {
+		return nil, fmt.Errorf("invalid composite PQC algorithm: %w", err)
+	}
+
+	fmt.Printf("Generating Composite key pairs: %s + %s...\n",
+		classicalAlg.Description(), pqcAlg.Description())
+
+	// Generate classical key
+	classicalKeyCfg := crypto.KeyStorageConfig{
+		Type:       crypto.KeyProviderTypeSoftware,
+		KeyPath:    csrGenKeyOut,
+		Passphrase: csrGenKeyPass,
+	}
+	classicalKM := crypto.NewKeyProvider(classicalKeyCfg)
+	classicalSigner, err := classicalKM.Generate(classicalAlg, classicalKeyCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate classical key pair: %w", err)
+	}
+	fmt.Printf("Classical private key saved to: %s\n", csrGenKeyOut)
+
+	// Generate PQC key
+	pqcKeyCfg := crypto.KeyStorageConfig{
+		Type:       crypto.KeyProviderTypeSoftware,
+		KeyPath:    csrGenHybridKeyOut,
+		Passphrase: csrGenHybridKeyPass,
+	}
+	pqcKM := crypto.NewKeyProvider(pqcKeyCfg)
+	pqcSigner, err := pqcKM.Generate(pqcAlg, pqcKeyCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PQC key pair: %w", err)
+	}
+	fmt.Printf("PQC private key saved to: %s\n", csrGenHybridKeyOut)
+
+	// Create Composite CSR
+	csrDER, err := x509util.CreateCompositeCSR(x509util.CompositeCSRRequest{
+		Subject:         subject,
+		DNSNames:        csrGenDNS,
+		EmailAddresses:  csrGenEmail,
+		ClassicalSigner: classicalSigner,
+		PQCSigner:       pqcSigner,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Composite CSR: %w", err)
+	}
+
+	return csrDER, nil
 }
 
 func runCSRInfo(cmd *cobra.Command, args []string) error {
