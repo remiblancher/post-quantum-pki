@@ -65,10 +65,10 @@ for profile in "$PROFILES_DIR"/*.yaml; do
         # Export the certificate to a .crt file
         "$PKI" ca export -d "$CA_DIR" -o "$OUT_DIR/$name.crt" 2>/dev/null
         echo "OK"
-        ((SUCCESS++))
+        SUCCESS=$((SUCCESS + 1))
     else
         echo "FAILED"
-        ((FAILED++))
+        FAILED=$((FAILED + 1))
     fi
 done
 
@@ -81,3 +81,5 @@ echo "Output directory: $OUT_DIR"
 echo ""
 echo "Run cross-tests with:"
 echo "  ./test/openssl/verify_extension_variants.sh"
+
+exit 0
