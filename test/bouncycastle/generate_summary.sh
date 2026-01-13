@@ -404,27 +404,22 @@ fi
 # Build summary content
 SUMMARY_CONTENT="## ☕ BouncyCastle 1.83 Interoperability
 
-| Artefact | Classical | ML-DSA | SLH-DSA | Catalyst | Composite |
-|----------|:---------:|:------:|:-------:|:--------:|:---------:|"
+| Artefact | Classical | ML-DSA | SLH-DSA | ML-KEM | Catalyst | Composite |
+|----------|:---------:|:------:|:-------:|:------:|:--------:|:---------:|"
 
 # Add result rows
 for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
     ROW="| $artifact"
-    for algo in EC ML SLH CAT COMP; do
-        # Special case: CMSENC uses KEM instead of COMP for the last column
-        if [ "$artifact" = "CMSENC" ] && [ "$algo" = "COMP" ]; then
-            TC_ID="TC-XBC-CMSENC-KEM"
-        else
-            TC_ID="TC-XBC-${artifact}-${algo}"
-        fi
+    for algo in EC ML SLH KEM CAT COMP; do
+        TC_ID="TC-XBC-${artifact}-${algo}"
         STATUS=$(get_result "$TC_ID")
         EMOJI=$(get_emoji "$STATUS")
-        if [ "$STATUS" = "PASS" ]; then
+        if [ "$STATUS" = "PASS" ] || [ "$STATUS" = "SKIP" ]; then
             ROW="$ROW | $EMOJI $TC_ID"
         elif [ "$STATUS" = "N/A" ]; then
-            ROW="$ROW | ❌"
+            ROW="$ROW | -"
         else
-            ROW="$ROW | $EMOJI"
+            ROW="$ROW | $EMOJI $TC_ID"
         fi
     done
     ROW="$ROW |"
@@ -435,7 +430,7 @@ done
 # Add legend
 SUMMARY_CONTENT="$SUMMARY_CONTENT
 
-**Legend:** ✅ Verified | ⚠️ Parsed only | ❌ Not supported/tested"
+**Legend:** ✅ Verified | ⚠️ Parsed only | ❌ Failed | - Not applicable"
 
 # Output summary
 if [ -n "$SUMMARY_OUTPUT" ]; then
