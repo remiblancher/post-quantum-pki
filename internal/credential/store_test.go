@@ -515,3 +515,438 @@ func TestFileStore_List_EmptyDir(t *testing.T) {
 		t.Errorf("expected empty list, got %v", ids)
 	}
 }
+
+func TestU_FileStore_Save_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	err := store.Save(ctx, cred, nil, nil, nil)
+	if err == nil {
+		t.Error("Save should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_Load_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := store.Load(ctx, "test")
+	if err == nil {
+		t.Error("Load should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_LoadCertificates_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := store.LoadCertificates(ctx, "test")
+	if err == nil {
+		t.Error("LoadCertificates should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_LoadKeys_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := store.LoadKeys(ctx, "test", nil)
+	if err == nil {
+		t.Error("LoadKeys should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_List_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := store.List(ctx, "")
+	if err == nil {
+		t.Error("List should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_ListAll_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := store.ListAll(ctx)
+	if err == nil {
+		t.Error("ListAll should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_Delete_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := store.Delete(ctx, "test")
+	if err == nil {
+		t.Error("Delete should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_UpdateStatus_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := store.UpdateStatus(ctx, "test", StatusRevoked, "test")
+	if err == nil {
+		t.Error("UpdateStatus should fail with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestU_FileStore_Exists_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	exists := store.Exists(ctx, "test")
+	if exists {
+		t.Error("Exists should return false with cancelled context")
+	}
+}
+
+func TestU_FileStore_UpdateStatus_Expired(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cred := NewCredential("status-expired", Subject{CommonName: "Test"})
+	cred.CreateInitialVersion([]string{"ec/tls-server"}, []string{"ec"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	err := store.UpdateStatus(context.Background(), cred.ID, StatusExpired, "")
+	if err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	loaded, _ := store.Load(context.Background(), cred.ID)
+	if ver, ok := loaded.Versions[loaded.Active]; ok {
+		if ver.Status != string(StatusExpired) {
+			t.Errorf("expected status 'expired', got '%s'", ver.Status)
+		}
+	} else {
+		t.Error("active version not found")
+	}
+}
+
+func TestU_FileStore_UpdateStatus_Archived(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cred := NewCredential("status-archived", Subject{CommonName: "Test"})
+	cred.CreateInitialVersion([]string{"ec/tls-server"}, []string{"ec"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	err := store.UpdateStatus(context.Background(), cred.ID, StatusArchived, "")
+	if err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	loaded, _ := store.Load(context.Background(), cred.ID)
+	if ver, ok := loaded.Versions[loaded.Active]; ok {
+		if ver.Status != string(StatusArchived) {
+			t.Errorf("expected status 'archived', got '%s'", ver.Status)
+		}
+	} else {
+		t.Error("active version not found")
+	}
+}
+
+func TestU_FileStore_LoadCertificates_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential directory without certificates file
+	credDir := filepath.Join(tmpDir, "no-certs")
+	_ = os.MkdirAll(credDir, 0700)
+
+	certs, err := store.LoadCertificates(context.Background(), "no-certs")
+	if err != nil {
+		t.Fatalf("LoadCertificates should not error for missing file: %v", err)
+	}
+	if certs != nil {
+		t.Errorf("expected nil certs for missing file, got %d", len(certs))
+	}
+}
+
+func TestU_FileStore_ListAll_NonExistentDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	nonExistent := filepath.Join(tmpDir, "nonexistent")
+	store := NewFileStore(nonExistent)
+
+	credentials, err := store.ListAll(context.Background())
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+	if credentials != nil && len(credentials) != 0 {
+		t.Errorf("expected nil/empty credentials, got %d", len(credentials))
+	}
+}
+
+func TestU_FileStore_List_NonExistentDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	nonExistent := filepath.Join(tmpDir, "nonexistent")
+	store := NewFileStore(nonExistent)
+
+	ids, err := store.List(context.Background(), "")
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if ids != nil && len(ids) != 0 {
+		t.Errorf("expected nil/empty ids, got %d", len(ids))
+	}
+}
+
+func TestU_FileStore_LoadCertificates_Versioned(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("versioned-certs", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
+	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "ec"})
+
+	// Create active directory with certificates
+	activeDir := vs.ActiveDir()
+	ecDir := filepath.Join(activeDir, "ec")
+	_ = os.MkdirAll(ecDir, 0755)
+
+	// Write a valid certificate PEM
+	cert := generateTestCertificate(t)
+	certPEM, _ := EncodeCertificatesPEM([]*x509.Certificate{cert})
+	_ = os.WriteFile(filepath.Join(ecDir, "certificates.pem"), certPEM, 0644)
+
+	// Load certificates through versioned path
+	certs, err := store.LoadCertificates(context.Background(), cred.ID)
+	if err != nil {
+		t.Fatalf("LoadCertificates failed: %v", err)
+	}
+
+	if len(certs) != 1 {
+		t.Errorf("expected 1 certificate, got %d", len(certs))
+	}
+}
+
+func TestU_FileStore_LoadKeys_Versioned(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("versioned-keys", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	version, _ := vs.CreateVersion([]string{"ec/tls-server"})
+	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "ec"})
+
+	// Create active directory with keys
+	activeDir := vs.ActiveDir()
+	ecDir := filepath.Join(activeDir, "ec")
+	_ = os.MkdirAll(ecDir, 0755)
+
+	// Write a valid key PEM
+	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	signer, _ := pkicrypto.NewSoftwareSigner(&pkicrypto.KeyPair{
+		Algorithm:  pkicrypto.AlgECDSAP256,
+		PrivateKey: privateKey,
+		PublicKey:  &privateKey.PublicKey,
+	})
+	keyPEM, _ := EncodePrivateKeysPEM([]pkicrypto.Signer{signer}, nil)
+	_ = os.WriteFile(filepath.Join(ecDir, "private-keys.pem"), keyPEM, 0600)
+
+	// Load keys through versioned path
+	signers, err := store.LoadKeys(context.Background(), cred.ID, nil)
+	if err != nil {
+		t.Fatalf("LoadKeys failed: %v", err)
+	}
+
+	if len(signers) != 1 {
+		t.Errorf("expected 1 signer, got %d", len(signers))
+	}
+}
+
+func TestU_FileStore_LoadCertificates_Versioned_EmptyActive(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("versioned-empty", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure but empty active
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
+
+	// Load certificates - should return nil for empty versioned
+	certs, err := store.LoadCertificates(context.Background(), cred.ID)
+	if err != nil {
+		t.Fatalf("LoadCertificates failed: %v", err)
+	}
+
+	if certs != nil {
+		t.Errorf("expected nil certs for empty versioned, got %d", len(certs))
+	}
+}
+
+func TestU_FileStore_LoadKeys_Versioned_EmptyActive(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("versioned-keys-empty", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure but empty active
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
+
+	// Load keys - should return nil for empty versioned
+	signers, err := store.LoadKeys(context.Background(), cred.ID, nil)
+	if err != nil {
+		t.Fatalf("LoadKeys failed: %v", err)
+	}
+
+	if signers != nil {
+		t.Errorf("expected nil signers for empty versioned, got %d", len(signers))
+	}
+}
+
+func TestU_FileStore_CertsPath_Versioned(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("certs-path-versioned", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
+
+	// Get certsPath - should be in active directory
+	path := store.certsPath(cred.ID)
+	expected := filepath.Join(credPath, "active", "certificates.pem")
+	if path != expected {
+		t.Errorf("expected certsPath '%s', got '%s'", expected, path)
+	}
+}
+
+func TestU_FileStore_KeysPath_Versioned(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("keys-path-versioned", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	_, _ = vs.CreateVersion([]string{"ec/tls-server"})
+
+	// Get keysPath - should be in active directory
+	path := store.keysPath(cred.ID)
+	expected := filepath.Join(credPath, "active", "private-keys.pem")
+	if path != expected {
+		t.Errorf("expected keysPath '%s', got '%s'", expected, path)
+	}
+}
+
+func TestU_FileStore_LoadCertificates_Versioned_MultipleAlgos(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Create credential
+	cred := NewCredential("versioned-multi-algo", Subject{CommonName: "Test"})
+	_ = store.Save(context.Background(), cred, nil, nil, nil)
+
+	// Set up versioned structure
+	credPath := filepath.Join(tmpDir, cred.ID)
+	vs := NewVersionStore(credPath)
+	version, _ := vs.CreateVersion([]string{"ec/tls-server", "rsa/tls-server"})
+	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "ec"})
+	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "rsa"})
+
+	// Create active directory with multiple algorithm directories
+	activeDir := vs.ActiveDir()
+	cert := generateTestCertificate(t)
+	certPEM, _ := EncodeCertificatesPEM([]*x509.Certificate{cert})
+
+	for _, algo := range []string{"ec", "rsa"} {
+		algoDir := filepath.Join(activeDir, algo)
+		_ = os.MkdirAll(algoDir, 0755)
+		_ = os.WriteFile(filepath.Join(algoDir, "certificates.pem"), certPEM, 0644)
+	}
+
+	// Load certificates - should get certs from both directories
+	certs, err := store.LoadCertificates(context.Background(), cred.ID)
+	if err != nil {
+		t.Fatalf("LoadCertificates failed: %v", err)
+	}
+
+	if len(certs) != 2 {
+		t.Errorf("expected 2 certificates (one from each algo), got %d", len(certs))
+	}
+}

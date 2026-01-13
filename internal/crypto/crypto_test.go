@@ -1461,3 +1461,655 @@ pkcs11:
 		t.Error("LoadHSMConfig() should fail for invalid config")
 	}
 }
+
+// =============================================================================
+// [Unit] PublicKeyBytes Tests (standalone function)
+// =============================================================================
+
+func TestU_PublicKeyBytes_ECDSA(t *testing.T) {
+	tests := []AlgorithmID{
+		AlgECDSAP256,
+		AlgECDSAP384,
+		AlgECDSAP521,
+	}
+
+	for _, alg := range tests {
+		t.Run(string(alg), func(t *testing.T) {
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
+
+			pubBytes, err := PublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("PublicKeyBytes() returned empty")
+			}
+		})
+	}
+}
+
+func TestU_PublicKeyBytes_Ed25519(t *testing.T) {
+	kp, err := GenerateKeyPair(AlgEd25519)
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	pubBytes, err := PublicKeyBytes(kp.PublicKey)
+	if err != nil {
+		t.Fatalf("PublicKeyBytes() error = %v", err)
+	}
+
+	// Ed25519 public key should be 32 bytes
+	if len(pubBytes) != 32 {
+		t.Errorf("PublicKeyBytes() length = %d, want 32", len(pubBytes))
+	}
+}
+
+func TestU_PublicKeyBytes_RSA_NotImplemented(t *testing.T) {
+	kp, err := GenerateKeyPair(AlgRSA2048)
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	_, err = PublicKeyBytes(kp.PublicKey)
+	if err == nil {
+		t.Error("PublicKeyBytes(RSA) should return error (not implemented)")
+	}
+}
+
+func TestU_PublicKeyBytes_MLDSA(t *testing.T) {
+	tests := []AlgorithmID{
+		AlgMLDSA44,
+		AlgMLDSA65,
+		AlgMLDSA87,
+	}
+
+	for _, alg := range tests {
+		t.Run(string(alg), func(t *testing.T) {
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
+
+			pubBytes, err := PublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("PublicKeyBytes() returned empty")
+			}
+		})
+	}
+}
+
+func TestU_PublicKeyBytes_SLHDSA(t *testing.T) {
+	// Test fast variants only
+	tests := []AlgorithmID{
+		AlgSLHDSA128f,
+		AlgSLHDSA192f,
+		AlgSLHDSA256f,
+	}
+
+	for _, alg := range tests {
+		t.Run(string(alg), func(t *testing.T) {
+			t.Parallel()
+
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
+
+			pubBytes, err := PublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("PublicKeyBytes() returned empty")
+			}
+		})
+	}
+}
+
+func TestU_PublicKeyBytes_MLKEM(t *testing.T) {
+	tests := []AlgorithmID{
+		AlgMLKEM512,
+		AlgMLKEM768,
+		AlgMLKEM1024,
+	}
+
+	for _, alg := range tests {
+		t.Run(string(alg), func(t *testing.T) {
+			kp, err := GenerateKEMKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKEMKeyPair() error = %v", err)
+			}
+
+			pubBytes, err := PublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("PublicKeyBytes() returned empty")
+			}
+		})
+	}
+}
+
+func TestU_PublicKeyBytes_Unknown(t *testing.T) {
+	_, err := PublicKeyBytes("not a public key")
+	if err == nil {
+		t.Error("PublicKeyBytes() should fail for unknown type")
+	}
+}
+
+// =============================================================================
+// [Unit] KeyPair.PublicKeyBytes Tests
+// =============================================================================
+
+func TestU_KeyPair_PublicKeyBytes_ECDSA(t *testing.T) {
+	kp, err := GenerateKeyPair(AlgECDSAP256)
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	pubBytes, err := kp.PublicKeyBytes()
+	if err != nil {
+		t.Fatalf("PublicKeyBytes() error = %v", err)
+	}
+
+	if len(pubBytes) == 0 {
+		t.Error("PublicKeyBytes() returned empty")
+	}
+}
+
+func TestU_KeyPair_PublicKeyBytes_Ed25519(t *testing.T) {
+	kp, err := GenerateKeyPair(AlgEd25519)
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	pubBytes, err := kp.PublicKeyBytes()
+	if err != nil {
+		t.Fatalf("PublicKeyBytes() error = %v", err)
+	}
+
+	if len(pubBytes) != 32 {
+		t.Errorf("PublicKeyBytes() length = %d, want 32", len(pubBytes))
+	}
+}
+
+func TestU_KeyPair_PublicKeyBytes_MLDSA(t *testing.T) {
+	kp, err := GenerateKeyPair(AlgMLDSA65)
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	pubBytes, err := kp.PublicKeyBytes()
+	if err != nil {
+		t.Fatalf("PublicKeyBytes() error = %v", err)
+	}
+
+	if len(pubBytes) == 0 {
+		t.Error("PublicKeyBytes() returned empty")
+	}
+}
+
+func TestU_KeyPair_PublicKeyBytes_MLKEM(t *testing.T) {
+	kemKp, err := GenerateKEMKeyPair(AlgMLKEM768)
+	if err != nil {
+		t.Fatalf("GenerateKEMKeyPair() error = %v", err)
+	}
+
+	// Wrap in a KeyPair to test
+	kp := &KeyPair{
+		Algorithm:  AlgMLKEM768,
+		PrivateKey: kemKp.PrivateKey,
+		PublicKey:  kemKp.PublicKey,
+	}
+
+	pubBytes, err := kp.PublicKeyBytes()
+	if err != nil {
+		t.Fatalf("PublicKeyBytes() error = %v", err)
+	}
+
+	if len(pubBytes) == 0 {
+		t.Error("PublicKeyBytes() returned empty")
+	}
+}
+
+// =============================================================================
+// [Unit] ParsePublicKey Tests
+// =============================================================================
+
+func TestU_ParsePublicKey_MLDSA(t *testing.T) {
+	tests := []AlgorithmID{
+		AlgMLDSA44,
+		AlgMLDSA65,
+		AlgMLDSA87,
+	}
+
+	for _, alg := range tests {
+		t.Run(string(alg), func(t *testing.T) {
+			// Generate key
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
+
+			// Get public key bytes
+			pubBytes, err := PublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			// Parse back
+			parsed, err := ParsePublicKey(alg, pubBytes)
+			if err != nil {
+				t.Fatalf("ParsePublicKey() error = %v", err)
+			}
+
+			if parsed == nil {
+				t.Error("ParsePublicKey() returned nil")
+			}
+		})
+	}
+}
+
+func TestU_ParsePublicKey_SLHDSA(t *testing.T) {
+	// Test fast variants only
+	tests := []AlgorithmID{
+		AlgSLHDSA128f,
+		AlgSLHDSA192f,
+		AlgSLHDSA256f,
+	}
+
+	for _, alg := range tests {
+		t.Run(string(alg), func(t *testing.T) {
+			t.Parallel()
+
+			// Generate key
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
+
+			// Get public key bytes
+			pubBytes, err := PublicKeyBytes(kp.PublicKey)
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			// Parse back
+			parsed, err := ParsePublicKey(alg, pubBytes)
+			if err != nil {
+				t.Fatalf("ParsePublicKey() error = %v", err)
+			}
+
+			if parsed == nil {
+				t.Error("ParsePublicKey() returned nil")
+			}
+		})
+	}
+}
+
+func TestU_ParsePublicKey_Unsupported(t *testing.T) {
+	_, err := ParsePublicKey(AlgECDSAP256, []byte{1, 2, 3})
+	if err == nil {
+		t.Error("ParsePublicKey(ECDSA) should fail (not implemented)")
+	}
+}
+
+// =============================================================================
+// [Unit] NewSoftwareSigner Tests
+// =============================================================================
+
+func TestU_NewSoftwareSigner_AllAlgorithms(t *testing.T) {
+	signatureAlgs := []AlgorithmID{
+		AlgECDSAP256,
+		AlgECDSAP384,
+		AlgEd25519,
+		AlgMLDSA44,
+		AlgMLDSA65,
+		AlgSLHDSA128f,
+	}
+
+	for _, alg := range signatureAlgs {
+		t.Run(string(alg), func(t *testing.T) {
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
+
+			signer, err := NewSoftwareSigner(kp)
+			if err != nil {
+				t.Fatalf("NewSoftwareSigner() error = %v", err)
+			}
+
+			if signer.Algorithm() != alg {
+				t.Errorf("Algorithm() = %v, want %v", signer.Algorithm(), alg)
+			}
+
+			if signer.Public() == nil {
+				t.Error("Public() returned nil")
+			}
+		})
+	}
+}
+
+func TestU_NewSoftwareSigner_NilKeyPair(t *testing.T) {
+	_, err := NewSoftwareSigner(nil)
+	if err == nil {
+		t.Error("NewSoftwareSigner(nil) should fail")
+	}
+}
+
+// =============================================================================
+// [Unit] Verify Function Tests
+// =============================================================================
+
+func TestU_Verify_InvalidAlgorithm(t *testing.T) {
+	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
+	message := []byte("test")
+	h := sha256.Sum256(message)
+	sig, _ := signer.Sign(rand.Reader, h[:], crypto.SHA256)
+
+	// Verify with mismatched algorithm
+	valid := Verify(AlgMLDSA65, signer.Public(), h[:], sig)
+	if valid {
+		t.Error("Verify() should return false for mismatched algorithm")
+	}
+}
+
+func TestU_Verify_EmptySignature(t *testing.T) {
+	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
+	message := []byte("test")
+	h := sha256.Sum256(message)
+
+	// Verify with empty signature
+	valid := Verify(AlgECDSAP256, signer.Public(), h[:], []byte{})
+	if valid {
+		t.Error("Verify() should return false for empty signature")
+	}
+}
+
+// =============================================================================
+// [Unit] VerifySignature Function Tests
+// =============================================================================
+
+func TestU_VerifySignature_ECDSA(t *testing.T) {
+	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
+	if err != nil {
+		t.Fatalf("GenerateSoftwareSigner() error = %v", err)
+	}
+
+	message := []byte("test message")
+	h := sha256.Sum256(message)
+
+	// Sign
+	sig, err := signer.Sign(rand.Reader, h[:], crypto.SHA256)
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+
+	// Verify with VerifySignature function
+	err = VerifySignature(signer.Public(), AlgECDSAP256, h[:], sig)
+	if err != nil {
+		t.Errorf("VerifySignature() should pass for valid signature: %v", err)
+	}
+
+	// Verify with wrong data
+	wrongHash := sha256.Sum256([]byte("wrong message"))
+	err = VerifySignature(signer.Public(), AlgECDSAP256, wrongHash[:], sig)
+	if err == nil {
+		t.Error("VerifySignature() should fail for wrong data")
+	}
+}
+
+func TestU_VerifySignature_PQC(t *testing.T) {
+	signer, err := GenerateSoftwareSigner(AlgMLDSA65)
+	if err != nil {
+		t.Fatalf("GenerateSoftwareSigner() error = %v", err)
+	}
+
+	message := []byte("test message for ML-DSA")
+
+	// Sign
+	sig, err := signer.Sign(rand.Reader, message, nil)
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+
+	// Verify with VerifySignature function
+	err = VerifySignature(signer.Public(), AlgMLDSA65, message, sig)
+	if err != nil {
+		t.Errorf("VerifySignature() should pass for valid signature: %v", err)
+	}
+
+	// Verify with wrong message
+	err = VerifySignature(signer.Public(), AlgMLDSA65, []byte("wrong message"), sig)
+	if err == nil {
+		t.Error("VerifySignature() should fail for wrong message")
+	}
+}
+
+func TestU_VerifySignature_UnsupportedAlgorithm(t *testing.T) {
+	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
+
+	// Using an unknown algorithm should fail
+	err := VerifySignature(signer.Public(), AlgorithmID("unknown"), []byte("msg"), []byte("sig"))
+	if err == nil {
+		t.Error("VerifySignature() should fail for unsupported algorithm")
+	}
+}
+
+// =============================================================================
+// [Unit] LoadPrivateKey Edge Cases
+// =============================================================================
+
+func TestU_LoadPrivateKey_FileNotFound(t *testing.T) {
+	_, err := LoadPrivateKey("/nonexistent/path/key.pem", nil)
+	if err == nil {
+		t.Error("LoadPrivateKey() should fail for non-existent file")
+	}
+}
+
+func TestU_LoadPrivateKey_WrongPassphrase(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Generate and save encrypted key
+	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
+	keyPath := filepath.Join(tempDir, "encrypted.key.pem")
+	if err := signer.SavePrivateKey(keyPath, []byte("correctpassword")); err != nil {
+		t.Fatalf("SavePrivateKey() error = %v", err)
+	}
+
+	// Try to load with wrong passphrase
+	_, err := LoadPrivateKey(keyPath, []byte("wrongpassword"))
+	if err == nil {
+		t.Error("LoadPrivateKey() should fail with wrong passphrase")
+	}
+}
+
+// =============================================================================
+// [Unit] VerifySignature Additional Tests
+// =============================================================================
+
+func TestU_VerifySignature_Ed25519(t *testing.T) {
+	signer, err := GenerateSoftwareSigner(AlgEd25519)
+	if err != nil {
+		t.Fatalf("GenerateSoftwareSigner() error = %v", err)
+	}
+
+	message := []byte("test message for Ed25519")
+
+	// Sign
+	sig, err := signer.Sign(rand.Reader, message, nil)
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+
+	// Verify
+	err = VerifySignature(signer.Public(), AlgEd25519, message, sig)
+	if err != nil {
+		t.Errorf("VerifySignature() should pass for valid signature: %v", err)
+	}
+}
+
+func TestU_VerifySignature_RSA(t *testing.T) {
+	signer, err := GenerateSoftwareSigner(AlgRSA2048)
+	if err != nil {
+		t.Fatalf("GenerateSoftwareSigner() error = %v", err)
+	}
+
+	message := []byte("test message for RSA")
+	h := sha256.Sum256(message)
+
+	// Sign
+	sig, err := signer.Sign(rand.Reader, h[:], crypto.SHA256)
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+
+	// Verify
+	err = VerifySignature(signer.Public(), AlgRSA2048, h[:], sig)
+	if err != nil {
+		t.Errorf("VerifySignature() should pass for valid signature: %v", err)
+	}
+}
+
+func TestU_VerifySignature_SLHDSA(t *testing.T) {
+	signer, err := GenerateSoftwareSigner(AlgSLHDSA128f)
+	if err != nil {
+		t.Fatalf("GenerateSoftwareSigner() error = %v", err)
+	}
+
+	message := []byte("test message for SLH-DSA")
+
+	// Sign
+	sig, err := signer.Sign(rand.Reader, message, nil)
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+
+	// Verify
+	err = VerifySignature(signer.Public(), AlgSLHDSA128f, message, sig)
+	if err != nil {
+		t.Errorf("VerifySignature() should pass for valid signature: %v", err)
+	}
+}
+
+// =============================================================================
+// [Unit] VerifySignature with invalid public key type
+// =============================================================================
+
+func TestU_VerifySignature_InvalidPublicKey(t *testing.T) {
+	message := []byte("test message")
+	sig := []byte("invalid signature")
+
+	// Try with nil public key
+	err := VerifySignature(nil, AlgECDSAP256, message, sig)
+	if err == nil {
+		t.Error("VerifySignature() should fail with nil public key")
+	}
+
+	// Try with wrong type
+	err = VerifySignature("not a key", AlgECDSAP256, message, sig)
+	if err == nil {
+		t.Error("VerifySignature() should fail with wrong public key type")
+	}
+}
+
+// =============================================================================
+// [Unit] Load PQC Keys Tests
+// =============================================================================
+
+func TestU_LoadPrivateKey_MLDSA(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Generate and save ML-DSA key
+	signer, _ := GenerateSoftwareSigner(AlgMLDSA65)
+	keyPath := filepath.Join(tempDir, "mldsa.key.pem")
+	if err := signer.SavePrivateKey(keyPath, nil); err != nil {
+		t.Fatalf("SavePrivateKey() error = %v", err)
+	}
+
+	// Load key
+	loaded, err := LoadPrivateKey(keyPath, nil)
+	if err != nil {
+		t.Fatalf("LoadPrivateKey() error = %v", err)
+	}
+
+	if loaded.Algorithm() != AlgMLDSA65 {
+		t.Errorf("Algorithm() = %v, want %v", loaded.Algorithm(), AlgMLDSA65)
+	}
+}
+
+func TestU_LoadPrivateKey_SLHDSA(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Generate and save SLH-DSA key (fast variant)
+	signer, _ := GenerateSoftwareSigner(AlgSLHDSA128f)
+	keyPath := filepath.Join(tempDir, "slhdsa.key.pem")
+	if err := signer.SavePrivateKey(keyPath, nil); err != nil {
+		t.Fatalf("SavePrivateKey() error = %v", err)
+	}
+
+	// Load key
+	loaded, err := LoadPrivateKey(keyPath, nil)
+	if err != nil {
+		t.Fatalf("LoadPrivateKey() error = %v", err)
+	}
+
+	if loaded.Algorithm() != AlgSLHDSA128f {
+		t.Errorf("Algorithm() = %v, want %v", loaded.Algorithm(), AlgSLHDSA128f)
+	}
+}
+
+func TestU_LoadPrivateKey_Ed25519(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Generate and save Ed25519 key
+	signer, _ := GenerateSoftwareSigner(AlgEd25519)
+	keyPath := filepath.Join(tempDir, "ed25519.key.pem")
+	if err := signer.SavePrivateKey(keyPath, nil); err != nil {
+		t.Fatalf("SavePrivateKey() error = %v", err)
+	}
+
+	// Load key
+	loaded, err := LoadPrivateKey(keyPath, nil)
+	if err != nil {
+		t.Fatalf("LoadPrivateKey() error = %v", err)
+	}
+
+	if loaded.Algorithm() != AlgEd25519 {
+		t.Errorf("Algorithm() = %v, want %v", loaded.Algorithm(), AlgEd25519)
+	}
+}
+
+func TestU_LoadPrivateKey_RSA(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Generate and save RSA key
+	signer, _ := GenerateSoftwareSigner(AlgRSA2048)
+	keyPath := filepath.Join(tempDir, "rsa.key.pem")
+	if err := signer.SavePrivateKey(keyPath, nil); err != nil {
+		t.Fatalf("SavePrivateKey() error = %v", err)
+	}
+
+	// Load key
+	loaded, err := LoadPrivateKey(keyPath, nil)
+	if err != nil {
+		t.Fatalf("LoadPrivateKey() error = %v", err)
+	}
+
+	if loaded.Algorithm() != AlgRSA2048 {
+		t.Errorf("Algorithm() = %v, want %v", loaded.Algorithm(), AlgRSA2048)
+	}
+}

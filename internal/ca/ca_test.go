@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/remiblancher/post-quantum-pki/internal/crypto"
@@ -400,5 +401,325 @@ func TestU_CA_IsHybridCA(t *testing.T) {
 				t.Errorf("IsHybridCA() = %v, want %v", ca.IsHybridCA(), tt.expected)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// CAError Tests (from errors.go)
+// =============================================================================
+
+func TestU_CAError_Error(t *testing.T) {
+	tests := []struct {
+		name     string
+		op       string
+		serial   string
+		err      error
+		expected string
+	}{
+		{
+			name:     "operation without serial",
+			op:       "init",
+			serial:   "",
+			err:      ErrCANotInitialized,
+			expected: "ca init: CA not initialized",
+		},
+		{
+			name:     "operation with serial",
+			op:       "revoke",
+			serial:   "1234567890ABCDEF",
+			err:      ErrCertNotFound,
+			expected: "ca revoke [1234567890ABCDEF]: certificate not found",
+		},
+		{
+			name:     "issue operation",
+			op:       "issue",
+			serial:   "",
+			err:      ErrInvalidCSR,
+			expected: "ca issue: invalid CSR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var caErr *CAError
+			if tt.serial != "" {
+				caErr = NewCAErrorWithSerial(tt.op, tt.serial, tt.err)
+			} else {
+				caErr = NewCAError(tt.op, tt.err)
+			}
+
+			if got := caErr.Error(); got != tt.expected {
+				t.Errorf("CAError.Error() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestU_CAError_Unwrap(t *testing.T) {
+	underlying := ErrCertNotFound
+	caErr := NewCAError("get", underlying)
+
+	unwrapped := caErr.Unwrap()
+	if unwrapped != underlying {
+		t.Errorf("CAError.Unwrap() = %v, want %v", unwrapped, underlying)
+	}
+}
+
+func TestU_NewCAError(t *testing.T) {
+	caErr := NewCAError("verify", ErrChainVerification)
+
+	if caErr.Op != "verify" {
+		t.Errorf("NewCAError() Op = %q, want %q", caErr.Op, "verify")
+	}
+	if caErr.Serial != "" {
+		t.Errorf("NewCAError() Serial = %q, want empty", caErr.Serial)
+	}
+	if caErr.Err != ErrChainVerification {
+		t.Errorf("NewCAError() Err = %v, want %v", caErr.Err, ErrChainVerification)
+	}
+}
+
+func TestU_NewCAErrorWithSerial(t *testing.T) {
+	caErr := NewCAErrorWithSerial("revoke", "ABC123", ErrCertRevoked)
+
+	if caErr.Op != "revoke" {
+		t.Errorf("NewCAErrorWithSerial() Op = %q, want %q", caErr.Op, "revoke")
+	}
+	if caErr.Serial != "ABC123" {
+		t.Errorf("NewCAErrorWithSerial() Serial = %q, want %q", caErr.Serial, "ABC123")
+	}
+	if caErr.Err != ErrCertRevoked {
+		t.Errorf("NewCAErrorWithSerial() Err = %v, want %v", caErr.Err, ErrCertRevoked)
+	}
+}
+
+func TestU_CAError_ErrorsIs(t *testing.T) {
+	tests := []struct {
+		name   string
+		caErr  *CAError
+		target error
+		want   bool
+	}{
+		{
+			name:   "matches underlying error",
+			caErr:  NewCAError("issue", ErrCertNotFound),
+			target: ErrCertNotFound,
+			want:   true,
+		},
+		{
+			name:   "does not match different error",
+			caErr:  NewCAError("issue", ErrCertNotFound),
+			target: ErrCertRevoked,
+			want:   false,
+		},
+		{
+			name:   "matches through serial error",
+			caErr:  NewCAErrorWithSerial("revoke", "123", ErrCertExpired),
+			target: ErrCertExpired,
+			want:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var e error = tt.caErr
+			if got := errors.Is(e, tt.target); got != tt.want {
+				t.Errorf("errors.Is(%v, %v) = %v, want %v", tt.caErr, tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestU_CAError_ErrorsAs(t *testing.T) {
+	caErr := NewCAErrorWithSerial("rotate", "XYZ789", ErrRotationFailed)
+	var e error = caErr
+
+	var target *CAError
+	if !errors.As(e, &target) {
+		t.Error("errors.As() should succeed for *CAError")
+	}
+	if target.Op != "rotate" {
+		t.Errorf("errors.As() Op = %q, want %q", target.Op, "rotate")
+	}
+	if target.Serial != "XYZ789" {
+		t.Errorf("errors.As() Serial = %q, want %q", target.Serial, "XYZ789")
+	}
+}
+
+func TestU_SentinelErrors_Values(t *testing.T) {
+	tests := []struct {
+		err      error
+		expected string
+	}{
+		{ErrCertNotFound, "certificate not found"},
+		{ErrCertRevoked, "certificate already revoked"},
+		{ErrCertExpired, "certificate expired"},
+		{ErrProfileNotFound, "profile not found"},
+		{ErrInvalidCSR, "invalid CSR"},
+		{ErrCANotInitialized, "CA not initialized"},
+		{ErrInvalidCertificate, "invalid certificate"},
+		{ErrChainVerification, "certificate chain verification failed"},
+		{ErrKeyMismatch, "key does not match certificate"},
+		{ErrRotationFailed, "rotation failed"},
+		{ErrCRLGeneration, "CRL generation failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			if got := tt.err.Error(); got != tt.expected {
+				t.Errorf("error.Error() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestU_SentinelErrors_Distinct(t *testing.T) {
+	sentinels := []error{
+		ErrCertNotFound,
+		ErrCertRevoked,
+		ErrCertExpired,
+		ErrProfileNotFound,
+		ErrInvalidCSR,
+		ErrCANotInitialized,
+		ErrInvalidCertificate,
+		ErrChainVerification,
+		ErrKeyMismatch,
+		ErrRotationFailed,
+		ErrCRLGeneration,
+	}
+
+	for i, err1 := range sentinels {
+		for j, err2 := range sentinels {
+			if i != j && errors.Is(err1, err2) {
+				t.Errorf("Sentinel errors should be distinct: %v should not be %v", err1, err2)
+			}
+		}
+	}
+}
+
+func TestU_CA_Info(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Root CA",
+		Algorithm:     crypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	info := ca.Info()
+	if info == nil {
+		t.Error("Info() should not return nil")
+	}
+	if info.Subject.CommonName != "Test Root CA" {
+		t.Errorf("Info().Subject.CommonName = %q, want %q", info.Subject.CommonName, "Test Root CA")
+	}
+}
+
+func TestU_CA_Signer(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Root CA",
+		Algorithm:     crypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Signer should be loaded after Initialize
+	signer := ca.Signer()
+	if signer == nil {
+		t.Error("Signer() should not return nil after Initialize")
+	}
+}
+
+func TestU_CA_Signer_NotLoaded(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Root CA",
+		Algorithm:     crypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+		Passphrase:    "test-passphrase", // With passphrase
+	}
+
+	_, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Load CA without signer
+	ca, err := New(store)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// Signer should be nil when not loaded (passphrase protected)
+	signer := ca.Signer()
+	if signer != nil {
+		t.Error("Signer() should return nil when key is not loaded")
+	}
+}
+
+func TestU_CA_DefaultKeyPath_Hybrid(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		ClassicalAlgorithm: crypto.AlgECDSAP256,
+		PQCAlgorithm:       crypto.AlgMLDSA65,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	keyPath := ca.DefaultKeyPath()
+	// Hybrid CA should return one of the key paths
+	if keyPath == "" {
+		t.Error("DefaultKeyPath() should not return empty string for hybrid CA")
+	}
+}
+
+func TestU_CA_DefaultKeyPath_NoActiveVersion(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Root CA",
+		Algorithm:     crypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Clear active version to simulate no active version scenario
+	ca.info.Active = ""
+
+	keyPath := ca.DefaultKeyPath()
+	if keyPath != "" {
+		t.Errorf("DefaultKeyPath() = %q, want empty string when no active version", keyPath)
 	}
 }

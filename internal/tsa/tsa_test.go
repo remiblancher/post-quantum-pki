@@ -12,6 +12,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -1890,5 +1891,223 @@ func TestU_Request_HashLengthMismatch(t *testing.T) {
 	_, err := ParseRequest(encoded)
 	if err == nil {
 		t.Error("ParseRequest should fail for hash length mismatch")
+	}
+}
+
+// =============================================================================
+// TSAError Tests
+// =============================================================================
+
+func TestU_TSAError_Error(t *testing.T) {
+	tests := []struct {
+		name     string
+		op       string
+		err      error
+		expected string
+	}{
+		{
+			name:     "request operation",
+			op:       "request",
+			err:      ErrInvalidRequest,
+			expected: "tsa request: invalid timestamp request",
+		},
+		{
+			name:     "response operation",
+			op:       "response",
+			err:      ErrInvalidResponse,
+			expected: "tsa response: invalid timestamp response",
+		},
+		{
+			name:     "verify operation",
+			op:       "verify",
+			err:      ErrVerificationFailed,
+			expected: "tsa verify: timestamp verification failed",
+		},
+		{
+			name:     "sign operation",
+			op:       "sign",
+			err:      ErrUnsupportedHashAlgorithm,
+			expected: "tsa sign: unsupported hash algorithm",
+		},
+		{
+			name:     "parse operation",
+			op:       "parse",
+			err:      ErrInvalidToken,
+			expected: "tsa parse: invalid timestamp token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tsaErr := NewTSAError(tt.op, tt.err)
+			if got := tsaErr.Error(); got != tt.expected {
+				t.Errorf("TSAError.Error() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestU_TSAError_Unwrap(t *testing.T) {
+	underlyingErr := ErrHashMismatch
+	tsaErr := NewTSAError("verify", underlyingErr)
+
+	unwrapped := tsaErr.Unwrap()
+	if unwrapped != underlyingErr {
+		t.Errorf("TSAError.Unwrap() = %v, want %v", unwrapped, underlyingErr)
+	}
+}
+
+func TestU_TSAError_ErrorsIs(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		target     error
+		shouldMatch bool
+	}{
+		{
+			name:       "wrapped ErrInvalidRequest",
+			err:        NewTSAError("request", ErrInvalidRequest),
+			target:     ErrInvalidRequest,
+			shouldMatch: true,
+		},
+		{
+			name:       "wrapped ErrHashMismatch",
+			err:        NewTSAError("verify", ErrHashMismatch),
+			target:     ErrHashMismatch,
+			shouldMatch: true,
+		},
+		{
+			name:       "wrapped ErrNonceMismatch",
+			err:        NewTSAError("verify", ErrNonceMismatch),
+			target:     ErrNonceMismatch,
+			shouldMatch: true,
+		},
+		{
+			name:       "wrapped ErrPolicyMismatch",
+			err:        NewTSAError("verify", ErrPolicyMismatch),
+			target:     ErrPolicyMismatch,
+			shouldMatch: true,
+		},
+		{
+			name:       "wrapped ErrTimestampExpired",
+			err:        NewTSAError("verify", ErrTimestampExpired),
+			target:     ErrTimestampExpired,
+			shouldMatch: true,
+		},
+		{
+			name:       "different error",
+			err:        NewTSAError("request", ErrInvalidRequest),
+			target:     ErrHashMismatch,
+			shouldMatch: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := errors.Is(tt.err, tt.target); got != tt.shouldMatch {
+				t.Errorf("errors.Is(%v, %v) = %v, want %v", tt.err, tt.target, got, tt.shouldMatch)
+			}
+		})
+	}
+}
+
+func TestU_TSAError_ErrorsAs(t *testing.T) {
+	tsaErr := NewTSAError("verify", ErrVerificationFailed)
+
+	var target *TSAError
+	if !errors.As(tsaErr, &target) {
+		t.Error("errors.As should find TSAError")
+	}
+
+	if target.Op != "verify" {
+		t.Errorf("Op = %q, want %q", target.Op, "verify")
+	}
+	if target.Err != ErrVerificationFailed {
+		t.Errorf("Err = %v, want %v", target.Err, ErrVerificationFailed)
+	}
+}
+
+func TestU_NewTSAError(t *testing.T) {
+	ops := []string{"request", "response", "verify", "sign", "parse"}
+	errs := []error{
+		ErrInvalidRequest,
+		ErrInvalidResponse,
+		ErrVerificationFailed,
+		ErrHashMismatch,
+		ErrNonceMismatch,
+		ErrPolicyMismatch,
+		ErrCertificateRequired,
+		ErrUnsupportedHashAlgorithm,
+		ErrTimestampExpired,
+		ErrInvalidToken,
+	}
+
+	for _, op := range ops {
+		for _, err := range errs {
+			t.Run(op+"_"+err.Error(), func(t *testing.T) {
+				tsaErr := NewTSAError(op, err)
+
+				if tsaErr == nil {
+					t.Fatal("NewTSAError returned nil")
+				}
+				if tsaErr.Op != op {
+					t.Errorf("Op = %q, want %q", tsaErr.Op, op)
+				}
+				if tsaErr.Err != err {
+					t.Errorf("Err = %v, want %v", tsaErr.Err, err)
+				}
+			})
+		}
+	}
+}
+
+func TestU_SentinelErrors_Values(t *testing.T) {
+	// Verify sentinel errors have expected messages
+	tests := []struct {
+		err      error
+		expected string
+	}{
+		{ErrInvalidRequest, "invalid timestamp request"},
+		{ErrInvalidResponse, "invalid timestamp response"},
+		{ErrVerificationFailed, "timestamp verification failed"},
+		{ErrHashMismatch, "message digest mismatch"},
+		{ErrNonceMismatch, "nonce mismatch"},
+		{ErrPolicyMismatch, "policy OID mismatch"},
+		{ErrCertificateRequired, "TSA certificate required"},
+		{ErrUnsupportedHashAlgorithm, "unsupported hash algorithm"},
+		{ErrTimestampExpired, "timestamp expired"},
+		{ErrInvalidToken, "invalid timestamp token"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			if got := tt.err.Error(); got != tt.expected {
+				t.Errorf("Error() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestU_SentinelErrors_Distinct(t *testing.T) {
+	// Verify all sentinel errors are distinct
+	errs := []error{
+		ErrInvalidRequest,
+		ErrInvalidResponse,
+		ErrVerificationFailed,
+		ErrHashMismatch,
+		ErrNonceMismatch,
+		ErrPolicyMismatch,
+		ErrCertificateRequired,
+		ErrUnsupportedHashAlgorithm,
+		ErrTimestampExpired,
+		ErrInvalidToken,
+	}
+
+	for i, err1 := range errs {
+		for j, err2 := range errs {
+			if i != j && errors.Is(err1, err2) {
+				t.Errorf("errors.Is(%v, %v) should be false for distinct sentinel errors", err1, err2)
+			}
+		}
 	}
 }

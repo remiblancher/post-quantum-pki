@@ -611,3 +611,270 @@ func TestU_LoadCredential_NotFound(t *testing.T) {
 		t.Error("LoadCredential() should fail for non-existent credential")
 	}
 }
+
+func TestU_Credential_Save_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	cred := NewCredential("test-save", Subject{CommonName: "Save Test"})
+	cred.SetBasePath(tmpDir)
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+
+	err := cred.Save()
+	if err != nil {
+		t.Fatalf("Save() failed: %v", err)
+	}
+
+	// Verify file exists
+	if !CredentialExists(tmpDir) {
+		t.Error("credential file should exist after Save()")
+	}
+}
+
+func TestU_Credential_Save_NoBasePath(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+
+	err := cred.Save()
+	if err == nil {
+		t.Error("Save() should fail when basePath is not set")
+	}
+	if !strings.Contains(err.Error(), "base path not set") {
+		t.Errorf("expected 'base path not set' error, got: %v", err)
+	}
+}
+
+func TestU_LoadCredential_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create and save a credential
+	original := NewCredential("test-load", Subject{
+		CommonName:   "Load Test",
+		Organization: []string{"Test Org"},
+		Country:      []string{"US"},
+	})
+	original.SetBasePath(tmpDir)
+	original.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+	original.Metadata["key1"] = "value1"
+
+	ver := original.Versions[original.Active]
+	ver.NotBefore = time.Now().Truncate(time.Second)
+	ver.NotAfter = time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second)
+	original.Versions[original.Active] = ver
+
+	if err := original.Save(); err != nil {
+		t.Fatalf("Save() failed: %v", err)
+	}
+
+	// Load it back
+	loaded, err := LoadCredential(tmpDir)
+	if err != nil {
+		t.Fatalf("LoadCredential() failed: %v", err)
+	}
+
+	// Verify fields
+	if loaded.ID != original.ID {
+		t.Errorf("ID mismatch: %s vs %s", loaded.ID, original.ID)
+	}
+	if loaded.Subject.CommonName != original.Subject.CommonName {
+		t.Errorf("CommonName mismatch: %s vs %s", loaded.Subject.CommonName, original.Subject.CommonName)
+	}
+	if loaded.BasePath() != tmpDir {
+		t.Errorf("BasePath mismatch: %s vs %s", loaded.BasePath(), tmpDir)
+	}
+	if loaded.Metadata["key1"] != "value1" {
+		t.Errorf("Metadata mismatch: %v", loaded.Metadata)
+	}
+}
+
+func TestU_LoadCredential_InvalidJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write invalid JSON
+	jsonPath := tmpDir + "/" + InfoFile
+	if err := os.WriteFile(jsonPath, []byte("invalid json{"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	_, err := LoadCredential(tmpDir)
+	if err == nil {
+		t.Error("LoadCredential() should fail for invalid JSON")
+	}
+	if !strings.Contains(err.Error(), "failed to parse credential") {
+		t.Errorf("expected 'failed to parse credential' error, got: %v", err)
+	}
+}
+
+func TestU_CredentialExists_Found(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create credential file
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.SetBasePath(tmpDir)
+	if err := cred.Save(); err != nil {
+		t.Fatalf("Save() failed: %v", err)
+	}
+
+	exists := CredentialExists(tmpDir)
+	if !exists {
+		t.Error("CredentialExists() = false for existing credential, want true")
+	}
+}
+
+func TestU_Credential_ActiveVersion_NotFound(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.Active = "nonexistent"
+	cred.Versions = map[string]CredVersion{
+		"v1": {Status: "active"},
+	}
+
+	ver := cred.ActiveVersion()
+	if ver != nil {
+		t.Error("ActiveVersion() should return nil when active version not in map")
+	}
+}
+
+func TestU_Credential_ActiveVersion_NoActive(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.Active = ""
+
+	ver := cred.ActiveVersion()
+	if ver != nil {
+		t.Error("ActiveVersion() should return nil when no active version set")
+	}
+}
+
+func TestU_Credential_ActivateVersion_NotFound(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+
+	err := cred.ActivateVersion("v999")
+	if err == nil {
+		t.Error("ActivateVersion() should fail for non-existent version")
+	}
+	if !strings.Contains(err.Error(), "version not found") {
+		t.Errorf("expected 'version not found' error, got: %v", err)
+	}
+}
+
+func TestU_Credential_ActivateVersion_NotPending(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.Versions = map[string]CredVersion{
+		"v1": {Status: "active"},
+	}
+
+	err := cred.ActivateVersion("v1")
+	if err == nil {
+		t.Error("ActivateVersion() should fail for non-pending version")
+	}
+	if !strings.Contains(err.Error(), "can only activate pending versions") {
+		t.Errorf("expected 'can only activate pending versions' error, got: %v", err)
+	}
+}
+
+func TestU_Credential_Summary_NoActiveVersion(t *testing.T) {
+	cred := NewCredential("test-summary", Subject{CommonName: "Summary Test"})
+
+	summary := cred.Summary()
+	if !strings.Contains(summary, "no active version") {
+		t.Errorf("Summary should mention 'no active version', got: %s", summary)
+	}
+}
+
+func TestU_Credential_Summary_Revoked(t *testing.T) {
+	cred := NewCredential("test-summary", Subject{CommonName: "Summary Test"})
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+
+	ver := cred.Versions[cred.Active]
+	ver.NotBefore = testNow().Add(-1 * time.Hour)
+	ver.NotAfter = testNow().Add(1 * time.Hour)
+	cred.Versions[cred.Active] = ver
+
+	cred.Revoke("keyCompromise")
+
+	summary := cred.Summary()
+	if !strings.Contains(summary, "revoked") {
+		t.Errorf("Summary should contain 'revoked', got: %s", summary)
+	}
+}
+
+func TestU_Credential_Summary_Expired(t *testing.T) {
+	cred := NewCredential("test-summary", Subject{CommonName: "Summary Test"})
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+
+	ver := cred.Versions[cred.Active]
+	ver.NotBefore = testNow().Add(-2 * time.Hour)
+	ver.NotAfter = testNow().Add(-1 * time.Hour)
+	cred.Versions[cred.Active] = ver
+
+	summary := cred.Summary()
+	if !strings.Contains(summary, "expired") {
+		t.Errorf("Summary should contain 'expired', got: %s", summary)
+	}
+}
+
+func TestU_Credential_IsExpired_NoActiveVersion(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+
+	expired := cred.IsExpired()
+	if !expired {
+		t.Error("IsExpired() should return true when no active version")
+	}
+}
+
+func TestU_Credential_IsValid_Revoked(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+
+	ver := cred.Versions[cred.Active]
+	ver.NotBefore = testNow().Add(-1 * time.Hour)
+	ver.NotAfter = testNow().Add(1 * time.Hour)
+	cred.Versions[cred.Active] = ver
+
+	cred.Revoke("test")
+
+	if cred.IsValid() {
+		t.Error("IsValid() should return false when credential is revoked")
+	}
+}
+
+func TestU_CertificateRefFromCert_NoSKID(t *testing.T) {
+	// Generate key
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+
+	// Create certificate template without SubjectKeyId
+	serialNumber, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName: "Test Certificate",
+		},
+		NotBefore:             testNow(),
+		NotAfter:              testNow().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		// No SubjectKeyId
+	}
+
+	// Self-sign
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		t.Fatalf("failed to create certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %v", err)
+	}
+
+	ref := CertificateRefFromCert(cert, RoleSignature, false, "")
+
+	// Should use serial as fingerprint since no SKID
+	if ref.Fingerprint == "" {
+		t.Error("Fingerprint should not be empty")
+	}
+	// Fingerprint should be based on serial number (hex encoded)
+	if len(ref.Fingerprint) < 2 {
+		t.Errorf("Fingerprint too short: %s", ref.Fingerprint)
+	}
+}
