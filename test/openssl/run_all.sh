@@ -171,12 +171,12 @@ for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
         TC_ID="TC-XOSL-${artifact}-${algo}"
         STATUS=$(get_result "$TC_ID")
         EMOJI=$(get_emoji "$STATUS")
-        if [ "$STATUS" = "PASS" ]; then
+        if [ "$STATUS" = "PASS" ] || [ "$STATUS" = "SKIP" ]; then
             ROW="$ROW | $EMOJI $TC_ID"
         elif [ "$STATUS" = "N/A" ]; then
-            ROW="$ROW | ❌"
+            ROW="$ROW | -"
         else
-            ROW="$ROW | $EMOJI"
+            ROW="$ROW | $EMOJI $TC_ID"
         fi
     done
     ROW="$ROW |"
@@ -187,7 +187,7 @@ done
 # Add legend
 SUMMARY_CONTENT="$SUMMARY_CONTENT
 
-**Legend:** ✅ Verified | ⚠️ Parsed only | ❌ Not supported"
+**Legend:** ✅ Verified | ⚠️ Parsed only | ❌ Failed | - Not applicable"
 
 # Output summary
 if [ -n "$SUMMARY_OUTPUT" ]; then
