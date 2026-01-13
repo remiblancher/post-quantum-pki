@@ -1,6 +1,7 @@
 # Post-Quantum PKI (QPKI)
 
 [![CI](https://github.com/remiblancher/post-quantum-pki/actions/workflows/ci.yml/badge.svg)](https://github.com/remiblancher/post-quantum-pki/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/remiblancher/post-quantum-pki/branch/main/graph/badge.svg)](https://codecov.io/gh/remiblancher/post-quantum-pki)
 [![Go Report Card](https://goreportcard.com/badge/github.com/remiblancher/post-quantum-pki)](https://goreportcard.com/report/github.com/remiblancher/post-quantum-pki)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -519,7 +520,7 @@ make crosstest-bc       # BouncyCastle only (requires Java 17+)
 > OpenSSL and BouncyCastle are used **for interoperability validation only**.
 > This project does **not embed nor depend on** these libraries.
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for details on the testing strategy.
+See [docs/dev/TESTING.md](docs/dev/TESTING.md) for details on the testing strategy.
 
 ## Documentation
 
@@ -535,7 +536,14 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for details on the testing strate
 | [HSM.md](docs/HSM.md) | HSM/PKCS#11 integration |
 | [GLOSSARY.md](docs/GLOSSARY.md) | PKI and PQC terminology |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and design |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Contributing, testing, CI/CD |
+
+### Developer Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CONTRIBUTING.md](docs/dev/CONTRIBUTING.md) | Contributing guidelines and development workflow |
+| [TESTING.md](docs/dev/TESTING.md) | Testing strategy and local execution |
+| [INTEROPERABILITY.md](docs/dev/INTEROPERABILITY.md) | Cross-validation matrix (OpenSSL, BouncyCastle) |
 
 ## Project Status
 
