@@ -30,7 +30,6 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +64,8 @@ public class CMSEnvelopedTest {
     @BeforeAll
     public static void setup() {
         Security.addProvider(new BouncyCastleProvider());
-        Security.addProvider(new BouncyCastlePQCProvider());
+        // Note: BCPQC removed - BC provider now includes ML-KEM (FIPS 203)
+        // See: https://github.com/bcgit/bc-java/issues/2230
     }
 
     // =========================================================================
@@ -315,29 +315,20 @@ public class CMSEnvelopedTest {
         assumeTrue(Files.exists(keyFile), "ML-KEM key not found");
         assumeTrue(Files.exists(dataFile), "Test data file not found");
 
-        // Load private key - try BCPQC first, then BC
+        // Load private key using BC provider (ML-KEM FIPS 203)
         PrivateKey privateKey = null;
         try (PEMParser parser = new PEMParser(new FileReader(keyFile.toFile()))) {
             Object obj = parser.readObject();
-            // Try with BCPQC provider first (for ML-KEM)
-            for (String provider : new String[]{"BCPQC", "BC"}) {
-                try {
-                    JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider(provider);
-                    if (obj instanceof PEMKeyPair) {
-                        privateKey = converter.getKeyPair((PEMKeyPair) obj).getPrivate();
-                    } else if (obj instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo) {
-                        privateKey = converter.getPrivateKey((org.bouncycastle.asn1.pkcs.PrivateKeyInfo) obj);
-                    }
-                    if (privateKey != null) {
-                        System.out.println("ML-KEM key loaded with provider: " + provider);
-                        System.out.println("Key algorithm: " + privateKey.getAlgorithm());
-                        break;
-                    }
-                } catch (Exception e) {
-                    // Try next provider
-                }
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            if (obj instanceof PEMKeyPair) {
+                privateKey = converter.getKeyPair((PEMKeyPair) obj).getPrivate();
+            } else if (obj instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo) {
+                privateKey = converter.getPrivateKey((org.bouncycastle.asn1.pkcs.PrivateKeyInfo) obj);
             }
-            if (privateKey == null) {
+            if (privateKey != null) {
+                System.out.println("ML-KEM key loaded with BC provider");
+                System.out.println("Key algorithm: " + privateKey.getAlgorithm());
+            } else {
                 System.out.println("ML-KEM Decrypt: SKIP (Unknown key format: " + obj.getClass().getName() + ")");
                 return;
             }
@@ -408,20 +399,13 @@ public class CMSEnvelopedTest {
         System.out.println("Certificate loaded: " + cert.getSubjectX500Principal());
         System.out.println("Cert public key algorithm: " + cert.getPublicKey().getAlgorithm());
 
-        // Load private key
+        // Load private key using BC provider (ML-KEM FIPS 203)
         PrivateKey privateKey = null;
         try (PEMParser parser = new PEMParser(new FileReader(keyFile.toFile()))) {
             Object obj = parser.readObject();
-            for (String provider : new String[]{"BCPQC", "BC"}) {
-                try {
-                    JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider(provider);
-                    if (obj instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo) {
-                        privateKey = converter.getPrivateKey((org.bouncycastle.asn1.pkcs.PrivateKeyInfo) obj);
-                    }
-                    if (privateKey != null) break;
-                } catch (Exception e) {
-                    // Try next provider
-                }
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            if (obj instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo) {
+                privateKey = converter.getPrivateKey((org.bouncycastle.asn1.pkcs.PrivateKeyInfo) obj);
             }
         }
         assumeTrue(privateKey != null, "Failed to load private key");
@@ -456,27 +440,20 @@ public class CMSEnvelopedTest {
             CMSAuthEnvelopedData parsedBcCms = new CMSAuthEnvelopedData(bcCmsBytes);
             RecipientInformation recipBc = parsedBcCms.getRecipientInfos().getRecipients().iterator().next();
 
-            // Try different providers to see which one works
+            // Decrypt using BC provider
             byte[] decryptedBc = null;
-            for (String decProvider : new String[]{"BC", "BCPQC"}) {
-                try {
-                    decryptedBc = recipBc.getContent(new JceKEMEnvelopedRecipient(privateKey).setProvider(decProvider));
-                    System.out.println("BC roundtrip with " + decProvider + ": SUCCESS");
-                    break;
-                } catch (Exception decEx) {
-                    System.out.println("Decrypt with " + decProvider + " failed: " + decEx.getMessage());
-                }
+            try {
+                decryptedBc = recipBc.getContent(new JceKEMEnvelopedRecipient(privateKey).setProvider("BC"));
+                System.out.println("BC roundtrip: SUCCESS");
+            } catch (Exception decEx) {
+                System.out.println("Decrypt failed: " + decEx.getMessage());
             }
 
             if (decryptedBc != null) {
                 assertArrayEquals(testData, decryptedBc, "BC roundtrip should work");
             } else {
-                // CONFIRMED BC 1.83 BUG: BC cannot decrypt its own ML-KEM CMS!
-                // This proves the issue is NOT in our Go code - it's a BouncyCastle bug.
-                System.out.println("\n*** CONFIRMED: BC 1.83 BUG ***");
-                System.out.println("BC successfully generated ML-KEM CMS but CANNOT decrypt it!");
-                System.out.println("This proves our Go code is correct - the bug is in BouncyCastle 1.83");
-                System.out.println("OpenSSL 3.6 successfully decrypts our Go-generated CMS.");
+                System.out.println("\n*** BC ML-KEM decrypt failed ***");
+                System.out.println("Check BC version and ML-KEM support");
             }
 
         } catch (Exception e) {
@@ -512,20 +489,13 @@ public class CMSEnvelopedTest {
         }
         assumeTrue(cert != null, "Failed to load certificate");
 
-        // Load private key
+        // Load private key using BC provider (ML-KEM FIPS 203)
         PrivateKey privateKey = null;
         try (PEMParser parser = new PEMParser(new FileReader(keyFile.toFile()))) {
             Object obj = parser.readObject();
-            for (String provider : new String[]{"BCPQC", "BC"}) {
-                try {
-                    JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider(provider);
-                    if (obj instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo) {
-                        privateKey = converter.getPrivateKey((org.bouncycastle.asn1.pkcs.PrivateKeyInfo) obj);
-                    }
-                    if (privateKey != null) break;
-                } catch (Exception e) {
-                    // Try next provider
-                }
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            if (obj instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo) {
+                privateKey = converter.getPrivateKey((org.bouncycastle.asn1.pkcs.PrivateKeyInfo) obj);
             }
         }
         assumeTrue(privateKey != null, "Failed to load private key");
@@ -556,24 +526,20 @@ public class CMSEnvelopedTest {
             CMSEnvelopedData parsedCms = new CMSEnvelopedData(cbcCmsBytes);
             RecipientInformation recip = parsedCms.getRecipientInfos().getRecipients().iterator().next();
 
+            // Decrypt using BC provider
             byte[] decrypted = null;
-            for (String decProvider : new String[]{"BC", "BCPQC"}) {
-                try {
-                    decrypted = recip.getContent(new JceKEMEnvelopedRecipient(privateKey).setProvider(decProvider));
-                    System.out.println("EnvelopedData (CBC) decrypt with " + decProvider + ": SUCCESS!");
-                    break;
-                } catch (Exception decEx) {
-                    System.out.println("EnvelopedData (CBC) decrypt with " + decProvider + " failed: " + decEx.getMessage());
-                }
+            try {
+                decrypted = recip.getContent(new JceKEMEnvelopedRecipient(privateKey).setProvider("BC"));
+                System.out.println("EnvelopedData (CBC) decrypt: SUCCESS!");
+            } catch (Exception decEx) {
+                System.out.println("EnvelopedData (CBC) decrypt failed: " + decEx.getMessage());
             }
 
             if (decrypted != null) {
                 assertArrayEquals(testData, decrypted, "CBC roundtrip should work");
                 System.out.println("\n*** RESULT: EnvelopedData (CBC) WORKS! ***");
-                System.out.println("Bug is SPECIFIC to AuthEnvelopedData (GCM), not ML-KEM in general");
             } else {
-                System.out.println("\n*** RESULT: EnvelopedData (CBC) ALSO FAILS ***");
-                System.out.println("Bug affects ALL ML-KEM CMS decryption, not just GCM");
+                System.out.println("\n*** RESULT: EnvelopedData (CBC) FAILED ***");
             }
 
         } catch (Exception e) {

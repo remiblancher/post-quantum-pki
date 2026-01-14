@@ -97,7 +97,7 @@ Format: `TC-<CATEGORY>-<ALGO>-<NUM>`
 | CMS | TC-XBC-CMS-EC | TC-XBC-CMS-ML | TC-XBC-CMS-SLH | - | TC-XBC-CMS-CAT | TC-XBC-CMS-COMP** |
 | OCSP | TC-XBC-OCSP-EC | TC-XBC-OCSP-ML | TC-XBC-OCSP-SLH | - | TC-XBC-OCSP-CAT | TC-XBC-OCSP-COMP** |
 | TSA | TC-XBC-TSA-EC | TC-XBC-TSA-ML | TC-XBC-TSA-SLH | - | TC-XBC-TSA-CAT | TC-XBC-TSA-COMP** |
-| CMS-ENC | TC-XBC-CMSENC-EC | - | - | TC-XBC-CMSENC-KEM**** | - | - |
+| CMS-ENC | TC-XBC-CMSENC-EC | - | - | TC-XBC-CMSENC-KEM | - | - |
 
 **Legend:**
 
@@ -107,7 +107,6 @@ Format: `TC-<CATEGORY>-<ALGO>-<NUM>`
 **BouncyCastle:**
 - `**` Composite: OID mismatch (BC uses draft-07, QPKI uses draft-13)
 - `***` CSR Catalyst: parsing only (alt key attributes issue)
-- `****` CMS-ENC ML-KEM: parsing only (decrypt fails, cause unknown)
 
 **General:**
 - `N/A` Not supported by external validator
@@ -118,7 +117,7 @@ Format: `TC-<CATEGORY>-<ALGO>-<NUM>`
 |---------|--------|---------|
 | **Composite signatures** | Partial | BC 1.83 uses draft-07 OIDs (`2.16.840.1.114027.80.8.1.x`), QPKI uses draft-13 (`1.3.6.1.5.5.7.6.x`) |
 | **Catalyst in OpenSSL** | Partial | Only ECDSA signature verified, PQC alternative signature ignored |
-| **CMS Encryption ML-KEM** | OpenSSL 3.6+ | OpenSSL 3.6+ full support; BC 1.83 parses but decrypt fails (cause unknown) |
+| **CMS Encryption ML-KEM** | Full | OpenSSL 3.6+ and BC 1.83+ full support |
 
 ## 6. CI Job Reference
 
