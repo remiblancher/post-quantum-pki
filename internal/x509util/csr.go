@@ -570,11 +570,12 @@ type compositeAlgorithm struct {
 	PQCAlg       pkicrypto.AlgorithmID
 }
 
-// compositeAlgorithms lists the supported composite algorithm combinations per IETF draft-13.
+// compositeAlgorithms lists the supported composite algorithm combinations (IANA-allocated OIDs only).
+// Per draft-ietf-lamps-pq-composite-sigs-13.
 var compositeAlgorithms = []compositeAlgorithm{
-	{OID: OIDMLDSA87ECDSAP384SHA512, ClassicalAlg: pkicrypto.AlgECDSAP384, PQCAlg: pkicrypto.AlgMLDSA87},
 	{OID: OIDMLDSA65ECDSAP256SHA512, ClassicalAlg: pkicrypto.AlgECDSAP256, PQCAlg: pkicrypto.AlgMLDSA65},
-	{OID: OIDMLDSA44ECDSAP256SHA256, ClassicalAlg: pkicrypto.AlgECDSAP256, PQCAlg: pkicrypto.AlgMLDSA44},
+	{OID: OIDMLDSA65ECDSAP384SHA512, ClassicalAlg: pkicrypto.AlgECDSAP384, PQCAlg: pkicrypto.AlgMLDSA65},
+	{OID: OIDMLDSA87ECDSAP521SHA512, ClassicalAlg: pkicrypto.AlgECDSAP521, PQCAlg: pkicrypto.AlgMLDSA87},
 }
 
 // getCompositeAlgorithm finds the composite algorithm for a given pair.

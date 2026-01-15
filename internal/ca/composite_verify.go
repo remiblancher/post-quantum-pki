@@ -179,6 +179,8 @@ func parseClassicalPublicKeyFromBytes(alg pkicrypto.AlgorithmID, data []byte) (c
 		curveOID = x509util.OIDNamedCurveP256
 	case pkicrypto.AlgECDSAP384:
 		curveOID = x509util.OIDNamedCurveP384
+	case pkicrypto.AlgECDSAP521:
+		curveOID = x509util.OIDNamedCurveP521
 	default:
 		return nil, fmt.Errorf("unsupported classical algorithm: %s", alg)
 	}

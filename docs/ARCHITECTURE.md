@@ -62,19 +62,26 @@ pki/
 ├── cmd/qpki/                    # CLI entry point
 │   ├── main.go                  # Root command and global flags
 │   ├── ca.go                    # ca init, info, export, list
-│   ├── cert.go                  # cert issue, list, info, revoke
+│   ├── ca_activate.go           # ca activate, ca versions
+│   ├── ca_rotate.go             # ca rotate - CA key rotation
+│   ├── cert.go                  # cert command group
+│   ├── cert_info.go             # cert info - Certificate details
+│   ├── cert_verify.go           # cert verify - Chain verification
 │   ├── credential.go            # credential enroll, list, info, rotate, revoke, export, import
+│   ├── credential_activate.go   # credential activate, credential versions
 │   ├── key.go                   # key gen, list, info, convert
 │   ├── profile.go               # profile list, info, show, export, lint, install, vars
 │   ├── csr.go                   # csr gen, info, verify
 │   ├── crl.go                   # crl gen, info, verify, list
+│   ├── issue.go                 # cert issue - Issue certificates from CSRs
+│   ├── list.go                  # cert list - List issued certificates
+│   ├── revoke.go                # cert revoke - Revoke certificates
 │   ├── tsa.go                   # tsa request, sign, verify, info, serve
 │   ├── ocsp.go                  # ocsp request, sign, verify, info, serve
 │   ├── cms.go                   # cms sign, verify, encrypt, decrypt
 │   ├── hsm.go                   # hsm list, test, info
 │   ├── audit.go                 # audit verify, tail
-│   ├── inspect.go               # Auto-detect file type and display info
-│   └── cert_verify.go           # cert verify - Certificate chain verification
+│   └── inspect.go               # Auto-detect file type and display info
 │
 ├── internal/
 │   ├── audit/                   # Audit logging with cryptographic chaining
@@ -84,23 +91,56 @@ pki/
 │   │   └── file_writer.go       # File-based audit writer
 │   │
 │   ├── ca/                      # Certificate Authority operations
-│   │   ├── ca.go                # CA type, certificate lifecycle
-│   │   ├── metadata.go          # CA metadata and key references
-│   │   ├── store.go             # File-based certificate storage
-│   │   ├── enrollment.go        # Credential enrollment
-│   │   ├── revocation.go        # Revocation and CRL generation
+│   │   │                        # -- Core --
+│   │   ├── ca.go                # CA type and core operations
+│   │   ├── info.go              # CAInfo unified metadata (versions, keys, subject)
+│   │   ├── store.go             # FileStore implementation
+│   │   ├── store_crl.go         # CRL storage operations
+│   │   ├── errors.go            # Structured error handling
+│   │   ├── signer_loader.go     # CA signer loading (HSM/software)
+│   │   │                        # -- Initialization --
+│   │   ├── init.go              # Single-algorithm CA initialization
+│   │   ├── init_pqc.go          # Pure PQC CA initialization (ML-DSA, SLH-DSA)
+│   │   ├── init_hybrid.go       # Catalyst CA initialization
+│   │   ├── init_composite.go    # IETF composite CA initialization
+│   │   ├── init_multi.go        # Multi-algorithm CA initialization
+│   │   │                        # -- Certificate Issuance --
+│   │   ├── issue.go             # Certificate issuance entry point
+│   │   ├── issue_pqc.go         # PQC certificate issuance (manual DER)
+│   │   ├── issue_catalyst.go    # Catalyst certificate issuance
+│   │   ├── issue_composite.go   # Composite certificate issuance
+│   │   ├── issue_crosssign.go   # Cross-signing support
+│   │   │                        # -- CRL Generation --
+│   │   ├── crl.go               # CRL generation entry point
+│   │   ├── crl_pqc.go           # PQC CRL generation
+│   │   ├── crl_catalyst.go      # Catalyst CRL generation
+│   │   ├── crl_composite.go     # Composite CRL generation
+│   │   ├── crl_multi.go         # Multi-algorithm CRL
+│   │   │                        # -- Lifecycle --
+│   │   ├── revoke.go            # Certificate revocation
 │   │   ├── rotate.go            # CA key rotation
-│   │   ├── composite.go         # Composite certificate support (IETF)
-│   │   └── pqc_cert.go          # PQC certificate handling
+│   │   ├── rotate_crosssign.go  # Cross-signing during rotation
+│   │   ├── rotate_multi.go      # Multi-algorithm rotation
+│   │   │                        # -- Verification --
+│   │   ├── verify.go            # Chain and signature verification
+│   │   └── composite_verify.go  # Composite signature verification
 │   │
 │   ├── crypto/                  # Cryptographic primitives
 │   │   ├── algorithm.go         # Algorithm definitions and metadata
 │   │   ├── signer.go            # Signer interface
+│   │   ├── signer_opts.go       # Signing options
 │   │   ├── keyprovider.go       # KeyProvider interface
 │   │   ├── software.go          # Software signing implementation
+│   │   ├── software_kp.go       # Software KeyProvider
 │   │   ├── hybrid.go            # HybridSigner (classical + PQC)
-│   │   ├── pkcs11.go            # PKCS#11 HSM integration
-│   │   └── keygen.go            # Key generation
+│   │   ├── keygen.go            # Key generation
+│   │   ├── context.go           # Context utilities
+│   │   ├── hsmconfig.go         # HSM configuration loading
+│   │   ├── pkcs11.go            # PKCS#11 signer
+│   │   ├── pkcs11_kp.go         # PKCS#11 KeyProvider
+│   │   ├── pkcs11_pool.go       # Session pooling for HSM
+│   │   ├── pkcs11_nocgo.go      # No-CGO stubs
+│   │   └── pkcs11_kp_nocgo.go   # No-CGO KeyProvider stubs
 │   │
 │   ├── profile/                 # Certificate profiles (templates)
 │   │   ├── profile.go           # Profile struct and modes
@@ -108,12 +148,23 @@ pki/
 │   │   ├── compiled.go          # Compiled profile cache
 │   │   ├── variable.go          # Profile variables
 │   │   ├── types.go             # Type validators
-│   │   └── extensions.go        # X.509 extension configuration
+│   │   ├── extensions.go        # X.509 extension configuration
+│   │   ├── crl_profile.go       # CRL profile support
+│   │   ├── defaults.go          # Default values
+│   │   ├── errors.go            # Profile errors
+│   │   ├── helpers.go           # Utility functions
+│   │   ├── signature_algo.go    # Signature algorithm mapping
+│   │   ├── template.go          # Certificate template building
+│   │   └── validator.go         # Profile validation
 │   │
 │   ├── credential/              # Certificate credentials
 │   │   ├── credential.go        # Credential struct and lifecycle
 │   │   ├── store.go             # Credential storage
-│   │   └── pem.go               # PEM encoding/decoding
+│   │   ├── pem.go               # PEM encoding/decoding
+│   │   ├── enrollment.go        # Credential enrollment
+│   │   ├── rotate.go            # Credential rotation
+│   │   ├── keygen.go            # Key generation
+│   │   └── info.go              # Credential info display
 │   │
 │   ├── ocsp/                    # OCSP responder (RFC 6960)
 │   │   ├── request.go           # OCSP request parsing
@@ -141,11 +192,14 @@ pki/
 │       └── oids.go              # OID definitions
 │
 ├── profiles/                    # Built-in certificate profiles
+│   ├── profiles.go              # Embedded profile loading
 │   ├── ec/                      # ECDSA profiles
 │   ├── rsa/                     # RSA profiles
+│   ├── rsa-pss/                 # RSA-PSS profiles
 │   ├── ml/                      # ML-DSA and ML-KEM profiles
 │   ├── slh/                     # SLH-DSA profiles
-│   └── hybrid/                  # Hybrid profiles (catalyst, composite)
+│   ├── hybrid/                  # Hybrid profiles (catalyst, composite)
+│   └── examples/                # Example profiles
 │
 └── docs/                        # Documentation
 ```
@@ -159,13 +213,16 @@ pki/
 | `Signer` | crypto | Unified signing interface for all algorithm types (extends `crypto.Signer`) |
 | `HybridSigner` | crypto | Dual-algorithm signing for Catalyst certificates (classical + PQC) |
 | `KeyProvider` | crypto | Pluggable key storage abstraction (software files or PKCS#11 HSM) |
+| `Store` | ca | Storage interface for certificates and CRLs (FileStore implementation) |
 
 ### Data Types
 
 | Type | Package | Role |
 |------|---------|------|
 | `Profile` | profile | Certificate policy template (algorithm, validity, extensions, variables) |
-| `CAMetadata` | ca | CA configuration with key references (supports software and HSM keys) |
+| `CAInfo` | ca | Unified CA metadata (versions, keys, subject) - replaces legacy metadata |
+| `CAVersion` | ca | Version lifecycle tracking (active/pending/archived) |
+| `KeyRef` | ca | Key reference abstraction (HSM or software storage) |
 | `Credential` | credential | Grouped certificates with coupled lifecycle (rotation, revocation) |
 
 ## 4. Algorithm Support
@@ -234,9 +291,9 @@ QPKI provides a comprehensive CLI organized into command groups:
 
 | Command | Purpose |
 |---------|---------|
-| `ca` | Certificate Authority management |
-| `cert` | Certificate operations (CSR workflow) |
-| `credential` | Credential lifecycle management |
+| `ca` | CA management (init, info, export, list, activate, versions, rotate) |
+| `cert` | Certificate operations (issue, list, info, revoke, verify) |
+| `credential` | Credential lifecycle (enroll, list, info, rotate, revoke, activate, versions) |
 | `key` | Key generation and management |
 | `profile` | Certificate profile management |
 | `csr` | Certificate Signing Requests |

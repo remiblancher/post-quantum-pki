@@ -25,9 +25,10 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Signature verification is SKIPPED until BC migrates to the IETF standard OIDs.
  *
  * OID Arc (IETF draft-13): 1.3.6.1.5.5.7.6.x (id-smime algorithms)
- * - MLDSA44-ECDSA-P256-SHA256: 1.3.6.1.5.5.7.6.40
+ * Only IANA-allocated OIDs are supported:
  * - MLDSA65-ECDSA-P256-SHA512: 1.3.6.1.5.5.7.6.45
- * - MLDSA87-ECDSA-P384-SHA512: 1.3.6.1.5.5.7.6.49
+ * - MLDSA65-ECDSA-P384-SHA512: 1.3.6.1.5.5.7.6.46
+ * - MLDSA87-ECDSA-P521-SHA512: 1.3.6.1.5.5.7.6.54
  */
 public class CompositeCRLVerifyTest {
 
@@ -88,13 +89,13 @@ public class CompositeCRLVerifyTest {
         assertTrue(algOid.startsWith(COMPOSITE_OID_PREFIX),
             "Signature algorithm should be IETF composite OID");
 
-        // Identify specific algorithm combination (IETF OIDs from draft-13)
-        if (algOid.endsWith(".49")) {
-            System.out.println("  Algorithm: MLDSA87-ECDSA-P384-SHA512");
-        } else if (algOid.endsWith(".45")) {
+        // Identify specific algorithm combination (IANA-allocated OIDs from draft-13)
+        if (algOid.endsWith(".45")) {
             System.out.println("  Algorithm: MLDSA65-ECDSA-P256-SHA512");
-        } else if (algOid.endsWith(".40")) {
-            System.out.println("  Algorithm: MLDSA44-ECDSA-P256-SHA256");
+        } else if (algOid.endsWith(".46")) {
+            System.out.println("  Algorithm: MLDSA65-ECDSA-P384-SHA512");
+        } else if (algOid.endsWith(".54")) {
+            System.out.println("  Algorithm: MLDSA87-ECDSA-P521-SHA512");
         } else {
             System.out.println("  Algorithm: Unknown composite variant");
         }

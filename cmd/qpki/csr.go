@@ -729,9 +729,14 @@ func validateHybridCombination(classical, pqc string) error {
 
 // validCompositeCombinations defines valid Composite combinations per IETF draft-13.
 // Maps classical algorithm to list of valid PQC algorithms.
+// Only IANA-allocated OIDs are supported:
+//   - P-256 + ML-DSA-65 (OID .45)
+//   - P-384 + ML-DSA-65 (OID .46)
+//   - P-521 + ML-DSA-87 (OID .54)
 var validCompositeCombinations = map[string][]string{
-	"ecdsa-p256": {"ml-dsa-44", "ml-dsa-65"},
-	"ecdsa-p384": {"ml-dsa-87"},
+	"ecdsa-p256": {"ml-dsa-65"},
+	"ecdsa-p384": {"ml-dsa-65"},
+	"ecdsa-p521": {"ml-dsa-87"},
 }
 
 // validateCompositeCombination validates a Composite algorithm combination.

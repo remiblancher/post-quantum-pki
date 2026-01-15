@@ -178,11 +178,13 @@ Composite certificates use **a single composite public key and a single composit
 
 ### 5.2 Supported Composite Algorithms
 
-| Composite OID | Classical | PQC | Security Level |
-|---------------|-----------|-----|----------------|
-| MLDSA87-ECDSA-P384-SHA512 | ECDSA P-384 | ML-DSA-87 | NIST Level 5 |
+Only IANA-allocated OIDs from draft-ietf-lamps-pq-composite-sigs-13 are supported:
+
+| Composite Algorithm | Classical | PQC | Security Level |
+|---------------------|-----------|-----|----------------|
 | MLDSA65-ECDSA-P256-SHA512 | ECDSA P-256 | ML-DSA-65 | NIST Level 3 |
-| MLDSA44-ECDSA-P256-SHA256 | ECDSA P-256 | ML-DSA-44 | NIST Level 2 |
+| MLDSA65-ECDSA-P384-SHA512 | ECDSA P-384 | ML-DSA-65 | NIST Level 3 |
+| MLDSA87-ECDSA-P521-SHA512 | ECDSA P-521 | ML-DSA-87 | NIST Level 5 |
 
 ### 5.3 ASN.1 Structures
 
@@ -272,13 +274,13 @@ Use when different validity periods or independent key rotation is needed.
 | 2.5.29.73 | AltSignatureAlgorithm |
 | 2.5.29.74 | AltSignatureValue |
 
-#### Composite Algorithm OIDs
+#### Composite Algorithm OIDs (IANA-allocated)
 
 | Algorithm | OID |
 |-----------|-----|
-| MLDSA44-ECDSA-P256-SHA256 | 1.3.6.1.5.5.7.6.40 |
 | MLDSA65-ECDSA-P256-SHA512 | 1.3.6.1.5.5.7.6.45 |
-| MLDSA87-ECDSA-P384-SHA512 | 1.3.6.1.5.5.7.6.49 |
+| MLDSA65-ECDSA-P384-SHA512 | 1.3.6.1.5.5.7.6.46 |
+| MLDSA87-ECDSA-P521-SHA512 | 1.3.6.1.5.5.7.6.54 |
 
 ### 7.2 X.509 Extension OIDs
 

@@ -12,7 +12,7 @@
 # Standards: IETF draft-ietf-lamps-pq-composite-sigs-13 (DRAFT), RFC 5280 (X.509)
 #
 # Security Level:
-#   - Classical: ~192-bit (ECDSA P-384)
+#   - Classical: ~256-bit (ECDSA P-521)
 #   - PQC: NIST Level 5 (~256-bit equivalent, ML-DSA-87)
 #
 # Quantum Safety: PROTECTED (Composite Hybrid)
@@ -50,7 +50,7 @@
 # =============================================================================
 
 name: hybrid/composite/root-ca
-description: "Root CA hybrid composite ECDSA P-384 + ML-DSA-87 (IETF format)"
+description: "Root CA hybrid composite ECDSA P-521 + ML-DSA-87 (IETF format)"
 
 # -----------------------------------------------------------------------------
 # Declarative Variables
@@ -79,12 +79,13 @@ variables:
 # -----------------------------------------------------------------------------
 # Algorithms
 # -----------------------------------------------------------------------------
-# ECDSA P-384 + ML-DSA-87 for maximum security on both fronts.
-#   - ECDSA P-384: ~192-bit classical security
+# ECDSA P-521 + ML-DSA-87 for maximum security on both fronts.
+# This is the only IANA-allocated OID for ML-DSA-87 composite signatures.
+#   - ECDSA P-521: ~256-bit classical security
 #   - ML-DSA-87: NIST Level 5 PQC security
 #
 algorithms:
-  - ecdsa-p384              # Classical: ~192-bit security
+  - ecdsa-p521              # Classical: ~256-bit security
   - ml-dsa-87               # PQC: NIST Level 5
 
 # -----------------------------------------------------------------------------

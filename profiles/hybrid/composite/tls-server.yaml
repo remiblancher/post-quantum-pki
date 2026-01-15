@@ -13,7 +13,7 @@
 #
 # Security Level:
 #   - Classical: ~128-bit (ECDSA P-256)
-#   - PQC: NIST Level 3 (~192-bit equivalent, ML-DSA-65)
+#   - PQC: NIST Level 3 (~256-bit equivalent, ML-DSA-65)
 #
 # Quantum Safety: PROTECTED (Composite Hybrid)
 #   Both signatures MUST validate for TLS handshake to succeed.

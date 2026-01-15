@@ -32,7 +32,7 @@ func TestMLDSASignVerify(t *testing.T) {
 	testMessage := []byte("Hello, composite signatures!")
 
 	// Build domain separator
-	oid := x509util.OIDMLDSA87ECDSAP384SHA512
+	oid := x509util.OIDMLDSA87ECDSAP521SHA512
 	domainSep, err := asn1.Marshal(oid)
 	if err != nil {
 		t.Fatalf("Domain separator failed: %v", err)
@@ -88,7 +88,7 @@ func TestCompositeSignatureRoundTrip(t *testing.T) {
 	}
 
 	// Get composite algorithm
-	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87)
+	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP521, pkicrypto.AlgMLDSA87)
 	if err != nil {
 		t.Fatalf("Failed to get composite algorithm: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestCertificateRawValuePreservation(t *testing.T) {
 	cert := compositeCertificate{
 		TBSCertificate: asn1.RawValue{FullBytes: tbsBytes},
 		SignatureAlgorithm: pkix.AlgorithmIdentifier{
-			Algorithm: x509util.OIDMLDSA87ECDSAP384SHA512,
+			Algorithm: x509util.OIDMLDSA87ECDSAP521SHA512,
 		},
 		SignatureValue: asn1.BitString{
 			Bytes:     []byte("fake signature"),
@@ -199,9 +199,9 @@ func TestGetCompositeAlgorithmByOID(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "ML-DSA-87 + ECDSA-P384",
-			oid:      x509util.OIDMLDSA87ECDSAP384SHA512,
-			wantName: "MLDSA87-ECDSA-P384-SHA512",
+			name:     "ML-DSA-87 + ECDSA-P521",
+			oid:      x509util.OIDMLDSA87ECDSAP521SHA512,
+			wantName: "MLDSA87-ECDSA-P521-SHA512",
 			wantErr:  false,
 		},
 		{
@@ -237,7 +237,7 @@ func TestIsCompositeOID(t *testing.T) {
 		oid      asn1.ObjectIdentifier
 		expected bool
 	}{
-		{"ML-DSA-87+P384", x509util.OIDMLDSA87ECDSAP384SHA512, true},
+		{"ML-DSA-87+P521", x509util.OIDMLDSA87ECDSAP521SHA512, true},
 		{"ML-DSA-65+P256", x509util.OIDMLDSA65ECDSAP256SHA512, true},
 		{"ECDSA-SHA256", asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}, false},
 		{"RSA-SHA256", asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}, false},
@@ -540,9 +540,11 @@ func TestGetCompositeAlgorithm_AllCombinations(t *testing.T) {
 		wantName  string
 		wantErr   bool
 	}{
-		{pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87, "MLDSA87-ECDSA-P384-SHA512", false},
 		{pkicrypto.AlgECDSAP256, pkicrypto.AlgMLDSA65, "MLDSA65-ECDSA-P256-SHA512", false},
-		{pkicrypto.AlgECDSAP256, pkicrypto.AlgMLDSA87, "", true}, // Invalid combination
+		{pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA65, "MLDSA65-ECDSA-P384-SHA512", false},
+		{pkicrypto.AlgECDSAP521, pkicrypto.AlgMLDSA87, "MLDSA87-ECDSA-P521-SHA512", false},
+		{pkicrypto.AlgECDSAP256, pkicrypto.AlgMLDSA87, "", true}, // Invalid combination (ML-DSA-87 requires P521)
+		{pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87, "", true}, // Invalid combination (ML-DSA-87 requires P521)
 		{pkicrypto.AlgRSA2048, pkicrypto.AlgMLDSA65, "", true},   // RSA not supported
 	}
 
@@ -594,8 +596,8 @@ func TestCompositeAlgorithm_HashFunc(t *testing.T) {
 // =============================================================================
 
 func TestEncodeCompositePublicKey(t *testing.T) {
-	// Generate ECDSA P-384 key
-	classicalPriv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	// Generate ECDSA P-521 key (ML-DSA-87 requires P-521 per IANA OIDs)
+	classicalPriv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
 		t.Fatalf("GenerateKey() error = %v", err)
 	}
@@ -609,14 +611,14 @@ func TestEncodeCompositePublicKey(t *testing.T) {
 	// Encode composite public key
 	spki, err := EncodeCompositePublicKey(
 		pkicrypto.AlgMLDSA87, pqcPub,
-		pkicrypto.AlgECDSAP384, &classicalPriv.PublicKey,
+		pkicrypto.AlgECDSAP521, &classicalPriv.PublicKey,
 	)
 	if err != nil {
 		t.Fatalf("EncodeCompositePublicKey() error = %v", err)
 	}
 
 	// Verify the algorithm OID is correct
-	expectedOID := x509util.OIDMLDSA87ECDSAP384SHA512
+	expectedOID := x509util.OIDMLDSA87ECDSAP521SHA512
 	if !spki.Algorithm.Algorithm.Equal(expectedOID) {
 		t.Errorf("OID = %v, want %v", spki.Algorithm.Algorithm, expectedOID)
 	}
@@ -683,7 +685,7 @@ func TestInitializeCompositeCA(t *testing.T) {
 		CommonName:         "Test Composite CA",
 		Organization:       "Test Org",
 		Country:            "US",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -722,7 +724,7 @@ func TestInitializeCompositeCA_AlreadyExists(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -791,7 +793,7 @@ func TestIsCompositeCertificate_Composite(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -841,7 +843,7 @@ func TestLoadCompositeSigner(t *testing.T) {
 	passphrase := "testpass"
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -879,7 +881,7 @@ func TestLoadCompositeSigner_WrongPassphrase(t *testing.T) {
 	passphrase := "testpass"
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -913,7 +915,7 @@ func TestIssueComposite_NoSigner(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -931,14 +933,14 @@ func TestIssueComposite_NoSigner(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 
-	// Generate keys for subject
-	classicalPriv, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	// Generate keys for subject (P-521 for ML-DSA-87)
+	classicalPriv, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	pqcPub, _, _ := mldsa87.GenerateKey(rand.Reader)
 
 	req := CompositeRequest{
 		ClassicalPublicKey: &classicalPriv.PublicKey,
 		PQCPublicKey:       pqcPub,
-		ClassicalAlg:       pkicrypto.AlgECDSAP384,
+		ClassicalAlg:       pkicrypto.AlgECDSAP521,
 		PQCAlg:             pkicrypto.AlgMLDSA87,
 	}
 
@@ -954,7 +956,7 @@ func TestCompositeCAConfig_Fields(t *testing.T) {
 		CommonName:         "Test CA",
 		Organization:       "Test Org",
 		Country:            "US",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -967,7 +969,7 @@ func TestCompositeCAConfig_Fields(t *testing.T) {
 	if cfg.Organization != "Test Org" {
 		t.Errorf("Organization = %s, want Test Org", cfg.Organization)
 	}
-	if cfg.ClassicalAlgorithm != pkicrypto.AlgECDSAP384 {
+	if cfg.ClassicalAlgorithm != pkicrypto.AlgECDSAP521 {
 		t.Errorf("ClassicalAlgorithm = %s, want ECDSA-P384", cfg.ClassicalAlgorithm)
 	}
 	if cfg.PQCAlgorithm != pkicrypto.AlgMLDSA87 {
@@ -976,13 +978,13 @@ func TestCompositeCAConfig_Fields(t *testing.T) {
 }
 
 func TestCompositeRequest_Fields(t *testing.T) {
-	classicalPriv, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	classicalPriv, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	pqcPub, _, _ := mldsa87.GenerateKey(rand.Reader)
 
 	req := CompositeRequest{
 		ClassicalPublicKey: &classicalPriv.PublicKey,
 		PQCPublicKey:       pqcPub,
-		ClassicalAlg:       pkicrypto.AlgECDSAP384,
+		ClassicalAlg:       pkicrypto.AlgECDSAP521,
 		PQCAlg:             pkicrypto.AlgMLDSA87,
 	}
 
@@ -1006,7 +1008,7 @@ func TestIsHybridCA_WithHybridSigner(t *testing.T) {
 		CommonName:         "Test Hybrid CA",
 		Organization:       "Test Org",
 		Country:            "US",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1086,7 +1088,7 @@ func TestInitializeHybridCA(t *testing.T) {
 		CommonName:         "Test Hybrid CA",
 		Organization:       "Test Org",
 		Country:            "US",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1121,7 +1123,7 @@ func TestInitializeHybridCA_AlreadyExists(t *testing.T) {
 
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1146,7 +1148,7 @@ func TestInitializeHybridCA_WithPassphrase(t *testing.T) {
 
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1179,7 +1181,7 @@ func TestLoadHybridSigner(t *testing.T) {
 	passphrase := "testpass"
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1222,7 +1224,7 @@ func TestLoadHybridSigner_WrongPassphrase(t *testing.T) {
 	passphrase := "testpass"
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1285,7 +1287,7 @@ func TestHybridCAConfig_Fields(t *testing.T) {
 		CommonName:         "Test Hybrid CA",
 		Organization:       "Test Org",
 		Country:            "US",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1301,7 +1303,7 @@ func TestHybridCAConfig_Fields(t *testing.T) {
 	if cfg.Country != "US" {
 		t.Errorf("Country = %s, want US", cfg.Country)
 	}
-	if cfg.ClassicalAlgorithm != pkicrypto.AlgECDSAP384 {
+	if cfg.ClassicalAlgorithm != pkicrypto.AlgECDSAP521 {
 		t.Errorf("ClassicalAlgorithm = %s, want ECDSA-P384", cfg.ClassicalAlgorithm)
 	}
 	if cfg.PQCAlgorithm != pkicrypto.AlgMLDSA87 {
@@ -1684,7 +1686,7 @@ func TestVerifyCompositeCertificate_IssuerNotComposite(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1720,7 +1722,7 @@ func TestVerifyCompositeCertificate_ValidSelfSigned(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1804,7 +1806,7 @@ func TestIssueComposite_AndVerify(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1815,8 +1817,8 @@ func TestIssueComposite_AndVerify(t *testing.T) {
 		t.Fatalf("InitializeCompositeCA() error = %v", err)
 	}
 
-	// Generate subject keys
-	classicalPriv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	// Generate subject keys (P-521 for ML-DSA-87)
+	classicalPriv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
 		t.Fatalf("GenerateKey() error = %v", err)
 	}
@@ -1834,7 +1836,7 @@ func TestIssueComposite_AndVerify(t *testing.T) {
 		},
 		ClassicalPublicKey: &classicalPriv.PublicKey,
 		PQCPublicKey:       pqcPub,
-		ClassicalAlg:       pkicrypto.AlgECDSAP384,
+		ClassicalAlg:       pkicrypto.AlgECDSAP521,
 		PQCAlg:             pkicrypto.AlgMLDSA87,
 		Validity:           365 * 24 * time.Hour,
 	}
@@ -1874,7 +1876,7 @@ func TestBuildDomainSeparator(t *testing.T) {
 		oid     asn1.ObjectIdentifier
 		wantErr bool
 	}{
-		{"ML-DSA-87+P384", x509util.OIDMLDSA87ECDSAP384SHA512, false},
+		{"ML-DSA-87+P521", x509util.OIDMLDSA87ECDSAP521SHA512, false},
 		{"ML-DSA-65+P256", x509util.OIDMLDSA65ECDSAP256SHA512, false},
 	}
 
@@ -1928,7 +1930,7 @@ func TestVerifyCompositeSignature_Valid(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -1946,7 +1948,7 @@ func TestVerifyCompositeSignature_Valid(t *testing.T) {
 	}
 
 	// Get composite algorithm
-	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87)
+	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP521, pkicrypto.AlgMLDSA87)
 	if err != nil {
 		t.Fatalf("GetCompositeAlgorithm() error = %v", err)
 	}
@@ -2030,7 +2032,7 @@ func TestVerifyCompositeSignature_InvalidOID(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -2056,7 +2058,7 @@ func TestVerifyCompositeSignature_TamperedData(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -2074,7 +2076,7 @@ func TestVerifyCompositeSignature_TamperedData(t *testing.T) {
 	}
 
 	// Get composite algorithm
-	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87)
+	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP521, pkicrypto.AlgMLDSA87)
 	if err != nil {
 		t.Fatalf("GetCompositeAlgorithm() error = %v", err)
 	}
@@ -2108,7 +2110,7 @@ func TestVerifyCompositeSignature_InvalidSignature(t *testing.T) {
 
 	cfg := CompositeCAConfig{
 		CommonName:         "Test Composite CA",
-		ClassicalAlgorithm: pkicrypto.AlgECDSAP384,
+		ClassicalAlgorithm: pkicrypto.AlgECDSAP521,
 		PQCAlgorithm:       pkicrypto.AlgMLDSA87,
 		ValidityYears:      10,
 		PathLen:            1,
@@ -2120,7 +2122,7 @@ func TestVerifyCompositeSignature_InvalidSignature(t *testing.T) {
 	}
 
 	// Get composite algorithm OID
-	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87)
+	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP521, pkicrypto.AlgMLDSA87)
 	if err != nil {
 		t.Fatalf("GetCompositeAlgorithm() error = %v", err)
 	}
@@ -2153,7 +2155,7 @@ func TestVerifyCompositeSignature_NonCompositeSignerCert(t *testing.T) {
 	}
 
 	// Get composite algorithm OID
-	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP384, pkicrypto.AlgMLDSA87)
+	compAlg, err := GetCompositeAlgorithm(pkicrypto.AlgECDSAP521, pkicrypto.AlgMLDSA87)
 	if err != nil {
 		t.Fatalf("GetCompositeAlgorithm() error = %v", err)
 	}

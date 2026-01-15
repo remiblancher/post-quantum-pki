@@ -152,20 +152,21 @@ var (
 
 // IETF Composite Signature OIDs (draft-ietf-lamps-pq-composite-sigs-13).
 // These combine ML-DSA with classical algorithms in a single composite signature.
+// Only IANA-allocated OIDs are supported.
 // IETF arc: 1.3.6.1.5.5.7.6.x (id-smime algorithms)
 // Source: https://datatracker.ietf.org/doc/draft-ietf-lamps-pq-composite-sigs/13/
 var (
-	// OIDMLDSA87ECDSAP384SHA512 is ML-DSA-87 + ECDSA-P384 with SHA-512.
-	// NIST Level 5 PQC + ~192-bit classical security.
-	OIDMLDSA87ECDSAP384SHA512 = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 6, 49}
-
 	// OIDMLDSA65ECDSAP256SHA512 is ML-DSA-65 + ECDSA-P256 with SHA-512.
 	// NIST Level 3 PQC + ~128-bit classical security.
 	OIDMLDSA65ECDSAP256SHA512 = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 6, 45}
 
-	// OIDMLDSA44ECDSAP256SHA256 is ML-DSA-44 + ECDSA-P256 with SHA-256.
-	// NIST Level 2 PQC + ~128-bit classical security.
-	OIDMLDSA44ECDSAP256SHA256 = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 6, 40}
+	// OIDMLDSA65ECDSAP384SHA512 is ML-DSA-65 + ECDSA-P384 with SHA-512.
+	// NIST Level 3 PQC + ~192-bit classical security.
+	OIDMLDSA65ECDSAP384SHA512 = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 6, 46}
+
+	// OIDMLDSA87ECDSAP521SHA512 is ML-DSA-87 + ECDSA-P521 with SHA-512.
+	// NIST Level 5 PQC + ~256-bit classical security.
+	OIDMLDSA87ECDSAP521SHA512 = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 6, 54}
 )
 
 // OIDEqual compares two OIDs for equality.
@@ -183,9 +184,9 @@ func OIDEqual(a, b asn1.ObjectIdentifier) bool {
 
 // IsCompositeOID checks if an OID is a composite signature algorithm.
 func IsCompositeOID(oid asn1.ObjectIdentifier) bool {
-	return OIDEqual(oid, OIDMLDSA87ECDSAP384SHA512) ||
-		OIDEqual(oid, OIDMLDSA65ECDSAP256SHA512) ||
-		OIDEqual(oid, OIDMLDSA44ECDSAP256SHA256)
+	return OIDEqual(oid, OIDMLDSA65ECDSAP256SHA512) ||
+		OIDEqual(oid, OIDMLDSA65ECDSAP384SHA512) ||
+		OIDEqual(oid, OIDMLDSA87ECDSAP521SHA512)
 }
 
 // OIDToString converts an OID to its dotted string representation.
@@ -248,10 +249,12 @@ func AlgorithmName(oid asn1.ObjectIdentifier) string {
 		return "RSA-SHA512"
 
 	// Composite Signatures (IETF draft-ietf-lamps-pq-composite-sigs-13)
-	case OIDEqual(oid, OIDMLDSA87ECDSAP384SHA512):
-		return "MLDSA87-ECDSA-P384-SHA512"
 	case OIDEqual(oid, OIDMLDSA65ECDSAP256SHA512):
 		return "MLDSA65-ECDSA-P256-SHA512"
+	case OIDEqual(oid, OIDMLDSA65ECDSAP384SHA512):
+		return "MLDSA65-ECDSA-P384-SHA512"
+	case OIDEqual(oid, OIDMLDSA87ECDSAP521SHA512):
+		return "MLDSA87-ECDSA-P521-SHA512"
 
 	default:
 		return oid.String()

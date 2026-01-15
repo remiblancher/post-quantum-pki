@@ -686,12 +686,13 @@ Both classical and PQC signatures are independent, allowing backward compatibili
 
 Creates a CSR with a combined composite signature per IETF draft-ietf-lamps-pq-composite-sigs-13.
 The signature is atomic - both components must be verified together.
+Only IANA-allocated OIDs are supported.
 
 | --algorithm | --composite | OID | Security Level |
 |-------------|-------------|-----|----------------|
-| ecdsa-p256 | ml-dsa-44 | 1.3.6.1.5.5.7.6.40 | Level 2 |
 | ecdsa-p256 | ml-dsa-65 | 1.3.6.1.5.5.7.6.45 | Level 3 |
-| ecdsa-p384 | ml-dsa-87 | 1.3.6.1.5.5.7.6.49 | Level 5 |
+| ecdsa-p384 | ml-dsa-65 | 1.3.6.1.5.5.7.6.46 | Level 3 |
+| ecdsa-p521 | ml-dsa-87 | 1.3.6.1.5.5.7.6.54 | Level 5 |
 
 **RFC 9883 (ML-KEM Attestation):**
 

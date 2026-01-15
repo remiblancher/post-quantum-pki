@@ -330,8 +330,9 @@ echo "    CSR SLH-DSA-256f: OK"
     --cn "CSR Test Catalyst" --dns csr.catalyst.test.local -o "$OUT/csr/catalyst.csr"
 echo "    CSR Catalyst Hybrid: OK"
 
-# Composite CSR (IETF draft-13: ECDSA-P384 + ML-DSA-87)
-"$PKI" csr gen --algorithm ecdsa-p384 --composite ml-dsa-87 \
+# Composite CSR (IETF draft-13: ECDSA-P521 + ML-DSA-87)
+# Note: ML-DSA-87 requires P-521 per IANA-allocated OID (1.3.6.1.5.5.7.6.54)
+"$PKI" csr gen --algorithm ecdsa-p521 --composite ml-dsa-87 \
     --keyout "$OUT/csr/composite-classical.key" \
     --hybrid-keyout "$OUT/csr/composite-pqc.key" \
     --cn "CSR Test Composite" --dns csr.composite.test.local -o "$OUT/csr/composite.csr"

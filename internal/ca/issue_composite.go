@@ -29,20 +29,28 @@ type CompositeAlgorithm struct {
 	HashFunc     crypto.Hash
 }
 
-// Supported composite algorithm combinations.
+// Supported composite algorithm combinations (IANA-allocated OIDs only).
+// Per draft-ietf-lamps-pq-composite-sigs-13.
 var CompositeAlgorithms = []CompositeAlgorithm{
-	{
-		Name:         "MLDSA87-ECDSA-P384-SHA512",
-		OID:          x509util.OIDMLDSA87ECDSAP384SHA512,
-		ClassicalAlg: pkicrypto.AlgECDSAP384,
-		PQCAlg:       pkicrypto.AlgMLDSA87,
-		HashFunc:     crypto.SHA512,
-	},
 	{
 		Name:         "MLDSA65-ECDSA-P256-SHA512",
 		OID:          x509util.OIDMLDSA65ECDSAP256SHA512,
 		ClassicalAlg: pkicrypto.AlgECDSAP256,
 		PQCAlg:       pkicrypto.AlgMLDSA65,
+		HashFunc:     crypto.SHA512,
+	},
+	{
+		Name:         "MLDSA65-ECDSA-P384-SHA512",
+		OID:          x509util.OIDMLDSA65ECDSAP384SHA512,
+		ClassicalAlg: pkicrypto.AlgECDSAP384,
+		PQCAlg:       pkicrypto.AlgMLDSA65,
+		HashFunc:     crypto.SHA512,
+	},
+	{
+		Name:         "MLDSA87-ECDSA-P521-SHA512",
+		OID:          x509util.OIDMLDSA87ECDSAP521SHA512,
+		ClassicalAlg: pkicrypto.AlgECDSAP521,
+		PQCAlg:       pkicrypto.AlgMLDSA87,
 		HashFunc:     crypto.SHA512,
 	},
 }

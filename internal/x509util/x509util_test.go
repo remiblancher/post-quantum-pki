@@ -398,8 +398,9 @@ func TestU_IsPQCOID(t *testing.T) {
 		{"RSA", []int{1, 2, 840, 113549, 1, 1, 1}, false},
 		{"Ed25519", []int{1, 3, 101, 112}, false},
 		// Composite (should return false for IsPQCOID)
-		{"Composite ML-DSA-87+P384", []int{1, 3, 6, 1, 5, 5, 7, 6, 49}, false},
 		{"Composite ML-DSA-65+P256", []int{1, 3, 6, 1, 5, 5, 7, 6, 45}, false},
+		{"Composite ML-DSA-65+P384", []int{1, 3, 6, 1, 5, 5, 7, 6, 46}, false},
+		{"Composite ML-DSA-87+P521", []int{1, 3, 6, 1, 5, 5, 7, 6, 54}, false},
 	}
 
 	for _, tt := range tests {
@@ -417,11 +418,13 @@ func TestU_IsCompositeOID(t *testing.T) {
 		oid  []int
 		want bool
 	}{
-		{"Composite ML-DSA-87+P384", []int{1, 3, 6, 1, 5, 5, 7, 6, 49}, true},
 		{"Composite ML-DSA-65+P256", []int{1, 3, 6, 1, 5, 5, 7, 6, 45}, true},
-		{"Composite ML-DSA-44+P256", []int{1, 3, 6, 1, 5, 5, 7, 6, 40}, true},
+		{"Composite ML-DSA-65+P384", []int{1, 3, 6, 1, 5, 5, 7, 6, 46}, true},
+		{"Composite ML-DSA-87+P521", []int{1, 3, 6, 1, 5, 5, 7, 6, 54}, true},
 		{"ML-DSA-65 pure", []int{2, 16, 840, 1, 101, 3, 4, 3, 18}, false},
 		{"ECDSA", []int{1, 2, 840, 10045, 2, 1}, false},
+		{"Not IANA OID (prototype .40)", []int{1, 3, 6, 1, 5, 5, 7, 6, 40}, false},
+		{"Not IANA OID (prototype .49)", []int{1, 3, 6, 1, 5, 5, 7, 6, 49}, false},
 	}
 
 	for _, tt := range tests {
@@ -691,9 +694,10 @@ func TestU_AlgorithmName(t *testing.T) {
 		{[]int{1, 2, 840, 113549, 1, 1, 11}, "RSA-SHA256"},
 		{[]int{1, 2, 840, 113549, 1, 1, 12}, "RSA-SHA384"},
 		{[]int{1, 2, 840, 113549, 1, 1, 13}, "RSA-SHA512"},
-		// Composite
-		{[]int{1, 3, 6, 1, 5, 5, 7, 6, 49}, "MLDSA87-ECDSA-P384-SHA512"},
+		// Composite (IANA-allocated OIDs only)
 		{[]int{1, 3, 6, 1, 5, 5, 7, 6, 45}, "MLDSA65-ECDSA-P256-SHA512"},
+		{[]int{1, 3, 6, 1, 5, 5, 7, 6, 46}, "MLDSA65-ECDSA-P384-SHA512"},
+		{[]int{1, 3, 6, 1, 5, 5, 7, 6, 54}, "MLDSA87-ECDSA-P521-SHA512"},
 		// Unknown - should return string representation
 		{[]int{1, 2, 3, 4, 5}, "1.2.3.4.5"},
 	}
