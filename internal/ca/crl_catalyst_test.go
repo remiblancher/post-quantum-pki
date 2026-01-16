@@ -175,19 +175,19 @@ func TestU_isAltSignatureValueExtension(t *testing.T) {
 		want     bool
 	}{
 		{
-			name: "AltSignatureValue extension",
+			name:     "AltSignatureValue extension",
 			extBytes: mustMarshalExtension(t, x509util.OIDAltSignatureValue, false, []byte{0x01, 0x02, 0x03}),
-			want: true,
+			want:     true,
 		},
 		{
-			name: "AltSignatureAlgorithm extension",
+			name:     "AltSignatureAlgorithm extension",
 			extBytes: mustMarshalExtension(t, x509util.OIDAltSignatureAlgorithm, false, []byte{0x01, 0x02, 0x03}),
-			want: false,
+			want:     false,
 		},
 		{
-			name: "BasicConstraints extension",
+			name:     "BasicConstraints extension",
 			extBytes: mustMarshalExtension(t, asn1.ObjectIdentifier{2, 5, 29, 19}, false, []byte{0x01}),
-			want: false,
+			want:     false,
 		},
 		{
 			name:     "invalid ASN.1",

@@ -19,12 +19,12 @@ var ctx = context.Background()
 
 // profileAlgorithmInfo holds algorithm information extracted from a profile.
 type profileAlgorithmInfo struct {
-	Algorithm      crypto.AlgorithmID
-	HybridAlg      crypto.AlgorithmID
-	IsComposite    bool
-	IsCatalyst     bool
-	ValidityYears  int
-	PathLen        int
+	Algorithm     crypto.AlgorithmID
+	HybridAlg     crypto.AlgorithmID
+	IsComposite   bool
+	IsCatalyst    bool
+	ValidityYears int
+	PathLen       int
 }
 
 // extractProfileAlgorithmInfo extracts algorithm information from a profile.

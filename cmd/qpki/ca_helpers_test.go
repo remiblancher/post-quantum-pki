@@ -710,9 +710,9 @@ func TestParseCertificatesPEM(t *testing.T) {
 
 func TestParseIPStrings(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []string
-		wantLen  int
+		name    string
+		input   []string
+		wantLen int
 	}{
 		{
 			name:    "valid IPv4",
@@ -761,9 +761,9 @@ func TestGetEffectiveStatus(t *testing.T) {
 	pastTime := now.Add(-24 * time.Hour)
 
 	tests := []struct {
-		name   string
-		entry  *ca.IndexEntry
-		want   string
+		name  string
+		entry *ca.IndexEntry
+		want  string
 	}{
 		{
 			name: "valid not expired",
@@ -821,10 +821,10 @@ func TestFilterCertEntries(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		filter       string
-		wantCount    int
-		wantErr      bool
+		name      string
+		filter    string
+		wantCount int
+		wantErr   bool
 	}{
 		{
 			name:      "no filter",

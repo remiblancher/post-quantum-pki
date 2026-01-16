@@ -46,7 +46,7 @@ func TestGetKeyUsageNames(t *testing.T) {
 			want:     nil,
 		},
 		{
-			name:     "all key usages",
+			name: "all key usages",
 			keyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageContentCommitment |
 				x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment |
 				x509.KeyUsageKeyAgreement | x509.KeyUsageCertSign |
