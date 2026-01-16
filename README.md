@@ -122,6 +122,13 @@ go build -o qpki ./cmd/qpki
 go install github.com/remiblancher/post-quantum-pki/cmd/qpki@latest
 ```
 
+### Verify installation
+
+```bash
+qpki version
+qpki --help
+```
+
 ## Requirements
 
 - **Go 1.25** or later (only for building from source)

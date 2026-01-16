@@ -2,8 +2,11 @@
 
 This guide covers credential management - creating, rotating, and revoking certificate bundles with coupled lifecycle management.
 
-> **For core PKI operations** (CA, keys, CSR, certificates, CRL), see [GUIDE.md](GUIDE.md).
-> **For crypto-agility migration**, see [CRYPTO-AGILITY.md](CRYPTO-AGILITY.md).
+> **Related documentation:**
+> - [CA.md](CA.md) - CA initialization, certificates, CRL
+> - [KEYS.md](KEYS.md) - Key generation and CSR operations
+> - [CLI-REFERENCE.md](CLI-REFERENCE.md) - Complete command reference
+> - [CRYPTO-AGILITY.md](CRYPTO-AGILITY.md) - Algorithm migration guide
 
 ## 1. What is a Credential?
 
@@ -531,7 +534,9 @@ qpki credential activate alice-xxx --version <new-version>
 
 ## See Also
 
-- [GUIDE.md](GUIDE.md) - Core PKI operations (CA, keys, CSR, certificates, CRL)
-- [CRYPTO-AGILITY.md](CRYPTO-AGILITY.md) - Algorithm migration guide
-- [PROFILES.md](PROFILES.md) - Certificate profile templates
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common errors and solutions
+- [CA](CA.md) - CA initialization, certificates, CRL management
+- [KEYS](KEYS.md) - Key generation and CSR operations
+- [CLI-REFERENCE](CLI-REFERENCE.md) - Complete command reference
+- [PROFILES](PROFILES.md) - Certificate profile templates
+- [CRYPTO-AGILITY](CRYPTO-AGILITY.md) - Algorithm migration guide
+- [TROUBLESHOOTING](TROUBLESHOOTING.md) - Common errors and solutions

@@ -11,40 +11,39 @@ New to QPKI? Start here:
 | [Quick Start](../README.md#quick-start) | Create your first CA and certificate in 5 minutes |
 | [GLOSSARY](GLOSSARY.md) | PKI and post-quantum cryptography terminology |
 
-## User Guide
+## Core Operations
 
-For day-to-day operations and CLI usage:
+For day-to-day PKI operations:
 
 | Document | Description |
 |----------|-------------|
-| [GUIDE](GUIDE.md) | Complete CLI reference and workflows |
+| [CA](CA.md) | CA initialization, certificates, CRL management |
+| [KEYS](KEYS.md) | Key generation and CSR operations |
+| [CREDENTIALS](CREDENTIALS.md) | Bundled key + certificate lifecycle |
 | [PROFILES](PROFILES.md) | Certificate profile templates (YAML configuration) |
 
-## Concepts
+## Services
 
-Understanding the system design and cryptography:
-
-| Document | Description |
-|----------|-------------|
-| [CONCEPTS](CONCEPTS.md) | Post-quantum cryptography, hybrid certificates (Catalyst, Composite) |
-| [ARCHITECTURE](ARCHITECTURE.md) | System components and design decisions |
-
-## Operations
-
-Running QPKI services in production:
+Running QPKI services:
 
 | Document | Description |
 |----------|-------------|
-| [OPERATIONS](OPERATIONS.md) | OCSP responder, TSA timestamping, audit logging |
+| [OCSP](OCSP.md) | Real-time certificate status (RFC 6960) |
+| [TSA](TSA.md) | Timestamping service (RFC 3161) |
+| [CMS](CMS.md) | CMS signatures and encryption (RFC 5652) |
+| [AUDIT](AUDIT.md) | Audit logging and SIEM integration |
+
+## Concepts & Reference
+
+Understanding the system:
+
+| Document | Description |
+|----------|-------------|
+| [CONCEPTS](CONCEPTS.md) | Post-quantum cryptography, hybrid certificates |
+| [CLI-REFERENCE](CLI-REFERENCE.md) | Complete command reference |
 | [HSM](HSM.md) | Hardware Security Module integration (PKCS#11) |
-
-## Development
-
-Contributing to QPKI:
-
-| Document | Description |
-|----------|-------------|
-| [DEVELOPMENT](DEVELOPMENT.md) | Contributing guidelines, testing strategy, CI/CD |
+| [CRYPTO-AGILITY](CRYPTO-AGILITY.md) | Algorithm migration guide |
+| [TROUBLESHOOTING](TROUBLESHOOTING.md) | Common errors and solutions |
 
 ---
 
@@ -67,13 +66,25 @@ Contributing to QPKI:
 
 ```
 docs/
-├── README.md          ← You are here
-├── GLOSSARY.md        Terminology reference
-├── GUIDE.md           CLI reference & workflows
-├── PROFILES.md        Certificate templates
-├── CONCEPTS.md        PQC & hybrid certificates
-├── ARCHITECTURE.md    System design
-├── OPERATIONS.md      OCSP, TSA, Audit
-├── HSM.md             PKCS#11 integration
-└── DEVELOPMENT.md     Contributing & testing
+├── README.md              ← You are here
+│
+├── # Core Operations
+├── CA.md                  CA, certificates, CRL
+├── KEYS.md                Key generation, CSR
+├── CREDENTIALS.md         Credential lifecycle
+├── PROFILES.md            Certificate templates
+│
+├── # Services
+├── OCSP.md                Real-time revocation
+├── TSA.md                 Timestamping
+├── CMS.md                 Signatures & encryption
+├── AUDIT.md               Audit logging
+│
+├── # Reference
+├── CLI-REFERENCE.md       Command reference
+├── CONCEPTS.md            PQC & hybrid certificates
+├── HSM.md                 PKCS#11 integration
+├── CRYPTO-AGILITY.md      Algorithm migration
+├── TROUBLESHOOTING.md     Common errors
+└── GLOSSARY.md            Terminology
 ```
