@@ -6,9 +6,9 @@ This guide covers the Cryptographic Message Syntax (CMS) implementation for sign
 > - [TSA.md](TSA.md) - Timestamping for long-term validity
 > - [CREDENTIALS.md](CREDENTIALS.md) - Signing and encryption credentials
 
-## 1. Overview
+## 1. What is CMS?
 
-The CMS module implements Cryptographic Message Syntax (RFC 5652) for signing and encrypting data. It supports classical algorithms (ECDSA, RSA, Ed25519), post-quantum (ML-DSA, SLH-DSA, ML-KEM), and hybrid modes.
+**Cryptographic Message Syntax (CMS)** is a standard format (RFC 5652) for signing and encrypting data. It supports classical algorithms (ECDSA, RSA, Ed25519), post-quantum (ML-DSA, SLH-DSA, ML-KEM), and hybrid modes.
 
 ### Standards
 

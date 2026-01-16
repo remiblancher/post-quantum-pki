@@ -6,9 +6,9 @@ This guide covers the RFC 3161 compliant timestamping server implementation.
 > - [CMS.md](CMS.md) - CMS signatures and encryption
 > - [CREDENTIALS.md](CREDENTIALS.md) - TSA credentials
 
-## 1. Overview
+## 1. What is a TSA?
 
-The TSA module implements an RFC 3161 compliant timestamping server with post-quantum algorithm support via RFC 9882.
+A **Time-Stamp Authority (TSA)** provides cryptographic proof that data existed at a specific time. QPKI implements an RFC 3161 compliant timestamping server with post-quantum algorithm support via RFC 9882.
 
 ### Standards
 

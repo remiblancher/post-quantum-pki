@@ -6,9 +6,9 @@ This guide covers the Online Certificate Status Protocol (OCSP) responder implem
 > - [CA.md](CA.md) - Certificate revocation with CRL
 > - [CREDENTIALS.md](CREDENTIALS.md) - OCSP responder credentials
 
-## 1. Overview
+## 1. What is OCSP?
 
-The OCSP implementation is compliant with **RFC 6960** (X.509 Internet PKI OCSP) and **RFC 5019** (Lightweight OCSP Profile). It supports classical algorithms (ECDSA, RSA, Ed25519), post-quantum (ML-DSA), and hybrid (Catalyst).
+**Online Certificate Status Protocol (OCSP)** provides real-time certificate revocation checking. The QPKI implementation is compliant with **RFC 6960** (X.509 Internet PKI OCSP) and **RFC 5019** (Lightweight OCSP Profile). It supports classical algorithms (ECDSA, RSA, Ed25519), post-quantum (ML-DSA), and hybrid (Catalyst).
 
 ### OCSP vs CRL
 
