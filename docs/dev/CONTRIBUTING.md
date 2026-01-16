@@ -132,7 +132,7 @@ func GenerateKey(alg AlgorithmID) (Signer, error) {
 3. Register in profile registry
 4. Add CLI support in `cmd/qpki/issue.go`
 5. Add tests
-6. Update GUIDE.md
+6. Update relevant documentation (CA.md, CREDENTIALS.md, CLI-REFERENCE.md)
 
 ### 4.3 Adding CLI Commands
 
@@ -140,7 +140,7 @@ func GenerateKey(alg AlgorithmID) (Signer, error) {
 2. Define cobra command with flags
 3. Register in `init()` function
 4. Add tests
-5. Update GUIDE.md
+5. Update relevant documentation (CLI-REFERENCE.md)
 
 ## 5. Security
 
@@ -217,5 +217,7 @@ By contributing, you agree that your contributions will be licensed under the Ap
 
 - [TESTING.md](TESTING.md) - Testing strategy
 - [INTEROPERABILITY.md](INTEROPERABILITY.md) - Cross-validation matrix
-- [../GUIDE.md](../GUIDE.md) - CLI reference
+- [../CA.md](../CA.md) - CA operations
+- [../CREDENTIALS.md](../CREDENTIALS.md) - Credential management
+- [../CLI-REFERENCE.md](../CLI-REFERENCE.md) - Command reference
 - [../ARCHITECTURE.md](../ARCHITECTURE.md) - System design

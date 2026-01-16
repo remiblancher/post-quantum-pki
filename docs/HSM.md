@@ -2,7 +2,29 @@
 
 QPKI supports Hardware Security Modules (HSMs) via PKCS#11 to protect CA private keys and perform signing operations without key extraction.
 
-## Architecture
+> **Related documentation:**
+> - [CA.md](CA.md) - CA initialization and certificate issuance
+> - [KEYS.md](KEYS.md) - Key generation and management
+> - [CREDENTIALS.md](CREDENTIALS.md) - Credential lifecycle management
+
+## 1. What is an HSM?
+
+A **Hardware Security Module (HSM)** is a dedicated cryptographic device that protects private keys. Keys stored in an HSM never leave the device - all signing operations happen inside the hardware.
+
+### Why Use an HSM?
+
+| Aspect | Software Keys | HSM Keys |
+|--------|--------------|----------|
+| Key extraction | Possible | Impossible |
+| Tamper resistance | None | Physical protection |
+| Compliance | Limited | FIPS 140-2/3, Common Criteria |
+| Performance | CPU-bound | Hardware acceleration |
+
+QPKI integrates with HSMs via **PKCS#11**, the standard cryptographic token interface.
+
+---
+
+## 2. Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -34,7 +56,9 @@ QPKI uses a unified signer interface to abstract software-based and HSM-based si
 
 **Security invariant:** The signing algorithm is selected by QPKI policy and certificate profiles, never inferred from the HSM key type or PKCS#11 mechanism.
 
-## Configuration
+---
+
+## 3. Configuration
 
 HSM configuration is done through a YAML file. The file is referenced via `--hsm-config` flag.
 
@@ -83,7 +107,9 @@ qpki ca init --hsm-config ./hsm.yaml --key-label "root-ca-key" --key-id "0102030
 
 > **Note:** Environment variables may be visible to privileged users on the system. Use a secure secret manager when possible.
 
-## Usage
+---
+
+## 4. Usage
 
 ### Initialize a CA with HSM Key
 
@@ -221,7 +247,9 @@ qpki ca init --hsm-config ./hsm.yaml \
 
 This generates the key in the HSM and immediately uses it for CA initialization.
 
-## Mode Selection: HSM vs Software
+---
+
+## 5. Mode Selection: HSM vs Software
 
 QPKI enforces a clear separation between HSM and software modes:
 
@@ -232,7 +260,9 @@ QPKI enforces a clear separation between HSM and software modes:
 
 HSM mode does not support PQC or hybrid profiles because current HSMs do not support post-quantum algorithms.
 
-## CA Metadata (`ca.meta.json`)
+---
+
+## 6. CA Metadata (`ca.meta.json`)
 
 When a CA is initialized, QPKI creates a `ca.meta.json` file that stores key references and configuration. This file is used to reload the CA signer for subsequent operations.
 
@@ -300,7 +330,9 @@ When a CA is initialized, QPKI creates a `ca.meta.json` file that stores key ref
 }
 ```
 
-## Supported HSMs
+---
+
+## 7. Supported HSMs
 
 QPKI uses PKCS#11 for HSM integration.
 
@@ -335,7 +367,9 @@ pkcs11-tool --module /usr/lib/softhsm/libsofthsm2.so \
   --label "root-ca-key" --id 01
 ```
 
-## Security Best Practices
+---
+
+## 8. Security Best Practices
 
 ### PIN Management
 
@@ -363,7 +397,9 @@ QPKI automatically logs out after each operation when `logout_after_use: true` i
 - Restrict access by IP
 - Monitor for unauthorized access
 
-## Example Configurations
+---
+
+## 9. Example Configurations
 
 See `examples/hsm/` for vendor-specific configurations:
 
@@ -376,6 +412,7 @@ See `examples/hsm/` for vendor-specific configurations:
 
 ## See Also
 
-- [GUIDE.md](GUIDE.md) - CLI reference and common workflows
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [PROFILES.md](PROFILES.md) - Certificate profile templates
+- [CA](CA.md) - CA operations and certificate issuance
+- [KEYS](KEYS.md) - Key generation and management
+- [CREDENTIALS](CREDENTIALS.md) - Credential lifecycle management
+- [PROFILES](PROFILES.md) - Certificate profile templates

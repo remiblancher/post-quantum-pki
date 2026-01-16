@@ -28,6 +28,26 @@ A **Time-Stamp Authority (TSA)** provides cryptographic proof that data existed 
 | TimeStampReq | `.tsq` | `application/timestamp-query` |
 | TimeStampResp | `.tsr` | `application/timestamp-reply` |
 
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        TSA Server                                    │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────┐  │
+│  │  HTTP Handler    │────│    Timestamper   │────│   Signing    │  │
+│  │  (POST)          │    │    (RFC 3161)    │    │   Key        │  │
+│  └──────────────────┘    └──────────────────┘    └──────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Token Contents:**
+- Serial number (unique identifier)
+- Generation time (UTC)
+- Message imprint (hash of timestamped data)
+- TSA policy OID
+- Optional: nonce, accuracy
+
 ---
 
 ## 2. CLI Commands
@@ -98,6 +118,52 @@ Timestamp Token:
     Hash:         AB:CD:EF:...
   Accuracy:       1s 0ms 0us
   Nonce:          12345
+```
+
+### tsa request
+
+Create a timestamp request.
+
+```bash
+qpki tsa request --data document.pdf --out request.tsq
+
+# With nonce (recommended for replay protection)
+qpki tsa request --data document.pdf --nonce --out request.tsq
+
+# With specific hash algorithm
+qpki tsa request --data document.pdf --hash sha384 --out request.tsq
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--data` | File to timestamp | Required |
+| `--hash` | Hash algorithm (sha256, sha384, sha512) | sha256 |
+| `--nonce` | Include random nonce | false |
+| `-o, --out` | Output file | Required |
+
+### tsa info
+
+Display timestamp token information.
+
+```bash
+qpki tsa info token.tsr
+```
+
+**Output:**
+
+```
+Timestamp Token:
+  Version:        1
+  Serial Number:  123456789012345678901234567890
+  Gen Time:       2025-01-15T10:30:00Z
+  Policy:         1.3.6.1.4.1.99999.2.1
+  Message Imprint:
+    Hash Alg:     SHA-256
+    Hash:         AB:CD:EF:...
+  Accuracy:       1s
+  Signer:         CN=tsa.example.com
 ```
 
 ### tsa serve

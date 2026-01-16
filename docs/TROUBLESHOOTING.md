@@ -480,12 +480,14 @@ qpki credential enroll --help
 
 ### 7.2 Documentation
 
-- [GUIDE.md](GUIDE.md) - Core PKI operations
-- [CREDENTIALS.md](CREDENTIALS.md) - Credential management
-- [CRYPTO-AGILITY.md](CRYPTO-AGILITY.md) - Algorithm migration
-- [PROFILES.md](PROFILES.md) - Certificate profiles
-- [HSM.md](HSM.md) - Hardware Security Module integration
-- [OPERATIONS.md](OPERATIONS.md) - OCSP, TSA, CMS operations
+- [CA](CA.md) - CA operations and certificate issuance
+- [CREDENTIALS](CREDENTIALS.md) - Credential management
+- [CRYPTO-AGILITY](CRYPTO-AGILITY.md) - Algorithm migration
+- [PROFILES](PROFILES.md) - Certificate profiles
+- [HSM](HSM.md) - Hardware Security Module integration
+- [OCSP](OCSP.md) - Online Certificate Status Protocol
+- [TSA](TSA.md) - Time-Stamp Authority
+- [CMS](CMS.md) - Cryptographic Message Syntax
 
 ### 7.3 Reporting Issues
 

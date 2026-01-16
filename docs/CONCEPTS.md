@@ -369,5 +369,5 @@ ML-DSA verification is actually faster than ECDSA.
 
 - [GLOSSARY](GLOSSARY.md) - Terminology reference
 - [ARCHITECTURE](ARCHITECTURE.md) - System design
-- [GUIDE](GUIDE.md) - CLI reference
+- [CA](CA.md) - CA operations and certificate issuance
 - [PROFILES](PROFILES.md) - Certificate templates

@@ -6,9 +6,9 @@ This guide covers the audit logging system for compliance and SIEM integration.
 > - [CA.md](CA.md) - CA operations that generate audit events
 > - [CREDENTIALS.md](CREDENTIALS.md) - Credential operations that generate audit events
 
-## 1. Overview
+## 1. What is Audit Logging?
 
-The audit system is designed for compliance (eIDAS, ETSI EN 319 401) and SIEM integration.
+The audit system provides **tamper-evident logging** for PKI operations. It is designed for compliance (eIDAS, ETSI EN 319 401) and SIEM integration.
 
 ### Core Principles
 

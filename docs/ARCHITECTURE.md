@@ -305,7 +305,7 @@ QPKI provides a comprehensive CLI organized into command groups:
 | `audit` | Audit log management |
 | `inspect` | Auto-detect and display file info |
 
-For detailed CLI usage, see [GUIDE.md](GUIDE.md).
+For detailed CLI usage, see [CA.md](CA.md) and [CLI-REFERENCE.md](CLI-REFERENCE.md).
 
 ## 7. Data Flow
 
@@ -466,9 +466,11 @@ For configuration and usage details, see [HSM.md](HSM.md).
 
 ## See Also
 
-- [GUIDE.md](GUIDE.md) - CLI reference and common workflows
-- [CONCEPTS.md](CONCEPTS.md) - Post-quantum cryptography and hybrid certificates
-- [PROFILES.md](PROFILES.md) - Certificate profile templates
-- [OPERATIONS.md](OPERATIONS.md) - OCSP, TSA, and audit operations
-- [HSM.md](HSM.md) - Hardware Security Module integration
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Contributing, testing, and CI/CD
+- [CA](CA.md) - CA operations and certificate issuance
+- [CONCEPTS](CONCEPTS.md) - Post-quantum cryptography and hybrid certificates
+- [PROFILES](PROFILES.md) - Certificate profile templates
+- [OCSP](OCSP.md) - Online Certificate Status Protocol
+- [TSA](TSA.md) - Time-Stamp Authority
+- [AUDIT](AUDIT.md) - Audit logging
+- [HSM](HSM.md) - Hardware Security Module integration
+- [DEVELOPMENT](DEVELOPMENT.md) - Contributing, testing, and CI/CD
