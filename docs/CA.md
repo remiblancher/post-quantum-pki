@@ -7,7 +7,72 @@ This guide covers Certificate Authority operations, certificate issuance, and CR
 > - [KEYS.md](KEYS.md) - Key generation and CSR operations
 > - [CLI-REFERENCE.md](CLI-REFERENCE.md) - Complete command reference
 
-## 1. CA Operations
+## 1. What is a CA?
+
+A **Certificate Authority (CA)** is the trust anchor that signs certificates. QPKI supports root CAs (self-signed) and subordinate CAs (signed by a parent).
+
+### 1.1 CA Structure
+
+```
+ca/
+├── ca.meta.json           # CA metadata (versions, keys, status)
+├── index.txt              # OpenSSL-compatible certificate index
+├── serial                 # Current serial number (hex)
+├── crlnumber              # Current CRL number
+├── certs/                 # Issued certificates
+│   ├── 02.crt
+│   └── 03.crt
+├── crl/                   # Certificate Revocation Lists
+│   ├── ca.crl             # PEM format
+│   └── ca.crl.der         # DER format
+└── versions/              # CA versions (after rotation)
+    └── v1/
+        ├── keys/
+        │   └── ca.ecdsa-p256.key
+        └── certs/
+            └── ca.ecdsa-p256.pem
+```
+
+### 1.2 Versioned CA
+
+After rotation, CAs have multiple versions with status tracking:
+
+```
+ca/
+├── ca.meta.json           # Points to active version
+└── versions/
+    ├── v1/                # archived
+    │   ├── keys/ca.ecdsa-p256.key
+    │   └── certs/ca.ecdsa-p256.pem
+    ├── v2/                # active (hybrid)
+    │   ├── keys/
+    │   │   ├── ca.ecdsa-p256.key
+    │   │   └── ca.ml-dsa-65.key
+    │   └── certs/
+    │       ├── ca.ecdsa-p256.pem
+    │       └── ca.ml-dsa-65.pem
+    └── v3/                # pending
+        └── ...
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Awaiting activation after rotation |
+| `active` | Currently in use for signing |
+| `archived` | Superseded by newer version |
+
+### 1.3 CA Types
+
+| Type | Description |
+|------|-------------|
+| Root CA | Self-signed, trust anchor |
+| Subordinate CA | Signed by parent, issues end-entity certs |
+| Multi-profile CA | Multiple algorithms (crypto-agility) |
+| Hybrid CA | Classical + PQC (Catalyst or Composite) |
+
+---
+
+## 2. CA Operations
 
 ### ca init
 
@@ -219,7 +284,7 @@ qpki ca versions --ca-dir ./myca
 
 ---
 
-## 2. Certificate Issuance
+## 3. Certificate Issuance
 
 ### cert issue
 
@@ -377,7 +442,7 @@ qpki cert verify server.crt --ca ca.crt --ocsp http://localhost:8080
 
 ---
 
-## 3. Revocation & CRL Management
+## 4. Revocation & CRL Management
 
 ### cert revoke
 
@@ -538,9 +603,9 @@ qpki crl list --ca-dir ./myca
 
 ---
 
-## 4. Common Workflows
+## 5. Common Workflows
 
-### 4.1 Set Up a Two-Tier PKI
+### 5.1 Set Up a Two-Tier PKI
 
 ```bash
 # 1. Create root CA (keep offline)
@@ -567,7 +632,7 @@ The `--parent` flag automatically:
 - Creates the full CA directory structure
 - Generates `chain.crt` with the certificate chain
 
-### 4.2 CA Rotation (Crypto Migration)
+### 5.2 CA Rotation (Crypto Migration)
 
 ```bash
 # 1. Preview the rotation plan
@@ -585,7 +650,7 @@ qpki ca activate --ca-dir ./myca --version 2
 
 ---
 
-## 5. FAQ
+## 6. FAQ
 
 ### Q: How do I create a CA with a custom validity period?
 

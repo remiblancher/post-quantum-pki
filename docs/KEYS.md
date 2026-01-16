@@ -7,7 +7,24 @@ This guide covers private key generation, management, and Certificate Signing Re
 > - [CREDENTIALS.md](CREDENTIALS.md) - Bundled key + certificate lifecycle
 > - [HSM.md](HSM.md) - Hardware Security Module integration
 
-## 1. Key Management
+## 1. What is a Key?
+
+A **private key** is the cryptographic secret used for signing or decryption. QPKI supports classical (ECDSA, RSA, Ed25519) and post-quantum (ML-DSA, SLH-DSA, ML-KEM) algorithms.
+
+### 1.1 Key Types
+
+| Type | Purpose | Algorithms |
+|------|---------|------------|
+| Signature | Sign certificates, CMS, OCSP | ECDSA, Ed25519, RSA, ML-DSA, SLH-DSA |
+| Key Encapsulation | Encrypt session keys | ML-KEM |
+
+### 1.2 What is a CSR?
+
+A **Certificate Signing Request (CSR)** is a message sent to a CA to request a certificate. It contains the public key and subject information, signed by the corresponding private key.
+
+---
+
+## 2. Key Management
 
 ### key gen
 
@@ -161,7 +178,7 @@ qpki key convert --key private.pem --out encrypted.pem --out-passphrase "secret"
 
 ---
 
-## 2. Certificate Signing Requests (CSR)
+## 3. Certificate Signing Requests (CSR)
 
 ### csr gen
 
@@ -298,7 +315,7 @@ qpki csr verify server.csr
 
 ---
 
-## 3. Algorithm Reference
+## 4. Algorithm Reference
 
 ### Classical Algorithms
 
