@@ -366,46 +366,104 @@ extensions:
 ## 5. YAML Schema
 
 ```yaml
-name: string              # Unique identifier (category/name format)
+# =============================================================================
+# Profile YAML Structure Reference
+# =============================================================================
+
+name: string              # Profile identifier
 description: string       # Human-readable description
 
-# Simple profile (single algorithm)
+# -----------------------------------------------------------------------------
+# Algorithm - Simple profile (single algorithm)
+# -----------------------------------------------------------------------------
 algorithm: string         # e.g., ecdsa-p256, rsa-4096, ml-dsa-65
 
-# Hybrid profile (two algorithms)
+# -----------------------------------------------------------------------------
+# Algorithm - Hybrid profile (two algorithms)
+# -----------------------------------------------------------------------------
 mode: string              # catalyst | composite
 algorithms:               # List of algorithm IDs
   - ecdsa-p256            # Classical algorithm (first)
   - ml-dsa-65             # PQC algorithm (second)
 
-# Optional: Override signature algorithm defaults
+# -----------------------------------------------------------------------------
+# Signature - Override signature algorithm defaults
+# -----------------------------------------------------------------------------
 signature:
   scheme: string          # ecdsa | pkcs1v15 | rsassa-pss | ed25519
   hash: string            # sha256 | sha384 | sha512 | sha3-256 | sha3-384 | sha3-512
-  pss:                    # RSA-PSS specific parameters (optional)
+  pss:                    # RSA-PSS specific parameters
     salt_length: int      # Salt length in bytes (-1 = hash length)
     mgf: string           # MGF hash algorithm (defaults to signature hash)
 
+# -----------------------------------------------------------------------------
+# Validity
+# -----------------------------------------------------------------------------
 validity: duration        # Duration format (e.g., 365d, 8760h, 1y)
 
-variables:                # Declarative input variables (see below)
-  cn:
-    type: string
-    required: true
-  organization:
-    type: string
-    default: "ACME Corp"
+# -----------------------------------------------------------------------------
+# Variables - Input parameters with validation
+# -----------------------------------------------------------------------------
+variables:
+  <name>:
+    type: string|integer|list|dns_name|dns_names|ip_list|email|uri|oid|duration
+    required: bool
+    default: value
+    description: string
+    # Type-specific constraints...
 
-subject:                  # Subject DN with template variables
-  cn: "{{ cn }}"          # Resolved from variables.cn
-  o: "{{ organization }}" # Resolved from variables.organization
-  c: "FR"                 # Fixed value
+# -----------------------------------------------------------------------------
+# Subject DN - Certificate subject fields
+# -----------------------------------------------------------------------------
+subject:
+  cn: "{{ variable }}"    # Common Name
+  o: "{{ variable }}"     # Organization
+  ou: "static value"      # Organizational Unit (can be static)
+  c: "{{ variable }}"     # Country
 
-extensions:               # X.509 extensions (see below)
-  keyUsage: ...
-  extKeyUsage: ...
-  basicConstraints: ...
+# -----------------------------------------------------------------------------
+# Extensions - X.509 v3 extensions
+# -----------------------------------------------------------------------------
+extensions:
+  basicConstraints:
+    critical: bool        # MUST true for CA (RFC 5280)
+    ca: bool              # true=CA, false=end-entity
+    pathLen: int          # Max sub-CAs (only if ca=true)
+  keyUsage:
+    critical: bool
+    values: [digitalSignature, keyEncipherment, ...]
+  extKeyUsage:
+    values: [serverAuth, clientAuth, ...]
+  subjectAltName:
+    dns: "{{ dns_names }}"      # DNS names from variable
+    ip: "{{ ip_addresses }}"    # IP addresses from variable
+    dns_include_cn: bool        # Auto-add CN to DNS SANs
+  certificatePolicies:
+    policies:
+      - oid: string
+        cps: string
+  crlDistributionPoints:
+    urls: [string, ...]
+  authorityInfoAccess:
+    caIssuers: [string, ...]
+    ocsp: [string, ...]
 ```
+
+### Template Variable Substitution
+
+Variables are referenced using `{{ variable_name }}` syntax. Currently supported in:
+
+| Location | Supported | Example |
+|----------|-----------|---------|
+| `subject:` fields | ✅ Yes | `cn: "{{ cn }}"` |
+| `subjectAltName.dns` | ✅ Yes | `dns: "{{ dns_names }}"` |
+| `subjectAltName.ip` | ✅ Yes | `ip: "{{ ip_addresses }}"` |
+| `subjectAltName.email` | ✅ Yes | `email: "{{ emails }}"` |
+| `validity:` | ❌ No | Use `validity_days` variable name |
+| `crlDistributionPoints:` | ❌ No | Static values only |
+| `authorityInfoAccess:` | ❌ No | Static values only |
+
+**Note**: For validity, declare a variable named `validity_days` or `validity_hours` - the template engine looks for these specific names.
 
 ---
 
@@ -504,14 +562,30 @@ variables:
     max: 825
     description: "Certificate validity in days"
 
+# Subject DN with variable substitution
+subject:
+  cn: "{{ cn }}"
+  o: "{{ organization }}"
+  c: "{{ country }}"
+
+# Extensions
 extensions:
+  basicConstraints:
+    critical: true
+    ca: false
   keyUsage:
     critical: true
     values:
       - digitalSignature
+      - keyEncipherment
   extKeyUsage:
     values:
       - serverAuth
+  # SANs with variable substitution
+  subjectAltName:
+    dns: "{{ dns_names }}"
+    ip: "{{ ip_addresses }}"
+    dns_include_cn: true
 ```
 
 ### Variable Constraints Reference
