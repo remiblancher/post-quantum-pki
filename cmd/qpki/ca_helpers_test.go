@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	"github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/profile"
 )
@@ -563,6 +564,308 @@ func TestValidateSubordinateCAFlags(t *testing.T) {
 			err := validateSubordinateCAFlags(tt.varFile, tt.vars, tt.profiles)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateSubordinateCAFlags() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// firstOrEmpty Tests
+// =============================================================================
+
+func TestFirstOrEmpty(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+		want  string
+	}{
+		{
+			name:  "non-empty slice",
+			input: []string{"first", "second"},
+			want:  "first",
+		},
+		{
+			name:  "single element",
+			input: []string{"only"},
+			want:  "only",
+		},
+		{
+			name:  "empty slice",
+			input: []string{},
+			want:  "",
+		},
+		{
+			name:  "nil slice",
+			input: nil,
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := firstOrEmpty(tt.input); got != tt.want {
+				t.Errorf("firstOrEmpty() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// getSignatureAlgorithmName Tests
+// =============================================================================
+
+func TestGetSignatureAlgorithmName(t *testing.T) {
+	// Create a test certificate with a known algorithm
+	tc := newTestContext(t)
+	priv, pub := generateECDSAKeyPair(tc.t)
+	cert := generateSelfSignedCert(tc.t, priv, pub)
+
+	// Test with a standard ECDSA certificate
+	name := getSignatureAlgorithmName(cert)
+	if name == "" || name == "Unknown" {
+		t.Errorf("getSignatureAlgorithmName() for ECDSA cert = %q, want non-empty and not Unknown", name)
+	}
+
+	// Test with nil certificate (should not panic)
+	// We can't actually test nil because it would panic, but we can verify the function works with valid certs
+}
+
+// =============================================================================
+// parseCertificatesPEM Tests
+// =============================================================================
+
+func TestParseCertificatesPEM(t *testing.T) {
+	tc := newTestContext(t)
+	priv, pub := generateECDSAKeyPair(tc.t)
+	cert := generateSelfSignedCert(tc.t, priv, pub)
+
+	// Create PEM data for single certificate
+	singlePEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+
+	// Create PEM data for multiple certificates
+	multiplePEM := append(singlePEM, singlePEM...)
+
+	tests := []struct {
+		name      string
+		data      []byte
+		wantCount int
+		wantErr   bool
+	}{
+		{
+			name:      "single certificate",
+			data:      singlePEM,
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "multiple certificates",
+			data:      multiplePEM,
+			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "empty data",
+			data:      []byte{},
+			wantCount: 0,
+			wantErr:   false,
+		},
+		{
+			name:      "non-PEM data",
+			data:      []byte("not a PEM block"),
+			wantCount: 0,
+			wantErr:   false,
+		},
+		{
+			name: "mixed PEM types",
+			data: append(singlePEM, pem.EncodeToMemory(&pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: []byte("fake key"),
+			})...),
+			wantCount: 1,
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			certs, err := parseCertificatesPEM(tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseCertificatesPEM() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(certs) != tt.wantCount {
+				t.Errorf("parseCertificatesPEM() got %d certs, want %d", len(certs), tt.wantCount)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// parseIPStrings Tests (from issue_helpers.go)
+// =============================================================================
+
+func TestParseIPStrings(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		wantLen  int
+	}{
+		{
+			name:    "valid IPv4",
+			input:   []string{"192.168.1.1", "10.0.0.1"},
+			wantLen: 2,
+		},
+		{
+			name:    "valid IPv6",
+			input:   []string{"::1", "fe80::1"},
+			wantLen: 2,
+		},
+		{
+			name:    "mixed valid and invalid",
+			input:   []string{"192.168.1.1", "invalid", "10.0.0.1"},
+			wantLen: 2,
+		},
+		{
+			name:    "empty input",
+			input:   []string{},
+			wantLen: 0,
+		},
+		{
+			name:    "all invalid",
+			input:   []string{"not-an-ip", "also-not-an-ip"},
+			wantLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseIPStrings(tt.input)
+			if len(got) != tt.wantLen {
+				t.Errorf("parseIPStrings() returned %d IPs, want %d", len(got), tt.wantLen)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// list_helpers Tests
+// =============================================================================
+
+func TestGetEffectiveStatus(t *testing.T) {
+	now := time.Now()
+	futureTime := now.Add(24 * time.Hour)
+	pastTime := now.Add(-24 * time.Hour)
+
+	tests := []struct {
+		name   string
+		entry  *ca.IndexEntry
+		want   string
+	}{
+		{
+			name: "valid not expired",
+			entry: &ca.IndexEntry{
+				Status: "V",
+				Expiry: futureTime,
+			},
+			want: "V",
+		},
+		{
+			name: "valid but expired",
+			entry: &ca.IndexEntry{
+				Status: "V",
+				Expiry: pastTime,
+			},
+			want: "E",
+		},
+		{
+			name: "revoked",
+			entry: &ca.IndexEntry{
+				Status: "R",
+				Expiry: futureTime,
+			},
+			want: "R",
+		},
+		{
+			name: "valid with zero expiry",
+			entry: &ca.IndexEntry{
+				Status: "V",
+				Expiry: time.Time{},
+			},
+			want: "V",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getEffectiveStatus(tt.entry, now)
+			if got != tt.want {
+				t.Errorf("getEffectiveStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFilterCertEntries(t *testing.T) {
+	now := time.Now()
+	futureTime := now.Add(24 * time.Hour)
+	pastTime := now.Add(-24 * time.Hour)
+
+	entries := []ca.IndexEntry{
+		{Status: "V", Expiry: futureTime, Subject: "valid"},
+		{Status: "R", Expiry: futureTime, Subject: "revoked"},
+		{Status: "V", Expiry: pastTime, Subject: "expired"},
+	}
+
+	tests := []struct {
+		name         string
+		filter       string
+		wantCount    int
+		wantErr      bool
+	}{
+		{
+			name:      "no filter",
+			filter:    "",
+			wantCount: 3,
+			wantErr:   false,
+		},
+		{
+			name:      "filter valid",
+			filter:    "valid",
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "filter revoked",
+			filter:    "revoked",
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "filter expired",
+			filter:    "expired",
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "invalid filter",
+			filter:    "unknown",
+			wantCount: 0,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := filterCertEntries(entries, tt.filter, now)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("filterCertEntries() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && len(got) != tt.wantCount {
+				t.Errorf("filterCertEntries() returned %d entries, want %d", len(got), tt.wantCount)
 			}
 		})
 	}
