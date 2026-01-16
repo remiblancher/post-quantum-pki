@@ -2,11 +2,12 @@
 
 Profiles define certificate enrollment policies that specify which algorithms to use when issuing certificates.
 
-## Design Principle: 1 Profile = 1 Certificate
+> **Related documentation:**
+> - [CA.md](CA.md) - CA initialization and certificate issuance
+> - [CREDENTIALS.md](CREDENTIALS.md) - Credential enrollment with profiles
+> - [CRYPTO-AGILITY.md](CRYPTO-AGILITY.md) - Algorithm migration guide
 
-Each profile produces exactly **one certificate**. To create multiple certificates (e.g., signature + encryption), use multiple profiles.
-
-## Overview
+## 1. What is a Profile?
 
 A **profile** is a policy template stored as a YAML file that determines:
 
@@ -14,6 +15,12 @@ A **profile** is a policy template stored as a YAML file that determines:
 - **Mode**: How multiple algorithms are combined (simple, catalyst, composite)
 - **Validity period**: How long the certificate remains valid
 - **Extensions**: X.509 extensions configuration
+
+### Design Principle: 1 Profile = 1 Certificate
+
+Each profile produces exactly **one certificate**. To create multiple certificates (e.g., signature + encryption), use multiple profiles.
+
+### 1.1 Profile Categories
 
 Profiles are organized by category and stored in `profiles/`:
 - `ec/` - ECDSA-based profiles (modern classical)
@@ -24,7 +31,7 @@ Profiles are organized by category and stored in `profiles/`:
 - `hybrid/catalyst/` - Catalyst hybrid profiles (ITU-T X.509 Section 9.8)
 - `hybrid/composite/` - IETF composite hybrid profiles
 
-## Profile Modes
+### 1.2 Profile Modes
 
 | Mode | Description | Algorithm(s) |
 |------|-------------|--------------|
@@ -101,7 +108,9 @@ extensions:
       - serverAuth
 ```
 
-## Builtin Profiles
+---
+
+## 2. Builtin Profiles
 
 ### EC (ECDSA - Modern Classical)
 
@@ -190,7 +199,9 @@ extensions:
 | `hybrid/composite/signing` | ECDSA P-384 + ML-DSA-87 | Document signing |
 | `hybrid/composite/ocsp-responder` | ECDSA P-384 + ML-DSA-87 | OCSP responder |
 
-## CLI Commands
+---
+
+## 3. CLI Commands
 
 ### List Available Profiles
 
@@ -226,7 +237,9 @@ qpki profile export --all ./templates/
 qpki profile validate my-profile.yaml
 ```
 
-## Creating Custom Profiles
+---
+
+## 4. Creating Custom Profiles
 
 Export a builtin profile, modify it, and use it:
 
@@ -331,7 +344,9 @@ extensions:
       - serverAuth
 ```
 
-## YAML Schema
+---
+
+## 5. YAML Schema
 
 ```yaml
 name: string              # Unique identifier (category/name format)
@@ -375,7 +390,9 @@ extensions:               # X.509 extensions (see below)
   basicConstraints: ...
 ```
 
-## Declarative Variables
+---
+
+## 6. Declarative Variables
 
 Profiles can declare typed variables with validation constraints. Variables enable:
 - Input validation before certificate issuance
@@ -965,7 +982,9 @@ variable validation failed: dns_names: "api.other.com" does not match allowed su
 variable validation failed: ip_addresses: IP "8.8.8.8" not in allowed ranges [10.0.0.0/8 192.168.0.0/16]
 ```
 
-## X.509 Extensions
+---
+
+## 7. X.509 Extensions
 
 ### Extensions Configuration
 
@@ -1031,7 +1050,9 @@ extensions:
 | `timeStamping` | Trusted timestamping | 1.3.6.1.5.5.7.3.8 |
 | `ocspSigning` | OCSP responder signing | 1.3.6.1.5.5.7.3.9 |
 
-## Signature Algorithm Defaults
+---
+
+## 8. Signature Algorithm Defaults
 
 When the `signature:` field is not specified in a profile, the signature algorithm is automatically inferred from the key algorithm. The following table shows the defaults:
 
@@ -1068,7 +1089,9 @@ signature:
 
 > **Note:** Post-quantum algorithms (ML-DSA, SLH-DSA) have intrinsic signature schemes and do not use the `signature:` override.
 
-## Supported Algorithms
+---
+
+## 9. Supported Algorithms
 
 ### Signature Algorithms
 
@@ -1096,7 +1119,9 @@ signature:
 | `ml-kem-768` | ML-KEM-768 | PQC | NIST Level 3 |
 | `ml-kem-1024` | ML-KEM-1024 | PQC | NIST Level 5 |
 
-## Usage Examples
+---
+
+## 10. Usage Examples
 
 ### Direct Issuance with Credential Enroll
 
@@ -1138,7 +1163,9 @@ qpki cert issue --profile ec/tls-server --csr server.csr --out server.crt --ca-d
 | Full post-quantum | `ml/tls-server-sign` | Pure PQC signature |
 | Long-term archive | `slh/timestamping` | Conservative hash-based |
 
-## Performance: CompiledProfile
+---
+
+## 11. Performance: CompiledProfile
 
 For high-throughput scenarios (web services, APIs), profiles can be pre-compiled at startup to avoid per-certificate parsing overhead.
 
@@ -1179,9 +1206,12 @@ result, err := ca.EnrollWithCompiledProfile(req, cp)
 - **Variable patterns**: Regex strings → `*regexp.Regexp`
 - **CIDR ranges**: IP ranges parsed once
 
+---
+
 ## See Also
 
-- [GUIDE.md](GUIDE.md) - CLI reference and credential management
-- [CONCEPTS.md](CONCEPTS.md) - Catalyst and PQC concepts
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [OPERATIONS.md](OPERATIONS.md) - Operational procedures
+- [CA](CA.md) - CA initialization and certificate issuance
+- [CREDENTIALS](CREDENTIALS.md) - Credential enrollment with profiles
+- [KEYS](KEYS.md) - Key generation and CSR operations
+- [CONCEPTS](CONCEPTS.md) - Catalyst and PQC concepts
+- [CLI-REFERENCE](CLI-REFERENCE.md) - Complete command reference
