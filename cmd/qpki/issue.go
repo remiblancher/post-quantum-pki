@@ -77,12 +77,10 @@ func init() {
 }
 
 func runIssue(cmd *cobra.Command, args []string) error {
-	// Check mutual exclusivity of --var and --var-file
 	if issueVarFile != "" && len(issueVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
 
-	// Load CA
 	absDir, _ := filepath.Abs(issueCADir)
 	store := ca.NewFileStore(absDir)
 	if !store.Exists() {
@@ -94,82 +92,42 @@ func runIssue(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load CA: %w", err)
 	}
 
-	// Load profile (supports both builtin names and file paths)
 	prof, err := profile.LoadProfile(issueProfile)
 	if err != nil {
 		return fmt.Errorf("failed to load profile %s: %w", issueProfile, err)
 	}
 
-	// Load CA signer based on profile requirements
 	if err := loadCASignerForProfile(caInstance, prof, issueCAPassphrase); err != nil {
 		return err
 	}
 
-	// Parse CSR (handles both classical and PQC algorithms)
 	csrResult, err := parseCSRFromFile(issueCSRFile, issueAttestCert)
 	if err != nil {
 		return err
 	}
 
-	// Load variables from file and/or flags
-	varValues, err := profile.LoadVariables(issueVarFile, issueVars)
+	varValues, err := loadAndRenderIssueVariables(prof, issueVarFile, issueVars, csrResult.Template)
 	if err != nil {
-		return fmt.Errorf("failed to load variables: %w", err)
+		return err
 	}
 
-	// Merge CSR values into variables
-	mergeCSRVariables(varValues, csrResult.Template)
-
-	// Validate and render variables via TemplateEngine if profile has variables
-	if len(prof.Variables) > 0 {
-		engine, err := profile.NewTemplateEngine(prof)
-		if err != nil {
-			return fmt.Errorf("failed to create template engine: %w", err)
-		}
-		rendered, err := engine.Render(varValues)
-		if err != nil {
-			return fmt.Errorf("variable validation failed: %w", err)
-		}
-		varValues = rendered.ResolvedValues
-	}
-
-	// Resolve profile extensions (substitute SAN template variables)
 	resolvedExtensions, err := profile.ResolveProfileExtensions(prof, varValues)
 	if err != nil {
 		return fmt.Errorf("failed to resolve extensions: %w", err)
 	}
 
-	// Issue certificate based on profile mode
-	ctx := context.Background()
-	var cert interface{ Raw() []byte }
-
-	if prof.IsCatalyst() {
-		c, err := issueCatalystCert(ctx, caInstance, prof, csrResult.Template, csrResult.PublicKey, resolvedExtensions)
-		if err != nil {
-			return err
-		}
-		cert = &certWrapper{c}
-	} else {
-		c, err := issueStandardCert(ctx, caInstance, prof, csrResult.Template, csrResult.PublicKey, resolvedExtensions, issueHybridAlg)
-		if err != nil {
-			return err
-		}
-		cert = &certWrapper{c}
+	issuedCert, err := issueCertificateByMode(context.Background(), caInstance, prof, csrResult, resolvedExtensions, issueHybridAlg)
+	if err != nil {
+		return err
 	}
 
-	// Get the actual certificate
-	issuedCert := cert.(*certWrapper).cert
-
-	// Save certificate
 	if issueCertOut != "" {
 		if err := writeCertificatePEM(issuedCert, issueCertOut); err != nil {
 			return err
 		}
 	}
 
-	// Display result
 	printCertificateInfo(issuedCert, issueCertOut, store)
-
 	return nil
 }
 

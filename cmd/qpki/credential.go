@@ -265,7 +265,6 @@ func loadCASigner(caInstance *ca.CA, caDir, passphrase string) error {
 }
 
 func runCredEnroll(cmd *cobra.Command, args []string) error {
-	// Validate flags
 	if credEnrollVarFile != "" && len(credEnrollVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
@@ -280,7 +279,6 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid credentials directory: %w", err)
 	}
 
-	// Load CA and signer
 	caStore := ca.NewFileStore(caDir)
 	caInstance, err := ca.New(caStore)
 	if err != nil {
@@ -290,95 +288,31 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load CA signer: %w", err)
 	}
 
-	// Configure HSM if specified
 	if err := configureHSMKeyProvider(caInstance, credEnrollHSMConfig, credEnrollKeyLabel); err != nil {
 		return err
 	}
 
-	// Load profiles
-	profiles, err := loadEnrollProfiles(caDir, credEnrollProfiles)
+	profiles, subject, err := prepareEnrollVariablesAndProfiles(caDir, credEnrollProfiles, credEnrollVarFile, credEnrollVars)
 	if err != nil {
 		return err
 	}
 
-	// Load and validate variables
-	varValues, err := profile.LoadVariables(credEnrollVarFile, credEnrollVars)
-	if err != nil {
-		return fmt.Errorf("failed to load variables: %w", err)
-	}
-	varValues, err = validateEnrollVariables(profiles, varValues)
-	if err != nil {
-		return err
-	}
-
-	// Build subject from variables
-	subject, err := profile.BuildSubject(varValues)
-	if err != nil {
-		return fmt.Errorf("invalid subject: %w", err)
-	}
-
-	// Resolve profile extensions
-	profiles, err = resolveProfilesExtensions(profiles, varValues)
-	if err != nil {
-		return err
-	}
-
-	// Create enrollment request
-	// DNS/Email SANs are handled via profile extensions ({{ dns_names }}, {{ email }})
-	req := credential.EnrollmentRequest{
-		Subject: subject,
-	}
-
-	// Enroll
-	var result *credential.EnrollmentResult
-	if len(profiles) == 1 {
-		result, err = credential.EnrollWithProfile(caInstance, req, profiles[0])
-	} else {
-		result, err = credential.EnrollMulti(caInstance, req, profiles)
-	}
+	result, err := executeEnrollment(caInstance, subject, profiles)
 	if err != nil {
 		return fmt.Errorf("failed to enroll: %w", err)
 	}
 
-	// Override credential ID if custom one provided
 	if credEnrollID != "" {
 		result.Credential.ID = credEnrollID
 	}
 
-	// Save credential
 	credStore := credential.NewFileStore(credentialsDir)
 	passphrase := []byte(credPassphrase)
 	if err := credStore.Save(context.Background(), result.Credential, result.Certificates, result.Signers, passphrase); err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
-	// Output
-	fmt.Println("Credential created successfully!")
-	fmt.Println()
-	fmt.Printf("Credential ID: %s\n", result.Credential.ID)
-	fmt.Printf("Subject:   %s\n", result.Credential.Subject.CommonName)
-
-	activeVer := result.Credential.ActiveVersion()
-	if activeVer != nil {
-		fmt.Printf("Profiles:  %s\n", strings.Join(activeVer.Profiles, ", "))
-		fmt.Printf("Valid:     %s to %s\n",
-			activeVer.NotBefore.Format("2006-01-02"),
-			activeVer.NotAfter.Format("2006-01-02"))
-	}
-	if credEnrollHSMConfig != "" {
-		fmt.Printf("Storage:   HSM (PKCS#11)\n")
-	}
-	fmt.Println()
-
-	fmt.Printf("Certificates issued: %d\n", len(result.Certificates))
-	for i, cert := range result.Certificates {
-		fmt.Printf("  [%d] Serial: %X\n", i+1, cert.SerialNumber.Bytes())
-		// Show HSM key info if applicable
-		if len(result.StorageRefs) > i && result.StorageRefs[i].Type == "pkcs11" {
-			fmt.Printf("      Key:     HSM label=%s\n", result.StorageRefs[i].Label)
-		}
-	}
-
+	printEnrollmentSuccess(result, credEnrollHSMConfig)
 	return nil
 }
 
@@ -737,91 +671,33 @@ func runCredExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid credentials directory: %w", err)
 	}
 
-	// Validate format
-	if credExportFormat != "pem" && credExportFormat != "der" {
-		return fmt.Errorf("invalid format: %s (use: pem, der)", credExportFormat)
-	}
-
-	// Validate bundle
-	if credExportBundle != "cert" && credExportBundle != "chain" && credExportBundle != "all" {
-		return fmt.Errorf("invalid bundle: %s (use: cert, chain, all)", credExportBundle)
+	if err := validateExportFlags(credExportFormat, credExportBundle); err != nil {
+		return err
 	}
 
 	credStore := credential.NewFileStore(credentialsDir)
 	versionStore := credential.NewVersionStore(credential.CredentialPath(credentialsDir, credID))
 
-	// Handle --all flag (export all versions)
 	if credExportAll {
 		return exportCredentialAllVersions(credID, credStore, versionStore)
 	}
 
-	// Determine which version to export
-	var certs []*x509.Certificate
-
-	if credExportVersion != "" {
-		// Export specific version
-		certs, err = loadCredentialVersionCerts(credID, credExportVersion, versionStore, credStore)
-		if err != nil {
-			return fmt.Errorf("failed to load version %s: %w", credExportVersion, err)
-		}
-	} else if versionStore.IsVersioned() {
-		// Export active version
-		activeVersion, err := versionStore.GetActiveVersion()
-		if err != nil {
-			return fmt.Errorf("failed to get active version: %w", err)
-		}
-		certs, err = loadCredentialVersionCerts(credID, activeVersion.ID, versionStore, credStore)
-		if err != nil {
-			return fmt.Errorf("failed to load active version: %w", err)
-		}
-	} else {
-		// Non-versioned credential: load from root
-		certs, err = credStore.LoadCertificates(context.Background(), credID)
-		if err != nil {
-			return fmt.Errorf("failed to load certificates: %w", err)
-		}
+	certs, err := loadCredentialCertsForExport(credID, credExportVersion, credStore, versionStore)
+	if err != nil {
+		return fmt.Errorf("failed to load certificates: %w", err)
 	}
 
-	// Load CA chain if bundle=chain
-	if credExportBundle == "chain" {
-		caStore := ca.NewFileStore(caDir)
-		caCerts, err := caStore.LoadAllCACerts(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to load CA certificates for chain: %w", err)
-		}
-		certs = append(certs, caCerts...)
+	certs, err = appendCAChainIfNeeded(certs, credExportBundle, caDir)
+	if err != nil {
+		return err
 	}
 
-	// Encode output
-	var outputData []byte
-	if credExportFormat == "der" {
-		if len(certs) > 1 {
-			return fmt.Errorf("DER format only supports single certificate (use PEM for multiple)")
-		}
-		if len(certs) > 0 {
-			outputData = certs[0].Raw
-		}
-	} else {
-		outputData, err = credential.EncodeCertificatesPEM(certs)
-		if err != nil {
-			return fmt.Errorf("failed to encode certificates: %w", err)
-		}
+	outputData, err := encodeExportCerts(certs, credExportFormat)
+	if err != nil {
+		return err
 	}
 
-	// Output
-	if credExportOut == "" {
-		if credExportFormat == "der" {
-			return fmt.Errorf("DER format requires --out file")
-		}
-		fmt.Print(string(outputData))
-	} else {
-		if err := os.WriteFile(credExportOut, outputData, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-		fmt.Printf("Exported to %s\n", credExportOut)
-	}
-
-	return nil
+	return writeCredExportOutput(outputData, credExportOut, credExportFormat)
 }
 
 // loadCredentialVersionCerts loads all certificates from a specific version.

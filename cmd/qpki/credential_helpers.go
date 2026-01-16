@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/remiblancher/post-quantum-pki/internal/ca"
+	"github.com/remiblancher/post-quantum-pki/internal/credential"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/profile"
 )
@@ -130,3 +133,74 @@ func validateEnrollVariables(profiles []*profile.Profile, varValues profile.Vari
 	}
 	return rendered.ResolvedValues, nil
 }
+
+// executeEnrollment executes single or multi-profile enrollment.
+func executeEnrollment(caInstance *ca.CA, subject pkix.Name, profiles []*profile.Profile) (*credential.EnrollmentResult, error) {
+	req := credential.EnrollmentRequest{Subject: subject}
+
+	if len(profiles) == 1 {
+		return credential.EnrollWithProfile(caInstance, req, profiles[0])
+	}
+	return credential.EnrollMulti(caInstance, req, profiles)
+}
+
+// printEnrollmentSuccess prints the enrollment success message.
+func printEnrollmentSuccess(result *credential.EnrollmentResult, hsmConfig string) {
+	fmt.Println("Credential created successfully!")
+	fmt.Println()
+	fmt.Printf("Credential ID: %s\n", result.Credential.ID)
+	fmt.Printf("Subject:   %s\n", result.Credential.Subject.CommonName)
+
+	activeVer := result.Credential.ActiveVersion()
+	if activeVer != nil {
+		fmt.Printf("Profiles:  %s\n", strings.Join(activeVer.Profiles, ", "))
+		fmt.Printf("Valid:     %s to %s\n",
+			activeVer.NotBefore.Format("2006-01-02"),
+			activeVer.NotAfter.Format("2006-01-02"))
+	}
+	if hsmConfig != "" {
+		fmt.Printf("Storage:   HSM (PKCS#11)\n")
+	}
+	fmt.Println()
+
+	fmt.Printf("Certificates issued: %d\n", len(result.Certificates))
+	for i, cert := range result.Certificates {
+		fmt.Printf("  [%d] Serial: %X\n", i+1, cert.SerialNumber.Bytes())
+		if len(result.StorageRefs) > i && result.StorageRefs[i].Type == "pkcs11" {
+			fmt.Printf("      Key:     HSM label=%s\n", result.StorageRefs[i].Label)
+		}
+	}
+}
+
+// prepareEnrollVariablesAndProfiles loads variables and profiles for enrollment.
+func prepareEnrollVariablesAndProfiles(caDir string, profileNames []string, varFile string, vars []string) ([]*profile.Profile, pkix.Name, error) {
+	profiles, err := loadEnrollProfiles(caDir, profileNames)
+	if err != nil {
+		return nil, pkix.Name{}, err
+	}
+
+	varValues, err := profile.LoadVariables(varFile, vars)
+	if err != nil {
+		return nil, pkix.Name{}, fmt.Errorf("failed to load variables: %w", err)
+	}
+
+	varValues, err = validateEnrollVariables(profiles, varValues)
+	if err != nil {
+		return nil, pkix.Name{}, err
+	}
+
+	subject, err := profile.BuildSubject(varValues)
+	if err != nil {
+		return nil, pkix.Name{}, fmt.Errorf("invalid subject: %w", err)
+	}
+
+	profiles, err = resolveProfilesExtensions(profiles, varValues)
+	if err != nil {
+		return nil, pkix.Name{}, err
+	}
+
+	return profiles, subject, nil
+}
+
+// Unused import fix - ensure x509 is used
+var _ *x509.Certificate

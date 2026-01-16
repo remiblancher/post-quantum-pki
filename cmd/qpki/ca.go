@@ -237,22 +237,17 @@ func init() {
 }
 
 func runCAInit(cmd *cobra.Command, args []string) error {
-	// Delegate to subordinate CA initialization if parent is specified
+	// Delegate to specialized initializers based on flags
 	if caInitParentDir != "" {
 		return runCAInitSubordinate(cmd, args)
 	}
-
-	// Delegate to HSM initialization if HSM config is specified
 	if caInitHSMConfig != "" {
 		return runCAInitHSM(cmd, args)
 	}
-
-	// Multi-profile initialization if multiple profiles provided
 	if len(caInitProfiles) > 1 {
 		return runCAInitMultiProfile(cmd, args)
 	}
 
-	// Validate flags
 	if caInitVarFile != "" && len(caInitVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
@@ -260,38 +255,27 @@ func runCAInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("at least one --profile is required")
 	}
 
-	// Load profile
 	caInitProfile := caInitProfiles[0]
 	prof, err := profile.LoadProfile(caInitProfile)
 	if err != nil {
 		return fmt.Errorf("failed to load profile %s: %w", caInitProfile, err)
 	}
 
-	// Load and validate variables
 	varValues, err := loadAndValidateProfileVariables(prof, caInitVarFile, caInitVars)
 	if err != nil {
 		return err
 	}
 
-	// Build subject from variables
 	subject, err := profile.BuildSubject(varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
 
-	// Extract algorithm information from profile
 	algInfo, err := extractProfileAlgorithmInfo(prof)
 	if err != nil {
 		return err
 	}
-
-	// Allow CLI flags to override profile values
-	if cmd.Flags().Changed("validity") {
-		algInfo.ValidityYears = caInitValidityYears
-	}
-	if cmd.Flags().Changed("path-len") {
-		algInfo.PathLen = caInitPathLen
-	}
+	applyValidityOverrides(cmd.Flags(), algInfo, caInitValidityYears, caInitPathLen)
 
 	fmt.Printf("Using profile: %s\n", caInitProfile)
 
@@ -299,7 +283,6 @@ func runCAInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("algorithm %s is not suitable for signing", algInfo.Algorithm)
 	}
 
-	// Expand path and check store
 	absDir, err := filepath.Abs(caInitDir)
 	if err != nil {
 		return fmt.Errorf("invalid directory path: %w", err)
@@ -309,13 +292,11 @@ func runCAInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
 
-	// Build CA configuration
 	cfg, err := buildCAConfigFromProfile(prof, subject, algInfo, caInitPassphrase)
 	if err != nil {
 		return err
 	}
 
-	// Initialize CA
 	fmt.Printf("Initializing CA at %s...\n", absDir)
 	fmt.Printf("  Algorithm: %s\n", algInfo.Algorithm.Description())
 	if cfg.HybridConfig != nil {
@@ -328,61 +309,36 @@ func runCAInit(cmd *cobra.Command, args []string) error {
 	}
 
 	printCAInitSuccess(newCA, absDir, cfg, algInfo.IsComposite)
-
 	return nil
 }
 
 // runCAInitMultiProfile creates a CA with multiple algorithm profiles.
 // Each profile results in a separate CA certificate, stored in version directories by algorithm family.
 func runCAInitMultiProfile(cmd *cobra.Command, args []string) error {
-	// Check mutual exclusivity of --var and --var-file
 	if caInitVarFile != "" && len(caInitVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
 
-	// Load and validate variables
 	varValues, err := profile.LoadVariables(caInitVarFile, caInitVars)
 	if err != nil {
 		return fmt.Errorf("failed to load variables: %w", err)
 	}
 
-	// Load all profiles
-	profiles := make([]*profile.Profile, 0, len(caInitProfiles))
-	for _, profileName := range caInitProfiles {
-		prof, err := profile.LoadProfile(profileName)
-		if err != nil {
-			return fmt.Errorf("failed to load profile %s: %w", profileName, err)
-		}
-
-		// Validate variables against first profile with variables
-		if len(prof.Variables) > 0 && len(varValues) > 0 {
-			engine, err := profile.NewTemplateEngine(prof)
-			if err != nil {
-				return fmt.Errorf("failed to create template engine for %s: %w", profileName, err)
-			}
-			rendered, err := engine.Render(varValues)
-			if err != nil {
-				return fmt.Errorf("failed to validate variables for %s: %w", profileName, err)
-			}
-			varValues = rendered.ResolvedValues
-		}
-
-		profiles = append(profiles, prof)
+	profiles, varValues, err := loadAndValidateProfiles(caInitProfiles, varValues)
+	if err != nil {
+		return err
 	}
 
-	// Build subject from variables
 	subject, err := profile.BuildSubject(varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
 
-	// Expand path
 	absDir, err := filepath.Abs(caInitDir)
 	if err != nil {
 		return fmt.Errorf("invalid directory path: %w", err)
 	}
 
-	// Check if directory already exists
 	store := ca.NewFileStore(absDir)
 	if store.Exists() {
 		return fmt.Errorf("CA already exists at %s", absDir)
@@ -393,31 +349,7 @@ func runCAInitMultiProfile(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Profile: %s (%s)\n", prof.Name, prof.GetAlgorithm().Description())
 	}
 
-	// Build multi-profile configuration
-	profileConfigs := make([]ca.ProfileInitConfig, 0, len(profiles))
-	for _, prof := range profiles {
-		validityYears := int(prof.Validity.Hours() / 24 / 365)
-		if validityYears < 1 {
-			validityYears = 1
-		}
-		if cmd.Flags().Changed("validity") {
-			validityYears = caInitValidityYears
-		}
-
-		pathLen := 1
-		if prof.Extensions != nil && prof.Extensions.BasicConstraints != nil && prof.Extensions.BasicConstraints.PathLen != nil {
-			pathLen = *prof.Extensions.BasicConstraints.PathLen
-		}
-		if cmd.Flags().Changed("path-len") {
-			pathLen = caInitPathLen
-		}
-
-		profileConfigs = append(profileConfigs, ca.ProfileInitConfig{
-			Profile:       prof,
-			ValidityYears: validityYears,
-			PathLen:       pathLen,
-		})
-	}
+	profileConfigs := buildProfileConfigs(profiles, cmd.Flags(), caInitValidityYears, caInitPathLen)
 
 	cfg := ca.MultiProfileConfig{
 		Profiles: profileConfigs,
@@ -429,31 +361,12 @@ func runCAInitMultiProfile(cmd *cobra.Command, args []string) error {
 		Passphrase: caInitPassphrase,
 	}
 
-	// Initialize multi-profile CA
 	result, err := ca.InitializeMultiProfile(absDir, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to initialize multi-profile CA: %w", err)
 	}
 
-	fmt.Printf("\nMulti-profile CA initialized successfully!\n")
-	fmt.Printf("  Version:     %s\n", result.Info.Active)
-	fmt.Printf("  Profiles:    %d\n", len(result.Certificates))
-
-	for algoFamily, cert := range result.Certificates {
-		fmt.Printf("\n  [%s]\n", algoFamily)
-		fmt.Printf("    Subject:     %s\n", cert.Subject.String())
-		fmt.Printf("    Serial:      %X\n", cert.SerialNumber.Bytes())
-		fmt.Printf("    Not Before:  %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
-		fmt.Printf("    Not After:   %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
-	}
-
-	fmt.Printf("\nTo activate this version:\n")
-	fmt.Printf("  pki ca activate --ca-dir %s --version %s\n", absDir, result.Info.Active)
-
-	if caInitPassphrase == "" {
-		fmt.Fprintf(os.Stderr, "\nWARNING: Private keys are not encrypted. Use --passphrase for production.\n")
-	}
-
+	printMultiProfileSuccess(result, absDir, caInitPassphrase)
 	return nil
 }
 
@@ -470,20 +383,17 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("HSM mode requires exactly one --profile (multi-profile not supported with HSM)")
 	}
 
-	// Load HSM configuration
 	hsmCfg, err := crypto.LoadHSMConfig(caInitHSMConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load HSM config: %w", err)
 	}
 
-	// Load profile
 	caInitProfile := caInitProfiles[0]
 	prof, err := profile.LoadProfile(caInitProfile)
 	if err != nil {
 		return fmt.Errorf("failed to load profile %s: %w", caInitProfile, err)
 	}
 
-	// Get algorithm and validate HSM compatibility
 	alg := prof.GetAlgorithm()
 	if !alg.IsValid() {
 		return fmt.Errorf("profile %s has invalid algorithm: %s", caInitProfile, alg)
@@ -492,34 +402,25 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Load and validate variables
 	varValues, err := loadAndValidateProfileVariables(prof, caInitVarFile, caInitVars)
 	if err != nil {
 		return err
 	}
 
-	// Build subject from variables
 	subject, err := profile.BuildSubject(varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
 
-	// Extract algorithm info and apply CLI overrides
 	algInfo, err := extractProfileAlgorithmInfo(prof)
 	if err != nil {
 		return err
 	}
-	if cmd.Flags().Changed("validity") {
-		algInfo.ValidityYears = caInitValidityYears
-	}
-	if cmd.Flags().Changed("path-len") {
-		algInfo.PathLen = caInitPathLen
-	}
+	applyValidityOverrides(cmd.Flags(), algInfo, caInitValidityYears, caInitPathLen)
 
 	fmt.Printf("Using profile: %s\n", caInitProfile)
 	fmt.Printf("HSM config: %s\n", caInitHSMConfig)
 
-	// Validate and prepare store
 	absDir, err := filepath.Abs(caInitDir)
 	if err != nil {
 		return fmt.Errorf("invalid directory path: %w", err)
@@ -529,7 +430,6 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
 
-	// Generate key in HSM if requested
 	keyLabel, keyID := caInitKeyLabel, caInitKeyID
 	if caInitGenerateKey {
 		keyLabel, keyID, err = generateHSMKey(hsmCfg, alg, caInitKeyLabel)
@@ -538,29 +438,16 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Create and connect to HSM signer
-	pkcs11Cfg, err := hsmCfg.ToPKCS11Config(keyLabel, keyID)
+	signer, err := setupHSMSignerAndVerify(hsmCfg, keyLabel, keyID, alg)
 	if err != nil {
-		return fmt.Errorf("failed to create PKCS#11 config: %w", err)
-	}
-
-	fmt.Printf("Connecting to HSM...\n")
-	signer, err := crypto.NewPKCS11Signer(*pkcs11Cfg)
-	if err != nil {
-		return fmt.Errorf("failed to connect to HSM: %w", err)
+		return err
 	}
 	defer func() { _ = signer.Close() }()
 
-	// Verify algorithm matches
 	signerAlg := signer.Algorithm()
-	if !isCompatibleAlgorithm(alg, signerAlg) {
-		return fmt.Errorf("HSM key algorithm %s does not match profile algorithm %s", signerAlg, alg)
-	}
-
 	fmt.Printf("Initializing CA at %s...\n", absDir)
 	fmt.Printf("  Algorithm: %s (from HSM)\n", signerAlg.Description())
 
-	// Build configuration and initialize CA
 	cfg := ca.Config{
 		CommonName:    subject.CommonName,
 		Organization:  firstOrEmpty(subject.Organization),
@@ -576,33 +463,12 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize CA: %w", err)
 	}
 
-	// Copy HSM config and update metadata
+	if err := saveCAHSMMetadata(newCA, absDir, caInitHSMConfig, keyLabel, keyID, signerAlg); err != nil {
+		return err
+	}
+
 	hsmRefPath := filepath.Join(absDir, "hsm.yaml")
-	if err := copyHSMConfig(caInitHSMConfig, hsmRefPath); err != nil {
-		return fmt.Errorf("failed to copy HSM config: %w", err)
-	}
-
-	metadata := newCA.Info()
-	metadata.AddKey(ca.KeyRef{
-		ID:        "default",
-		Algorithm: signerAlg,
-		Storage:   ca.CreatePKCS11KeyRef("hsm.yaml", keyLabel, keyID),
-	})
-	if err := metadata.Save(); err != nil {
-		return fmt.Errorf("failed to save CA metadata: %w", err)
-	}
-
-	// Print success
-	cert := newCA.Certificate()
-	fmt.Printf("\nCA initialized successfully!\n")
-	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
-	fmt.Printf("  Serial:      %X\n", cert.SerialNumber.Bytes())
-	fmt.Printf("  Not Before:  %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  Not After:   %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  Certificate: %s\n", store.CACertPath())
-	fmt.Printf("  Key:         HSM (%s)\n", caInitHSMConfig)
-	fmt.Printf("  HSM Config:  %s\n", hsmRefPath)
-
+	printCAHSMSuccess(newCA, absDir, caInitHSMConfig, hsmRefPath)
 	return nil
 }
 
@@ -624,41 +490,34 @@ func copyHSMConfig(src, dst string) error {
 
 // runCAInitSubordinate creates a subordinate CA signed by a parent CA.
 func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
-	// Validate flags
 	if caInitVarFile != "" && len(caInitVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
 	if len(caInitProfiles) != 1 {
-		return fmt.Errorf("subordinate CA requires exactly one --profile (multi-profile subordinate CA not yet supported)")
+		return fmt.Errorf("subordinate CA requires exactly one --profile")
 	}
 
-	// Load profile
 	caInitProfile := caInitProfiles[0]
 	prof, err := profile.LoadProfile(caInitProfile)
 	if err != nil {
 		return fmt.Errorf("failed to load profile %s: %w", caInitProfile, err)
 	}
 
-	// Load and validate variables
 	varValues, err := loadAndValidateProfileVariables(prof, caInitVarFile, caInitVars)
 	if err != nil {
 		return err
 	}
 
-	// Build subject from variables
 	subject, err := profile.BuildSubject(varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
 
-	// Extract algorithm info
 	algInfo, err := extractProfileAlgorithmInfo(prof)
 	if err != nil {
 		return err
 	}
-	if cmd.Flags().Changed("validity") {
-		algInfo.ValidityYears = caInitValidityYears
-	}
+	applyValidityOverrides(cmd.Flags(), algInfo, caInitValidityYears, caInitPathLen)
 
 	fmt.Printf("Using profile: %s\n", caInitProfile)
 
@@ -666,52 +525,26 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("algorithm %s is not suitable for signing", algInfo.Algorithm)
 	}
 
-	// Load parent CA
 	parentCA, err := loadParentCA(caInitParentDir, caInitParentPassphrase)
 	if err != nil {
 		return err
 	}
 
-	// Validate and prepare store
 	absDir, err := filepath.Abs(caInitDir)
 	if err != nil {
 		return fmt.Errorf("invalid directory path: %w", err)
 	}
-	store := ca.NewFileStore(absDir)
-	if store.Exists() {
-		return fmt.Errorf("CA already exists at %s", absDir)
-	}
-	if err := store.Init(context.Background()); err != nil {
-		return fmt.Errorf("failed to initialize store: %w", err)
-	}
 
-	// Create CAInfo and version structure
-	algoID := string(algInfo.Algorithm)
-	info := ca.NewCAInfo(ca.Subject{
-		CommonName:   subject.CommonName,
-		Organization: subject.Organization,
-		Country:      subject.Country,
-	})
-	info.SetBasePath(absDir)
-	info.CreateInitialVersion([]string{caInitProfile}, []string{algoID})
-	if err := info.EnsureVersionDir("v1"); err != nil {
-		return fmt.Errorf("failed to create version directory: %w", err)
-	}
-
-	// Generate CA key pair
-	keyPath := info.KeyPath("v1", string(algInfo.Algorithm))
-	keyCfg := crypto.KeyStorageConfig{
-		Type:       crypto.KeyProviderTypeSoftware,
-		KeyPath:    keyPath,
-		Passphrase: caInitPassphrase,
-	}
-	km := crypto.NewKeyProvider(keyCfg)
-	signer, err := km.Generate(algInfo.Algorithm, keyCfg)
+	_, info, err := prepareSubordinateCAStore(absDir, caInitProfile, subject, algInfo)
 	if err != nil {
-		return fmt.Errorf("failed to generate CA key: %w", err)
+		return err
 	}
 
-	// Issue subordinate CA certificate
+	signer, keyPath, err := generateSubordinateKey(info, algInfo, caInitPassphrase)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("Initializing subordinate CA at %s...\n", absDir)
 	fmt.Printf("  Parent CA:  %s\n", parentCA.Certificate().Subject.String())
 	fmt.Printf("  Algorithm:  %s\n", algInfo.Algorithm.Description())
@@ -727,32 +560,17 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to issue subordinate CA certificate: %w", err)
 	}
 
-	// Save certificate and CAInfo
-	certPath := info.CertPath("v1", algoID)
-	if err := saveCertToPath(certPath, cert); err != nil {
-		return fmt.Errorf("failed to save CA certificate: %w", err)
+	certPath, err := saveSubordinateCAInfo(info, cert, algInfo)
+	if err != nil {
+		return err
 	}
 
-	info.AddKey(ca.KeyRef{
-		ID:        "default",
-		Algorithm: algInfo.Algorithm,
-		Storage: crypto.StorageRef{
-			Type: "software",
-			Path: fmt.Sprintf("versions/v1/keys/ca.%s.key", algoID),
-		},
-	})
-	if err := info.Save(); err != nil {
-		return fmt.Errorf("failed to save CA info: %w", err)
-	}
-
-	// Create chain file
 	chainPath := filepath.Join(absDir, "chain.crt")
 	if err := createChainFile(chainPath, cert, parentCA.Certificate()); err != nil {
 		return err
 	}
 
 	printSubordinateCASuccess(cert, certPath, chainPath, keyPath, caInitPassphrase)
-
 	return nil
 }
 

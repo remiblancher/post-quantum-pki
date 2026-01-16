@@ -415,6 +415,216 @@ func printSubordinateCASuccess(cert *x509.Certificate, certPath, chainPath, keyP
 	}
 }
 
+// applyValidityOverrides applies CLI overrides to algorithm info.
+func applyValidityOverrides(cmd interface{ Changed(string) bool }, algInfo *profileAlgorithmInfo, validityYears, pathLen int) {
+	if cmd.Changed("validity") {
+		algInfo.ValidityYears = validityYears
+	}
+	if cmd.Changed("path-len") {
+		algInfo.PathLen = pathLen
+	}
+}
+
+// setupHSMSignerAndVerify connects to HSM and verifies algorithm compatibility.
+func setupHSMSignerAndVerify(hsmCfg *crypto.HSMConfig, keyLabel, keyID string, expectedAlg crypto.AlgorithmID) (*crypto.PKCS11Signer, error) {
+	pkcs11Cfg, err := hsmCfg.ToPKCS11Config(keyLabel, keyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PKCS#11 config: %w", err)
+	}
+
+	fmt.Printf("Connecting to HSM...\n")
+	signer, err := crypto.NewPKCS11Signer(*pkcs11Cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to HSM: %w", err)
+	}
+
+	signerAlg := signer.Algorithm()
+	if !isCompatibleAlgorithm(expectedAlg, signerAlg) {
+		_ = signer.Close()
+		return nil, fmt.Errorf("HSM key algorithm %s does not match profile algorithm %s", signerAlg, expectedAlg)
+	}
+
+	return signer, nil
+}
+
+// saveCAHSMMetadata copies HSM config and saves CA metadata with key reference.
+func saveCAHSMMetadata(newCA *ca.CA, absDir, srcHSMConfig, keyLabel, keyID string, signerAlg crypto.AlgorithmID) error {
+	hsmRefPath := filepath.Join(absDir, "hsm.yaml")
+	if err := copyHSMConfig(srcHSMConfig, hsmRefPath); err != nil {
+		return fmt.Errorf("failed to copy HSM config: %w", err)
+	}
+
+	metadata := newCA.Info()
+	metadata.AddKey(ca.KeyRef{
+		ID:        "default",
+		Algorithm: signerAlg,
+		Storage:   ca.CreatePKCS11KeyRef("hsm.yaml", keyLabel, keyID),
+	})
+	if err := metadata.Save(); err != nil {
+		return fmt.Errorf("failed to save CA metadata: %w", err)
+	}
+
+	return nil
+}
+
+// printCAHSMSuccess prints success message for HSM CA initialization.
+func printCAHSMSuccess(newCA *ca.CA, absDir, hsmConfig, hsmRefPath string) {
+	cert := newCA.Certificate()
+	fmt.Printf("\nCA initialized successfully!\n")
+	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
+	fmt.Printf("  Serial:      %X\n", cert.SerialNumber.Bytes())
+	fmt.Printf("  Not Before:  %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Not After:   %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Certificate: %s\n", newCA.Store().CACertPath())
+	fmt.Printf("  Key:         HSM (%s)\n", hsmConfig)
+	fmt.Printf("  HSM Config:  %s\n", hsmRefPath)
+}
+
+// loadAndValidateProfiles loads profiles and validates variables against them.
+func loadAndValidateProfiles(profileNames []string, varValues profile.VariableValues) ([]*profile.Profile, profile.VariableValues, error) {
+	profiles := make([]*profile.Profile, 0, len(profileNames))
+
+	for _, profileName := range profileNames {
+		prof, err := profile.LoadProfile(profileName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load profile %s: %w", profileName, err)
+		}
+
+		if len(prof.Variables) > 0 && len(varValues) > 0 {
+			engine, err := profile.NewTemplateEngine(prof)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to create template engine for %s: %w", profileName, err)
+			}
+			rendered, err := engine.Render(varValues)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to validate variables for %s: %w", profileName, err)
+			}
+			varValues = rendered.ResolvedValues
+		}
+
+		profiles = append(profiles, prof)
+	}
+
+	return profiles, varValues, nil
+}
+
+// buildProfileConfigs builds profile configurations from profiles and CLI overrides.
+func buildProfileConfigs(profiles []*profile.Profile, cmd interface{ Changed(string) bool }, validityYears, pathLen int) []ca.ProfileInitConfig {
+	configs := make([]ca.ProfileInitConfig, 0, len(profiles))
+
+	for _, prof := range profiles {
+		validity := int(prof.Validity.Hours() / 24 / 365)
+		if validity < 1 {
+			validity = 1
+		}
+		if cmd.Changed("validity") {
+			validity = validityYears
+		}
+
+		pLen := 1
+		if prof.Extensions != nil && prof.Extensions.BasicConstraints != nil && prof.Extensions.BasicConstraints.PathLen != nil {
+			pLen = *prof.Extensions.BasicConstraints.PathLen
+		}
+		if cmd.Changed("path-len") {
+			pLen = pathLen
+		}
+
+		configs = append(configs, ca.ProfileInitConfig{
+			Profile:       prof,
+			ValidityYears: validity,
+			PathLen:       pLen,
+		})
+	}
+
+	return configs
+}
+
+// printMultiProfileSuccess prints success message for multi-profile CA initialization.
+func printMultiProfileSuccess(result *ca.MultiProfileInitResult, absDir, passphrase string) {
+	fmt.Printf("\nMulti-profile CA initialized successfully!\n")
+	fmt.Printf("  Version:     %s\n", result.Info.Active)
+	fmt.Printf("  Profiles:    %d\n", len(result.Certificates))
+
+	for algoFamily, cert := range result.Certificates {
+		fmt.Printf("\n  [%s]\n", algoFamily)
+		fmt.Printf("    Subject:     %s\n", cert.Subject.String())
+		fmt.Printf("    Serial:      %X\n", cert.SerialNumber.Bytes())
+		fmt.Printf("    Not Before:  %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
+		fmt.Printf("    Not After:   %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
+	}
+
+	fmt.Printf("\nTo activate this version:\n")
+	fmt.Printf("  pki ca activate --ca-dir %s --version %s\n", absDir, result.Info.Active)
+
+	if passphrase == "" {
+		fmt.Fprintf(os.Stderr, "\nWARNING: Private keys are not encrypted. Use --passphrase for production.\n")
+	}
+}
+
+// prepareSubordinateCAStore validates and prepares the store and CAInfo for subordinate CA.
+func prepareSubordinateCAStore(absDir, profileName string, subject pkix.Name, algInfo *profileAlgorithmInfo) (*ca.FileStore, *ca.CAInfo, error) {
+	store := ca.NewFileStore(absDir)
+	if store.Exists() {
+		return nil, nil, fmt.Errorf("CA already exists at %s", absDir)
+	}
+	if err := store.Init(context.Background()); err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize store: %w", err)
+	}
+
+	algoID := string(algInfo.Algorithm)
+	info := ca.NewCAInfo(ca.Subject{
+		CommonName:   subject.CommonName,
+		Organization: subject.Organization,
+		Country:      subject.Country,
+	})
+	info.SetBasePath(absDir)
+	info.CreateInitialVersion([]string{profileName}, []string{algoID})
+	if err := info.EnsureVersionDir("v1"); err != nil {
+		return nil, nil, fmt.Errorf("failed to create version directory: %w", err)
+	}
+
+	return store, info, nil
+}
+
+// generateSubordinateKey generates a key pair for the subordinate CA.
+func generateSubordinateKey(info *ca.CAInfo, algInfo *profileAlgorithmInfo, passphrase string) (crypto.Signer, string, error) {
+	keyPath := info.KeyPath("v1", string(algInfo.Algorithm))
+	keyCfg := crypto.KeyStorageConfig{
+		Type:       crypto.KeyProviderTypeSoftware,
+		KeyPath:    keyPath,
+		Passphrase: passphrase,
+	}
+	km := crypto.NewKeyProvider(keyCfg)
+	signer, err := km.Generate(algInfo.Algorithm, keyCfg)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate CA key: %w", err)
+	}
+	return signer, keyPath, nil
+}
+
+// saveSubordinateCAInfo saves the certificate and CAInfo for a subordinate CA.
+func saveSubordinateCAInfo(info *ca.CAInfo, cert *x509.Certificate, algInfo *profileAlgorithmInfo) (string, error) {
+	algoID := string(algInfo.Algorithm)
+	certPath := info.CertPath("v1", algoID)
+	if err := saveCertToPath(certPath, cert); err != nil {
+		return "", fmt.Errorf("failed to save CA certificate: %w", err)
+	}
+
+	info.AddKey(ca.KeyRef{
+		ID:        "default",
+		Algorithm: algInfo.Algorithm,
+		Storage: crypto.StorageRef{
+			Type: "software",
+			Path: fmt.Sprintf("versions/v1/keys/ca.%s.key", algoID),
+		},
+	})
+	if err := info.Save(); err != nil {
+		return "", fmt.Errorf("failed to save CA info: %w", err)
+	}
+
+	return certPath, nil
+}
+
 // loadBundleCerts loads certificates based on bundle type (ca, chain, root).
 func loadBundleCerts(store ca.Store, bundleType string) ([]*x509.Certificate, error) {
 	caCert, err := store.LoadCACert(ctx)

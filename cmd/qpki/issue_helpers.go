@@ -331,6 +331,45 @@ type spkiForPQC struct {
 	PublicKey asn1.BitString
 }
 
+// loadAndRenderIssueVariables loads variables, merges CSR values, and validates via template engine.
+func loadAndRenderIssueVariables(prof *profile.Profile, varFile string, vars []string, csrTemplate *x509.Certificate) (profile.VariableValues, error) {
+	varValues, err := profile.LoadVariables(varFile, vars)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load variables: %w", err)
+	}
+
+	mergeCSRVariables(varValues, csrTemplate)
+
+	if len(prof.Variables) > 0 {
+		engine, err := profile.NewTemplateEngine(prof)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create template engine: %w", err)
+		}
+		rendered, err := engine.Render(varValues)
+		if err != nil {
+			return nil, fmt.Errorf("variable validation failed: %w", err)
+		}
+		varValues = rendered.ResolvedValues
+	}
+
+	return varValues, nil
+}
+
+// issueCertificateByMode issues a certificate based on profile mode (Catalyst or standard).
+func issueCertificateByMode(
+	ctx context.Context,
+	caInstance *ca.CA,
+	prof *profile.Profile,
+	csrResult *csrParseResult,
+	resolvedExtensions *profile.ExtensionsConfig,
+	hybridAlg string,
+) (*x509.Certificate, error) {
+	if prof.IsCatalyst() {
+		return issueCatalystCert(ctx, caInstance, prof, csrResult.Template, csrResult.PublicKey, resolvedExtensions)
+	}
+	return issueStandardCert(ctx, caInstance, prof, csrResult.Template, csrResult.PublicKey, resolvedExtensions, hybridAlg)
+}
+
 // extractPQCPublicKeyFromCert extracts the public key from a certificate.
 // Go's x509.ParseCertificate returns nil for PublicKey when the algorithm is unknown (PQC).
 // This function parses the raw SubjectPublicKeyInfo to extract the PQC public key.

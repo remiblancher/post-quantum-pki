@@ -286,6 +286,16 @@ func validateMutualExclusivity(mode csrGenMode) error {
 
 // validateRequiredFlags checks that all required flags are present.
 func validateRequiredFlags(mode csrGenMode) error {
+	if err := validateCSRKeySourceFlags(mode); err != nil {
+		return err
+	}
+	if err := validateCSRHSMFlags(mode); err != nil {
+		return err
+	}
+	return validateCSROptionalFlags(mode)
+}
+
+func validateCSRKeySourceFlags(mode csrGenMode) error {
 	if !mode.hasKey && !mode.hasGen && !mode.hasHSM {
 		return fmt.Errorf("must specify either --key (existing key), --algorithm --keyout (generate new key), or --hsm-config (HSM key)")
 	}
@@ -295,12 +305,23 @@ func validateRequiredFlags(mode csrGenMode) error {
 	if mode.hasGen && !mode.hasHSM && csrGenKeyOut == "" {
 		return fmt.Errorf("--keyout is required when generating a new key (or use --hsm-config for HSM)")
 	}
-	if mode.hasHSM && csrGenAlgorithm == "" {
+	return nil
+}
+
+func validateCSRHSMFlags(mode csrGenMode) error {
+	if !mode.hasHSM {
+		return nil
+	}
+	if csrGenAlgorithm == "" {
 		return fmt.Errorf("--algorithm is required when using --hsm-config")
 	}
-	if mode.hasHSM && csrGenKeyLabel == "" {
+	if csrGenKeyLabel == "" {
 		return fmt.Errorf("--key-label is required when using --hsm-config")
 	}
+	return nil
+}
+
+func validateCSROptionalFlags(mode csrGenMode) error {
 	if mode.hasAttest && (csrGenAttestCert == "" || csrGenAttestKey == "") {
 		return fmt.Errorf("--attest-cert and --attest-key must both be specified")
 	}
