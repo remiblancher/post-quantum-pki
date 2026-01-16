@@ -153,14 +153,15 @@ func (c *CAInfo) CreatePendingVersion(profiles, algos []string) string {
 	return id
 }
 
-// Activate activates a pending version.
+// Activate activates a pending or archived version (for rollback).
 func (c *CAInfo) Activate(versionID string) error {
 	ver, ok := c.Versions[versionID]
 	if !ok {
 		return fmt.Errorf("version not found: %s", versionID)
 	}
-	if ver.Status != VersionStatusPending {
-		return fmt.Errorf("can only activate pending versions, current status: %s", ver.Status)
+	// Allow activating both pending versions (after rotation) and archived versions (rollback)
+	if ver.Status != VersionStatusPending && ver.Status != VersionStatusArchived {
+		return fmt.Errorf("can only activate pending or archived versions, current status: %s", ver.Status)
 	}
 
 	now := time.Now()

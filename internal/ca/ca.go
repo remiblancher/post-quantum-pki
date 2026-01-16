@@ -69,7 +69,8 @@ func getCertPathFromInfo(info *CAInfo, activeVer *CAVersion) string {
 			isComposite = true
 			break
 		}
-		if strings.Contains(profile, "catalyst") {
+		// Check for catalyst mode - profile name may be "catalyst-*" or "hybrid-*"
+		if strings.Contains(profile, "catalyst") || strings.Contains(profile, "hybrid") {
 			isCatalyst = true
 			break
 		}
