@@ -83,8 +83,9 @@ func runCAActivate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if version.Status != ca.VersionStatusPending {
-		return fmt.Errorf("version %s is not pending (status: %s)", targetVersionID, version.Status)
+	// Allow activating both pending versions (after rotation) and archived versions (rollback)
+	if version.Status != ca.VersionStatusPending && version.Status != ca.VersionStatusArchived {
+		return fmt.Errorf("version %s cannot be activated (status: %s)", targetVersionID, version.Status)
 	}
 
 	// Activate
