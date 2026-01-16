@@ -125,12 +125,12 @@ echo ""
 # ML-KEM AuthEnvelopedData (AES-GCM) Decryption
 # =============================================================================
 echo "[CrossCompat] CMS Structure: ML-KEM (Post-Quantum)"
-if [ -f "$FIXTURES/pqc/mldsa/cms-enveloped.p7m" ]; then
-    KEY_FILE="$FIXTURES/pqc/mldsa/encryption-key.pem"
-    CERT_FILE="$FIXTURES/pqc/mldsa/encryption-cert.pem"
+if [ -f "$FIXTURES/pqc/mlkem/cms-enveloped.p7m" ]; then
+    KEY_FILE="$FIXTURES/pqc/mlkem/encryption-key.pem"
+    CERT_FILE="$FIXTURES/pqc/mlkem/encryption-cert.pem"
 
     # First, verify it's AuthEnvelopedData with KEMRecipientInfo
-    if openssl cms -cmsout -print -in "$FIXTURES/pqc/mldsa/cms-enveloped.p7m" -inform DER 2>/dev/null | head -30 > "$TMP_DIR/mlkem-structure.txt"; then
+    if openssl cms -cmsout -print -in "$FIXTURES/pqc/mlkem/cms-enveloped.p7m" -inform DER 2>/dev/null | head -30 > "$TMP_DIR/mlkem-structure.txt"; then
         if grep -q "kemri\|authEnvelopedData" "$TMP_DIR/mlkem-structure.txt" 2>/dev/null; then
             echo "    ML-KEM CMS Parse: OK (AuthEnvelopedData + KEMRecipientInfo)"
         else
@@ -139,7 +139,7 @@ if [ -f "$FIXTURES/pqc/mldsa/cms-enveloped.p7m" ]; then
 
         # Try decryption with OpenSSL 3.6+
         if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
-            if openssl cms -decrypt -in "$FIXTURES/pqc/mldsa/cms-enveloped.p7m" -inform DER \
+            if openssl cms -decrypt -in "$FIXTURES/pqc/mlkem/cms-enveloped.p7m" -inform DER \
                 -inkey "$KEY_FILE" -recip "$CERT_FILE" \
                 -out "$TMP_DIR/decrypted-mlkem.txt" 2>/dev/null; then
 

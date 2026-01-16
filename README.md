@@ -511,7 +511,7 @@ Artifacts are validated using **OpenSSL 3.6+** and **BouncyCastle 1.83+**.
 | OCSP Response | 🟢 | 🟢 verify | 🟢 verify |
 | TSA Timestamp | 🟢 | 🟢 verify | 🟢 verify |
 | CMS Signed Data | 🟢 | 🟢 verify | 🟢 verify |
-| CMS Enveloped (ML-KEM) | 🟢 | 🔴 | 🟢 decrypt |
+| CMS Enveloped (ML-KEM) | 🟢 | 🟢 decrypt | 🟢 decrypt |
 
 ### Known Limitations
 

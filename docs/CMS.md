@@ -231,14 +231,14 @@ qpki cms info encrypted.p7m
 # Verify a CMS signature (classical algorithms only)
 openssl cms -verify -in signature.p7s -content document.pdf -CAfile ca.crt
 
-# Decrypt CMS (RSA/ECDH only)
+# Decrypt CMS (RSA/ECDH/ML-KEM)
 openssl cms -decrypt -in encrypted.p7m -inkey recipient.key -out decrypted.txt
 
 # Create signature with OpenSSL
 openssl cms -sign -in document.pdf -signer signer.crt -inkey signer.key -out signature.p7s
 ```
 
-> **Note:** OpenSSL does not support ML-DSA, SLH-DSA, or ML-KEM. Use `qpki cms` commands for PQC operations.
+> **Note:** OpenSSL 3.6+ supports ML-KEM for CMS encryption/decryption (RFC 9629). For ML-DSA and SLH-DSA signatures, use `qpki cms` commands.
 
 ---
 
