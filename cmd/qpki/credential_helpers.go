@@ -113,3 +113,20 @@ func formatRotateKeyInfo(keepKeys, hsmEnabled bool) string {
 	}
 	return "new keys"
 }
+
+// validateEnrollVariables validates variables against profile constraints.
+func validateEnrollVariables(profiles []*profile.Profile, varValues profile.VariableValues) (profile.VariableValues, error) {
+	if len(profiles) == 0 || len(profiles[0].Variables) == 0 {
+		return varValues, nil
+	}
+
+	engine, err := profile.NewTemplateEngine(profiles[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to create template engine: %w", err)
+	}
+	rendered, err := engine.Render(varValues)
+	if err != nil {
+		return nil, fmt.Errorf("variable validation failed: %w", err)
+	}
+	return rendered.ResolvedValues, nil
+}

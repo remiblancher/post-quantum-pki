@@ -306,18 +306,9 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load variables: %w", err)
 	}
-
-	// Validate variables using first profile's template engine
-	if len(profiles) > 0 && len(profiles[0].Variables) > 0 {
-		engine, err := profile.NewTemplateEngine(profiles[0])
-		if err != nil {
-			return fmt.Errorf("failed to create template engine: %w", err)
-		}
-		rendered, err := engine.Render(varValues)
-		if err != nil {
-			return fmt.Errorf("variable validation failed: %w", err)
-		}
-		varValues = rendered.ResolvedValues
+	varValues, err = validateEnrollVariables(profiles, varValues)
+	if err != nil {
+		return err
 	}
 
 	// Build subject from variables
