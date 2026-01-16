@@ -266,7 +266,7 @@ func loadCASigner(caInstance *ca.CA, caDir, passphrase string) error {
 }
 
 func runCredEnroll(cmd *cobra.Command, args []string) error {
-	// Check mutual exclusivity of --var and --var-file
+	// Validate flags
 	if credEnrollVarFile != "" && len(credEnrollVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
@@ -281,91 +281,43 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid credentials directory: %w", err)
 	}
 
-	// Load CA
+	// Load CA and signer
 	caStore := ca.NewFileStore(caDir)
 	caInstance, err := ca.New(caStore)
 	if err != nil {
 		return fmt.Errorf("failed to load CA: %w", err)
 	}
-
-	// Load CA signer (private key) - auto-detects hybrid vs regular
 	if err := loadCASigner(caInstance, caDir, credPassphrase); err != nil {
 		return fmt.Errorf("failed to load CA signer: %w", err)
 	}
 
-	// Configure HSM for key generation if specified
-	if credEnrollHSMConfig != "" {
-		hsmCfg, err := pkicrypto.LoadHSMConfig(credEnrollHSMConfig)
-		if err != nil {
-			return fmt.Errorf("failed to load HSM config: %w", err)
-		}
-		pin, err := hsmCfg.GetPIN()
-		if err != nil {
-			return fmt.Errorf("failed to get HSM PIN: %w", err)
-		}
-
-		keyCfg := pkicrypto.KeyStorageConfig{
-			Type:           pkicrypto.KeyProviderTypePKCS11,
-			PKCS11Lib:      hsmCfg.PKCS11.Lib,
-			PKCS11Token:    hsmCfg.PKCS11.Token,
-			PKCS11Pin:      pin,
-			PKCS11KeyLabel: credEnrollKeyLabel,
-		}
-		km := pkicrypto.NewKeyProvider(keyCfg)
-		caInstance.SetKeyProvider(km, keyCfg)
+	// Configure HSM if specified
+	if err := configureHSMKeyProvider(caInstance, credEnrollHSMConfig, credEnrollKeyLabel); err != nil {
+		return err
 	}
 
 	// Load profiles
-	profileStore := profile.NewProfileStore(caDir)
-	if err := profileStore.Load(); err != nil {
-		return fmt.Errorf("failed to load profiles: %w", err)
+	profiles, err := loadEnrollProfiles(caDir, credEnrollProfiles)
+	if err != nil {
+		return err
 	}
 
-	// Resolve profiles - support both profile names and file paths
-	profiles := make([]*profile.Profile, 0, len(credEnrollProfiles))
-	for _, name := range credEnrollProfiles {
-		var prof *profile.Profile
-		var err error
-
-		// Check if it's a file path (contains path separator or ends with .yaml/.yml)
-		if strings.Contains(name, string(os.PathSeparator)) || strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") {
-			// Load as file path
-			prof, err = profile.LoadProfile(name)
-			if err != nil {
-				return fmt.Errorf("failed to load profile from path %s: %w", name, err)
-			}
-		} else {
-			// Look up in profile store
-			var ok bool
-			prof, ok = profileStore.Get(name)
-			if !ok {
-				return fmt.Errorf("profile not found: %s", name)
-			}
-		}
-		profiles = append(profiles, prof)
-	}
-
-	// Load variables from file and/or flags
+	// Load and validate variables
 	varValues, err := profile.LoadVariables(credEnrollVarFile, credEnrollVars)
 	if err != nil {
 		return fmt.Errorf("failed to load variables: %w", err)
 	}
 
-	// If profile has variables, validate and render them
-	// Use first profile for variable resolution (all profiles should use same vars)
+	// Validate variables using first profile's template engine
 	if len(profiles) > 0 && len(profiles[0].Variables) > 0 {
 		engine, err := profile.NewTemplateEngine(profiles[0])
 		if err != nil {
 			return fmt.Errorf("failed to create template engine: %w", err)
 		}
-
-		// Render and validate variables
 		rendered, err := engine.Render(varValues)
 		if err != nil {
 			return fmt.Errorf("variable validation failed: %w", err)
 		}
-
-		// Extract values from rendered profile
 		varValues = rendered.ResolvedValues
 	}
 
@@ -375,19 +327,10 @@ func runCredEnroll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid subject: %w", err)
 	}
 
-	// Resolve profile extensions (substitute SAN template variables)
-	// This replaces {{ dns_names }}, {{ ip_addresses }}, {{ email }} with actual values
-	for i, prof := range profiles {
-		resolvedExtensions, err := profile.ResolveProfileExtensions(prof, varValues)
-		if err != nil {
-			return fmt.Errorf("failed to resolve extensions in profile %s: %w", prof.Name, err)
-		}
-		if resolvedExtensions != nil {
-			// Create a shallow copy of the profile with resolved extensions
-			profileCopy := *prof
-			profileCopy.Extensions = resolvedExtensions
-			profiles[i] = &profileCopy
-		}
+	// Resolve profile extensions
+	profiles, err = resolveProfilesExtensions(profiles, varValues)
+	if err != nil {
+		return err
 	}
 
 	// Create enrollment request
