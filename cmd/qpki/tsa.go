@@ -13,7 +13,10 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"os/signal"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -186,6 +189,11 @@ var (
 	tsaServeHSMConfig  string
 	tsaServeKeyLabel   string
 	tsaServeKeyID      string
+	tsaServePIDFile    string
+
+	// tsa stop flags
+	tsaStopPort    int
+	tsaStopPIDFile string
 )
 
 func init() {
@@ -221,6 +229,7 @@ func init() {
 	tsaServeCmd.Flags().StringVar(&tsaServeHSMConfig, "hsm-config", "", "HSM configuration file (YAML)")
 	tsaServeCmd.Flags().StringVar(&tsaServeKeyLabel, "key-label", "", "HSM key label (CKA_LABEL)")
 	tsaServeCmd.Flags().StringVar(&tsaServeKeyID, "key-id", "", "HSM key ID (CKA_ID, hex)")
+	tsaServeCmd.Flags().StringVar(&tsaServePIDFile, "pid-file", "", "PID file path (default: /tmp/qpki-tsa-{port}.pid)")
 	_ = tsaServeCmd.MarkFlagRequired("cert")
 
 	// tsa request flags
@@ -615,12 +624,25 @@ func runTSAServe(cmd *cobra.Command, args []string) error {
 
 	addr := fmt.Sprintf(":%d", tsaServePort)
 
+	// Determine PID file path
+	pidFile := tsaServePIDFile
+	if pidFile == "" {
+		pidFile = fmt.Sprintf("/tmp/qpki-tsa-%d.pid", tsaServePort)
+	}
+
+	// Write PID file
+	if err := tsaWritePIDFile(pidFile); err != nil {
+		return fmt.Errorf("failed to write PID file: %w", err)
+	}
+	defer tsaRemovePIDFile(pidFile)
+
 	fmt.Printf("Starting RFC 3161 Timestamp Server\n")
 	fmt.Printf("  Address:    http://localhost%s/\n", addr)
 	fmt.Printf("  Policy:     %s\n", policy)
 	fmt.Printf("  Accuracy:   %d seconds\n", tsaServeAccuracy)
 	fmt.Printf("  Algorithm:  %s\n", cert.SignatureAlgorithm)
-	fmt.Printf("\nUse Ctrl+C to stop\n\n")
+	fmt.Printf("  PID File:   %s\n", pidFile)
+	fmt.Printf("\nUse 'qpki tsa stop --port %d' or Ctrl+C to stop\n\n", tsaServePort)
 
 	// Log startup
 	_ = audit.Log(audit.NewEvent(audit.EventTSAServe, audit.ResultSuccess).
@@ -633,12 +655,41 @@ func runTSAServe(cmd *cobra.Command, args []string) error {
 			Accuracy: tsaServeAccuracy,
 		}))
 
-	if tsaServeTLSCert != "" && tsaServeTLSKey != "" {
-		fmt.Println("TLS enabled")
-		return http.ListenAndServeTLS(addr, tsaServeTLSCert, tsaServeTLSKey, mux)
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: mux,
 	}
 
-	return http.ListenAndServe(addr, mux)
+	// Handle shutdown signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	errChan := make(chan error, 1)
+	go func() {
+		if tsaServeTLSCert != "" && tsaServeTLSKey != "" {
+			fmt.Println("TLS enabled")
+			errChan <- httpServer.ListenAndServeTLS(tsaServeTLSCert, tsaServeTLSKey)
+		} else {
+			errChan <- httpServer.ListenAndServe()
+		}
+	}()
+
+	select {
+	case err := <-errChan:
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+	case sig := <-sigChan:
+		fmt.Printf("\nReceived signal %v, shutting down...\n", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown error: %w", err)
+		}
+		fmt.Println("TSA server stopped")
+	}
+
+	return nil
 }
 
 // tsaServer implements the RFC 3161 HTTP handler
@@ -745,6 +796,77 @@ func (s *tsaServer) sendError(w http.ResponseWriter, failInfo int, message strin
 	w.Header().Set("Content-Type", "application/timestamp-reply")
 	w.WriteHeader(http.StatusOK) // RFC 3161 returns 200 even for rejections
 	_, _ = w.Write(respData)
+}
+
+// tsaStopCmd stops a running TSA server
+var tsaStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop a running TSA server",
+	Long: `Stop a running TSA timestamp server.
+
+The command reads the PID from the PID file and sends a SIGTERM signal.
+
+Examples:
+  # Stop server on default port
+  qpki tsa stop --port 8318
+
+  # Stop using custom PID file
+  qpki tsa stop --pid-file /var/run/tsa.pid`,
+	RunE: runTSAStop,
+}
+
+func init() {
+	tsaStopCmd.Flags().IntVar(&tsaStopPort, "port", 8318, "Port to derive default PID file path")
+	tsaStopCmd.Flags().StringVar(&tsaStopPIDFile, "pid-file", "", "PID file path (default: /tmp/qpki-tsa-{port}.pid)")
+
+	tsaCmd.AddCommand(tsaStopCmd)
+}
+
+func runTSAStop(cmd *cobra.Command, args []string) error {
+	// Determine PID file path
+	pidFile := tsaStopPIDFile
+	if pidFile == "" {
+		pidFile = fmt.Sprintf("/tmp/qpki-tsa-%d.pid", tsaStopPort)
+	}
+
+	// Read PID from file
+	pidData, err := os.ReadFile(pidFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("TSA server not running (PID file not found: %s)", pidFile)
+		}
+		return fmt.Errorf("failed to read PID file: %w", err)
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
+	if err != nil {
+		return fmt.Errorf("invalid PID in file: %w", err)
+	}
+
+	// Find the process
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("failed to find process %d: %w", pid, err)
+	}
+
+	// Send SIGTERM
+	if err := process.Signal(syscall.SIGTERM); err != nil {
+		return fmt.Errorf("failed to send signal to process %d: %w", pid, err)
+	}
+
+	fmt.Printf("Sent stop signal to TSA server (PID %d)\n", pid)
+	return nil
+}
+
+// tsaWritePIDFile writes the current process PID to the specified file
+func tsaWritePIDFile(path string) error {
+	pid := os.Getpid()
+	return os.WriteFile(path, []byte(strconv.Itoa(pid)), 0644)
+}
+
+// tsaRemovePIDFile removes the PID file if it exists
+func tsaRemovePIDFile(path string) {
+	_ = os.Remove(path)
 }
 
 // Helper functions
