@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"os"
 	"testing"
 	"time"
 
@@ -868,5 +869,80 @@ func TestFilterCertEntries(t *testing.T) {
 				t.Errorf("filterCertEntries() returned %d entries, want %d", len(got), tt.wantCount)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// isCompatibleAlgorithm Tests
+// =============================================================================
+
+func TestIsCompatibleAlgorithm(t *testing.T) {
+	tests := []struct {
+		name    string
+		profile crypto.AlgorithmID
+		hsm     crypto.AlgorithmID
+		want    bool
+	}{
+		{
+			name:    "same algorithm",
+			profile: crypto.AlgECDSAP384,
+			hsm:     crypto.AlgECDSAP384,
+			want:    true,
+		},
+		{
+			name:    "different algorithms",
+			profile: crypto.AlgECDSAP384,
+			hsm:     crypto.AlgECDSAP256,
+			want:    false,
+		},
+		{
+			name:    "RSA algorithms match",
+			profile: crypto.AlgRSA2048,
+			hsm:     crypto.AlgRSA2048,
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCompatibleAlgorithm(tt.profile, tt.hsm)
+			if got != tt.want {
+				t.Errorf("isCompatibleAlgorithm() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// copyHSMConfig Tests
+// =============================================================================
+
+func TestCopyHSMConfig(t *testing.T) {
+	tc := newTestContext(t)
+
+	// Create source file
+	srcContent := "pkcs11:\n  lib: /path/to/lib.so\n  token: test-token\n"
+	srcPath := tc.writeFile("hsm-src.yaml", srcContent)
+	dstPath := tc.path("hsm-dst.yaml")
+
+	// Test successful copy
+	err := copyHSMConfig(srcPath, dstPath)
+	if err != nil {
+		t.Fatalf("copyHSMConfig() error = %v", err)
+	}
+
+	// Verify content
+	data, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("failed to read destination: %v", err)
+	}
+	if string(data) != srcContent {
+		t.Errorf("copyHSMConfig() content mismatch: got %q, want %q", string(data), srcContent)
+	}
+
+	// Test non-existent source
+	err = copyHSMConfig("/nonexistent/path.yaml", tc.path("dst.yaml"))
+	if err == nil {
+		t.Error("copyHSMConfig() expected error for non-existent source")
 	}
 }
