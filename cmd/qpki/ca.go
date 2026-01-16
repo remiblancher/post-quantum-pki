@@ -624,45 +624,25 @@ func copyHSMConfig(src, dst string) error {
 
 // runCAInitSubordinate creates a subordinate CA signed by a parent CA.
 func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
-	// Check mutual exclusivity of --var and --var-file
+	// Validate flags
 	if caInitVarFile != "" && len(caInitVars) > 0 {
 		return fmt.Errorf("--var and --var-file are mutually exclusive")
 	}
-
-	// Ensure single profile for subordinate CA mode (for now)
 	if len(caInitProfiles) != 1 {
 		return fmt.Errorf("subordinate CA requires exactly one --profile (multi-profile subordinate CA not yet supported)")
 	}
+
+	// Load profile
 	caInitProfile := caInitProfiles[0]
-
-	var alg crypto.AlgorithmID
-	var validityYears int
-	var extensions *profile.ExtensionsConfig
-	var err error
-
-	// Load profile (required)
 	prof, err := profile.LoadProfile(caInitProfile)
 	if err != nil {
 		return fmt.Errorf("failed to load profile %s: %w", caInitProfile, err)
 	}
 
 	// Load and validate variables
-	varValues, err := profile.LoadVariables(caInitVarFile, caInitVars)
+	varValues, err := loadAndValidateProfileVariables(prof, caInitVarFile, caInitVars)
 	if err != nil {
-		return fmt.Errorf("failed to load variables: %w", err)
-	}
-
-	// Validate variables against profile constraints
-	if len(prof.Variables) > 0 {
-		engine, err := profile.NewTemplateEngine(prof)
-		if err != nil {
-			return fmt.Errorf("failed to create template engine: %w", err)
-		}
-		rendered, err := engine.Render(varValues)
-		if err != nil {
-			return fmt.Errorf("failed to validate variables: %w", err)
-		}
-		varValues = rendered.ResolvedValues
+		return err
 	}
 
 	// Build subject from variables
@@ -671,73 +651,42 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
 
-	// Extract algorithm from profile
-	alg = prof.GetAlgorithm()
-	if !alg.IsValid() {
-		return fmt.Errorf("profile %s has invalid algorithm: %s", caInitProfile, alg)
+	// Extract algorithm info
+	algInfo, err := extractProfileAlgorithmInfo(prof)
+	if err != nil {
+		return err
 	}
-
-	// Extract validity (convert from duration to years)
-	validityYears = int(prof.Validity.Hours() / 24 / 365)
-	if validityYears < 1 {
-		validityYears = 1
-	}
-
-	// Allow CLI flags to override profile values
 	if cmd.Flags().Changed("validity") {
-		validityYears = caInitValidityYears
+		algInfo.ValidityYears = caInitValidityYears
 	}
-
-	// Use profile extensions (pathLen is defined in profile)
-	extensions = prof.Extensions
 
 	fmt.Printf("Using profile: %s\n", caInitProfile)
 
-	if !alg.IsSignature() {
-		return fmt.Errorf("algorithm %s is not suitable for signing", alg)
+	if !algInfo.Algorithm.IsSignature() {
+		return fmt.Errorf("algorithm %s is not suitable for signing", algInfo.Algorithm)
 	}
 
 	// Load parent CA
-	parentAbsDir, err := filepath.Abs(caInitParentDir)
+	parentCA, err := loadParentCA(caInitParentDir, caInitParentPassphrase)
 	if err != nil {
-		return fmt.Errorf("invalid parent directory path: %w", err)
+		return err
 	}
 
-	parentStore := ca.NewFileStore(parentAbsDir)
-	if !parentStore.Exists() {
-		return fmt.Errorf("parent CA not found at %s", parentAbsDir)
-	}
-
-	parentCA, err := ca.New(parentStore)
-	if err != nil {
-		return fmt.Errorf("failed to load parent CA: %w", err)
-	}
-
-	if err := parentCA.LoadSigner(caInitParentPassphrase); err != nil {
-		return fmt.Errorf("failed to load parent CA signer: %w", err)
-	}
-
-	// Expand path for new CA
+	// Validate and prepare store
 	absDir, err := filepath.Abs(caInitDir)
 	if err != nil {
 		return fmt.Errorf("invalid directory path: %w", err)
 	}
-
-	// Check if directory already exists
 	store := ca.NewFileStore(absDir)
 	if store.Exists() {
 		return fmt.Errorf("CA already exists at %s", absDir)
 	}
-
-	// Initialize store directory structure
 	if err := store.Init(context.Background()); err != nil {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
 
-	// Get full algorithm ID (e.g., "ecdsa-p256", "ml-dsa-65")
-	algoID := string(alg)
-
-	// Create CAInfo first to set up versioned structure
+	// Create CAInfo and version structure
+	algoID := string(algInfo.Algorithm)
 	info := ca.NewCAInfo(ca.Subject{
 		CommonName:   subject.CommonName,
 		Organization: subject.Organization,
@@ -745,57 +694,48 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 	})
 	info.SetBasePath(absDir)
 	info.CreateInitialVersion([]string{caInitProfile}, []string{algoID})
-
-	// Create version directory structure (keys/ and certs/)
 	if err := info.EnsureVersionDir("v1"); err != nil {
 		return fmt.Errorf("failed to create version directory: %w", err)
 	}
 
-	// Generate CA key pair at versioned path
-	keyPath := info.KeyPath("v1", string(alg))
+	// Generate CA key pair
+	keyPath := info.KeyPath("v1", string(algInfo.Algorithm))
 	keyCfg := crypto.KeyStorageConfig{
 		Type:       crypto.KeyProviderTypeSoftware,
 		KeyPath:    keyPath,
 		Passphrase: caInitPassphrase,
 	}
 	km := crypto.NewKeyProvider(keyCfg)
-	signer, err := km.Generate(alg, keyCfg)
+	signer, err := km.Generate(algInfo.Algorithm, keyCfg)
 	if err != nil {
 		return fmt.Errorf("failed to generate CA key: %w", err)
 	}
 
-	// Issue subordinate CA certificate using parent
+	// Issue subordinate CA certificate
 	fmt.Printf("Initializing subordinate CA at %s...\n", absDir)
 	fmt.Printf("  Parent CA:  %s\n", parentCA.Certificate().Subject.String())
-	fmt.Printf("  Algorithm:  %s\n", alg.Description())
+	fmt.Printf("  Algorithm:  %s\n", algInfo.Algorithm.Description())
 
-	// Build template using subject from variables
-	template := &x509.Certificate{
-		Subject: subject,
-	}
-
-	// Issue certificate
-	validity := time.Duration(validityYears) * 365 * 24 * time.Hour
+	validity := time.Duration(algInfo.ValidityYears) * 365 * 24 * time.Hour
 	cert, err := parentCA.Issue(context.Background(), ca.IssueRequest{
-		Template:   template,
+		Template:   &x509.Certificate{Subject: subject},
 		PublicKey:  signer.Public(),
-		Extensions: extensions,
+		Extensions: prof.Extensions,
 		Validity:   validity,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to issue subordinate CA certificate: %w", err)
 	}
 
-	// Save CA certificate to versioned path
+	// Save certificate and CAInfo
 	certPath := info.CertPath("v1", algoID)
 	if err := saveCertToPath(certPath, cert); err != nil {
 		return fmt.Errorf("failed to save CA certificate: %w", err)
 	}
 
-	// Add key reference and save CAInfo
 	info.AddKey(ca.KeyRef{
 		ID:        "default",
-		Algorithm: alg,
+		Algorithm: algInfo.Algorithm,
 		Storage: crypto.StorageRef{
 			Type: "software",
 			Path: fmt.Sprintf("versions/v1/keys/ca.%s.key", algoID),
@@ -805,38 +745,13 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save CA info: %w", err)
 	}
 
-	// Create certificate chain file
+	// Create chain file
 	chainPath := filepath.Join(absDir, "chain.crt")
-	chainFile, err := os.Create(chainPath)
-	if err != nil {
-		return fmt.Errorf("failed to create chain file: %w", err)
-	}
-	defer func() { _ = chainFile.Close() }()
-
-	// Write subordinate CA cert first, then parent
-	subBlock := &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}
-	if err := pem.Encode(chainFile, subBlock); err != nil {
-		return fmt.Errorf("failed to write subordinate certificate to chain: %w", err)
+	if err := createChainFile(chainPath, cert, parentCA.Certificate()); err != nil {
+		return err
 	}
 
-	parentBlock := &pem.Block{Type: "CERTIFICATE", Bytes: parentCA.Certificate().Raw}
-	if err := pem.Encode(chainFile, parentBlock); err != nil {
-		return fmt.Errorf("failed to write parent certificate to chain: %w", err)
-	}
-
-	fmt.Printf("\nSubordinate CA initialized successfully!\n")
-	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
-	fmt.Printf("  Issuer:      %s\n", cert.Issuer.String())
-	fmt.Printf("  Serial:      %X\n", cert.SerialNumber.Bytes())
-	fmt.Printf("  Not Before:  %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  Not After:   %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  Certificate: %s\n", certPath)
-	fmt.Printf("  Chain:       %s\n", chainPath)
-	fmt.Printf("  Private Key: %s\n", keyPath)
-
-	if caInitPassphrase == "" {
-		fmt.Fprintf(os.Stderr, "\nWARNING: Private key is not encrypted. Use --passphrase for production.\n")
-	}
+	printSubordinateCASuccess(cert, certPath, chainPath, keyPath, caInitPassphrase)
 
 	return nil
 }

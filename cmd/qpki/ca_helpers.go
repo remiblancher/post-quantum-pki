@@ -353,6 +353,68 @@ func generateHSMKey(hsmCfg *crypto.HSMConfig, alg crypto.AlgorithmID, keyLabel s
 	return result.KeyLabel, result.KeyID, nil
 }
 
+// loadParentCA loads and initializes the parent CA for subordinate CA creation.
+func loadParentCA(parentDir, passphrase string) (*ca.CA, error) {
+	parentAbsDir, err := filepath.Abs(parentDir)
+	if err != nil {
+		return nil, fmt.Errorf("invalid parent directory path: %w", err)
+	}
+
+	parentStore := ca.NewFileStore(parentAbsDir)
+	if !parentStore.Exists() {
+		return nil, fmt.Errorf("parent CA not found at %s", parentAbsDir)
+	}
+
+	parentCA, err := ca.New(parentStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load parent CA: %w", err)
+	}
+
+	if err := parentCA.LoadSigner(passphrase); err != nil {
+		return nil, fmt.Errorf("failed to load parent CA signer: %w", err)
+	}
+
+	return parentCA, nil
+}
+
+// createChainFile creates a certificate chain file with subordinate and parent certs.
+func createChainFile(chainPath string, subCert, parentCert *x509.Certificate) error {
+	chainFile, err := os.Create(chainPath)
+	if err != nil {
+		return fmt.Errorf("failed to create chain file: %w", err)
+	}
+	defer func() { _ = chainFile.Close() }()
+
+	subBlock := &pem.Block{Type: "CERTIFICATE", Bytes: subCert.Raw}
+	if err := pem.Encode(chainFile, subBlock); err != nil {
+		return fmt.Errorf("failed to write subordinate certificate to chain: %w", err)
+	}
+
+	parentBlock := &pem.Block{Type: "CERTIFICATE", Bytes: parentCert.Raw}
+	if err := pem.Encode(chainFile, parentBlock); err != nil {
+		return fmt.Errorf("failed to write parent certificate to chain: %w", err)
+	}
+
+	return nil
+}
+
+// printSubordinateCASuccess prints the success message for subordinate CA creation.
+func printSubordinateCASuccess(cert *x509.Certificate, certPath, chainPath, keyPath, passphrase string) {
+	fmt.Printf("\nSubordinate CA initialized successfully!\n")
+	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
+	fmt.Printf("  Issuer:      %s\n", cert.Issuer.String())
+	fmt.Printf("  Serial:      %X\n", cert.SerialNumber.Bytes())
+	fmt.Printf("  Not Before:  %s\n", cert.NotBefore.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Not After:   %s\n", cert.NotAfter.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Certificate: %s\n", certPath)
+	fmt.Printf("  Chain:       %s\n", chainPath)
+	fmt.Printf("  Private Key: %s\n", keyPath)
+
+	if passphrase == "" {
+		fmt.Fprintf(os.Stderr, "\nWARNING: Private key is not encrypted. Use --passphrase for production.\n")
+	}
+}
+
 // loadBundleCerts loads certificates based on bundle type (ca, chain, root).
 func loadBundleCerts(store ca.Store, bundleType string) ([]*x509.Certificate, error) {
 	caCert, err := store.LoadCACert(ctx)
