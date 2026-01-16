@@ -13,7 +13,6 @@ import (
 
 	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	"github.com/remiblancher/post-quantum-pki/internal/credential"
-	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/profile"
 )
 
@@ -532,41 +531,33 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load CA: %w", err)
 	}
 
-	// Load CA signer (private key) - auto-detects hybrid vs regular
 	if err := loadCASigner(caInstance, caDir, credPassphrase); err != nil {
 		return fmt.Errorf("failed to load CA signer: %w", err)
 	}
 
 	// Configure HSM for key generation if specified
-	if credRotateHSMConfig != "" {
-		hsmCfg, err := pkicrypto.LoadHSMConfig(credRotateHSMConfig)
-		if err != nil {
-			return fmt.Errorf("failed to load HSM config: %w", err)
-		}
-		pin, err := hsmCfg.GetPIN()
-		if err != nil {
-			return fmt.Errorf("failed to get HSM PIN: %w", err)
-		}
-
-		keyCfg := pkicrypto.KeyStorageConfig{
-			Type:           pkicrypto.KeyProviderTypePKCS11,
-			PKCS11Lib:      hsmCfg.PKCS11.Lib,
-			PKCS11Token:    hsmCfg.PKCS11.Token,
-			PKCS11Pin:      pin,
-			PKCS11KeyLabel: credRotateKeyLabel,
-		}
-		km := pkicrypto.NewKeyProvider(keyCfg)
-		caInstance.SetKeyProvider(km, keyCfg)
+	if err := configureHSMKeyProvider(caInstance, credRotateHSMConfig, credRotateKeyLabel); err != nil {
+		return err
 	}
 
-	// Load profiles
+	// Load profiles and credential store
 	profileStore := profile.NewProfileStore(caDir)
 	if err := profileStore.Load(); err != nil {
 		return fmt.Errorf("failed to load profiles: %w", err)
 	}
-
-	// Load credential store
 	credStore := credential.NewFileStore(credentialsDir)
+
+	// Determine target profiles
+	profileNames, err := determineRotationProfiles(credStore, credID, credRotateProfiles, credRotateAddProfiles, credRotateRemoveProfiles)
+	if err != nil {
+		return err
+	}
+
+	// Resolve profile names to profile objects
+	profiles, err := resolveProfilesToObjects(profileStore, profileNames)
+	if err != nil {
+		return err
+	}
 
 	// Determine key rotation mode
 	keyMode := credential.KeyRotateNew
@@ -574,62 +565,13 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 		keyMode = credential.KeyRotateKeep
 	}
 
-	// Determine target profiles:
-	// 1. --profile replaces all (priority)
-	// 2. --add-profile / --remove-profile modify current
-	// 3. Neither: use current profiles from credential
-	var profileNames []string
-
-	if len(credRotateProfiles) > 0 {
-		// --profile specified: use as-is
-		profileNames = credRotateProfiles
-	} else if len(credRotateAddProfiles) > 0 || len(credRotateRemoveProfiles) > 0 {
-		// Compute: current + add - remove
-		existingCred, err := credStore.Load(context.Background(), credID)
-		if err != nil {
-			return fmt.Errorf("failed to load credential: %w", err)
-		}
-		ver := existingCred.ActiveVersion()
-		if ver == nil {
-			return fmt.Errorf("credential has no active version")
-		}
-
-		profileNames = computeProfileSet(ver.Profiles, credRotateAddProfiles, credRotateRemoveProfiles)
-
-		if len(profileNames) == 0 {
-			return fmt.Errorf("no profiles remaining after add/remove operations")
-		}
-	} else {
-		// Use existing profiles from credential
-		existingCred, err := credStore.Load(context.Background(), credID)
-		if err != nil {
-			return fmt.Errorf("failed to load credential: %w", err)
-		}
-		ver := existingCred.ActiveVersion()
-		if ver == nil {
-			return fmt.Errorf("credential has no active version")
-		}
-		profileNames = ver.Profiles
-	}
-
-	// Resolve profile names to profile objects
-	profiles := make([]*profile.Profile, 0, len(profileNames))
-	for _, pName := range profileNames {
-		prof, ok := profileStore.Get(pName)
-		if !ok {
-			return fmt.Errorf("profile %q not found", pName)
-		}
-		profiles = append(profiles, prof)
-	}
-
 	// Rotate credential (versioned - creates PENDING version)
-	passphrase := []byte(credPassphrase)
 	rotateReq := credential.CredentialRotateRequest{
 		Context:         cmd.Context(),
 		CredentialID:    credID,
 		CredentialStore: credStore,
 		Profiles:        profiles,
-		Passphrase:      passphrase,
+		Passphrase:      []byte(credPassphrase),
 		KeyMode:         keyMode,
 	}
 	result, err := credential.RotateCredentialVersioned(caInstance, rotateReq)
@@ -638,14 +580,39 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output
-	keyInfo := "new keys"
-	if credRotateKeepKeys {
-		keyInfo = "existing keys"
-	}
-	if credRotateHSMConfig != "" && !credRotateKeepKeys {
-		keyInfo = "new keys (HSM)"
+	printCredRotateResult(credID, result, profileNames, formatRotateKeyInfo(credRotateKeepKeys, credRotateHSMConfig != ""))
+	return nil
+}
+
+// determineRotationProfiles determines the target profiles for rotation.
+func determineRotationProfiles(credStore *credential.FileStore, credID string, profileFlag, addFlag, removeFlag []string) ([]string, error) {
+	if len(profileFlag) > 0 {
+		return profileFlag, nil
 	}
 
+	// Need to load existing credential to get current profiles
+	existingCred, err := credStore.Load(context.Background(), credID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load credential: %w", err)
+	}
+	ver := existingCred.ActiveVersion()
+	if ver == nil {
+		return nil, fmt.Errorf("credential has no active version")
+	}
+
+	if len(addFlag) > 0 || len(removeFlag) > 0 {
+		profileNames := computeProfileSet(ver.Profiles, addFlag, removeFlag)
+		if len(profileNames) == 0 {
+			return nil, fmt.Errorf("no profiles remaining after add/remove operations")
+		}
+		return profileNames, nil
+	}
+
+	return ver.Profiles, nil
+}
+
+// printCredRotateResult prints the rotation result.
+func printCredRotateResult(credID string, result *credential.CredentialRotateResult, profileNames []string, keyInfo string) {
 	fmt.Printf("Credential rotated successfully (%s)!\n", keyInfo)
 	fmt.Println()
 	fmt.Printf("Credential: %s\n", credID)
@@ -664,8 +631,6 @@ func runCredRotate(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("To activate this version:")
 	fmt.Printf("  qpki credential activate %s --version %s\n", credID, result.NewVersionID)
-
-	return nil
 }
 
 // computeProfileSet computes: current + add - remove

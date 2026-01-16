@@ -89,3 +89,27 @@ func resolveProfilesExtensions(profiles []*profile.Profile, varValues profile.Va
 
 	return result, nil
 }
+
+// resolveProfilesToObjects resolves profile names to profile objects.
+func resolveProfilesToObjects(profileStore *profile.FileStore, names []string) ([]*profile.Profile, error) {
+	profiles := make([]*profile.Profile, 0, len(names))
+	for _, pName := range names {
+		prof, ok := profileStore.Get(pName)
+		if !ok {
+			return nil, fmt.Errorf("profile %q not found", pName)
+		}
+		profiles = append(profiles, prof)
+	}
+	return profiles, nil
+}
+
+// formatRotateKeyInfo returns a human-readable key info string for rotation.
+func formatRotateKeyInfo(keepKeys, hsmEnabled bool) string {
+	if keepKeys {
+		return "existing keys"
+	}
+	if hsmEnabled {
+		return "new keys (HSM)"
+	}
+	return "new keys"
+}
