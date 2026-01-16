@@ -1,4 +1,4 @@
-# Profiles (Certificate Policy Templates)
+# Profiles
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@
 
 ---
 
-Profiles define certificate enrollment policies that specify which algorithms to use when issuing certificates.
+Profiles are YAML templates that define certificate characteristics: algorithm, validity, subject DN, extensions, and more. Each profile produces exactly one certificate type.
 
 > **Related documentation:**
 > - [CA.md](CA.md) - CA initialization and certificate issuance
@@ -282,7 +282,12 @@ QPKI uses a two-tier profile system:
 1. **Built-in profiles** - Embedded in the binary (default)
 2. **Custom profiles** - Loaded from the CA's `profiles/` directory
 
-**Priority rule:** Custom profiles in `CA/profiles/` **completely override** built-in profiles with the same name. There is no merging - a custom profile replaces the entire built-in profile.
+Custom profiles can be used in two ways:
+
+- **Override**: Use the same name as a built-in profile to replace it entirely
+- **New profile**: Use a different name to add a new profile alongside built-ins
+
+> For profile structure examples, see [Section 1.2: Profile Modes](#12-profile-modes). For complete profiles with variables, see [Section 6: Declarative Variables](#6-declarative-variables).
 
 To override a built-in profile:
 
@@ -313,53 +318,6 @@ The `SOURCE` column indicates:
 - `custom` - Custom profile with no built-in equivalent
 
 To revert to the built-in version, simply delete the custom profile file from `CA/profiles/`.
-
-### Simple Profile Example
-
-```yaml
-# my-custom.yaml
-name: my-custom-server
-description: "Custom policy for internal servers"
-
-algorithm: ecdsa-p384
-validity: 180d
-
-extensions:
-  keyUsage:
-    critical: true
-    values:
-      - digitalSignature
-  extKeyUsage:
-    critical: false
-    values:
-      - serverAuth
-  basicConstraints:
-    critical: true
-    ca: false
-```
-
-### Catalyst Profile Example
-
-```yaml
-# my-catalyst.yaml
-name: my-catalyst-server
-description: "Hybrid server with classical + PQC"
-
-mode: catalyst
-algorithms:
-  - ecdsa-p384
-  - ml-dsa-87
-validity: 365d
-
-extensions:
-  keyUsage:
-    critical: true
-    values:
-      - digitalSignature
-  extKeyUsage:
-    values:
-      - serverAuth
-```
 
 ---
 
