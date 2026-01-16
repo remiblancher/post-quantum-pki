@@ -44,7 +44,7 @@ A quantum-safe Public Key Infrastructure (PKI) toolkit to help organizations pre
 | SLH-DSA-128/192/256 | NIST Level 1/3/5 | FIPS 205, hash-based |
 | ML-KEM-512/768/1024 | NIST Level 1/3/5 | FIPS 203, key encapsulation |
 
-*Classical security levels reflect resistance to classical attacks only. Post-quantum algorithms are designed to remain secure against quantum adversaries. Implemented by [Cloudflare's CIRCL](https://github.com/cloudflare/circl), tested against NIST official vectors and used in production at Cloudflare scale.*
+*Classical security levels reflect resistance to classical attacks only. Post-quantum algorithms are designed to remain secure against quantum adversaries.*
 
 ## Installation
 
@@ -457,17 +457,17 @@ All artifacts are designed to be compatible with standard PKI tooling and are **
 
 | Standard | Description | Status |
 |----------|-------------|--------|
-| RFC 5280 | X.509 Certificates and CRL | ✅ |
-| RFC 2986 | PKCS#10 CSR | ✅ |
-| RFC 9883 | ML-KEM CSR Attestation | ✅ |
-| RFC 6960 | OCSP | ✅ |
-| RFC 3161 | TSA Timestamping | ✅ |
-| RFC 5652 | CMS Signed Data | ✅ |
-| FIPS 203 | ML-KEM | ✅ |
-| FIPS 204 | ML-DSA | ✅ |
-| FIPS 205 | SLH-DSA | ✅ |
-| ITU-T X.509 9.8 | Catalyst (dual-key extensions) | ✅ |
-| IETF draft-13 | Composite Signatures | ✅ |
+| RFC 5280 | X.509 Certificates and CRL | 🟢 |
+| RFC 2986 | PKCS#10 CSR | 🟢 |
+| RFC 9883 | ML-KEM CSR Attestation | 🟢 |
+| RFC 6960 | OCSP | 🟢 |
+| RFC 3161 | TSA Timestamping | 🟢 |
+| RFC 5652 | CMS Signed Data | 🟢 |
+| FIPS 203 | ML-KEM | 🟢 |
+| FIPS 204 | ML-DSA | 🟢 |
+| FIPS 205 | SLH-DSA | 🟢 |
+| ITU-T X.509 9.8 | Catalyst (dual-key extensions) | 🟢 |
+| IETF draft-13 | Composite Signatures | 🟢 |
 
 ### Interoperability Matrix
 
@@ -477,45 +477,45 @@ Artifacts are validated using **OpenSSL 3.6+** and **BouncyCastle 1.83+**.
 
 | Type | QPKI | OpenSSL | BouncyCastle |
 |------|------|---------|--------------|
-| Classical (ECDSA/RSA) | ✅ | ✅ verify | ✅ verify |
-| PQC (ML-DSA, SLH-DSA) | ✅ | ✅ verify | ✅ verify |
-| Catalyst Hybrid | ✅ both sigs | ✅ ECDSA only | ✅ both sigs |
-| Composite (IETF) | ✅ both sigs | ❌ | ⚠️ parse only* |
+| Classical (ECDSA/RSA) | 🟢 | 🟢 verify | 🟢 verify |
+| PQC (ML-DSA, SLH-DSA) | 🟢 | 🟢 verify | 🟢 verify |
+| Catalyst Hybrid | 🟢 both sigs | 🟢 ECDSA only | 🟢 both sigs |
+| Composite (IETF) | 🟢 both sigs | 🔴 | 🟡 parse only* |
 
 #### CSR (Certificate Signing Requests)
 
 | Type | QPKI | OpenSSL | BouncyCastle |
 |------|------|---------|--------------|
-| Classical | ✅ | ✅ verify | ✅ verify |
-| PQC (ML-DSA) | ✅ | ✅ verify | ✅ verify |
-| ML-KEM (RFC 9883) | ✅ | ✅ parse | ✅ verify |
-| Hybrid | ✅ | ✅ primary | ✅ both sigs |
+| Classical | 🟢 | 🟢 verify | 🟢 verify |
+| PQC (ML-DSA) | 🟢 | 🟢 verify | 🟢 verify |
+| ML-KEM (RFC 9883) | 🟢 | 🟢 parse | 🟢 verify |
+| Hybrid | 🟢 | 🟢 primary | 🟢 both sigs |
 
 #### CRL (Certificate Revocation Lists)
 
 | Type | QPKI | OpenSSL | BouncyCastle |
 |------|------|---------|--------------|
-| Classical | ✅ | ✅ verify | ✅ verify |
-| PQC (ML-DSA, SLH-DSA) | ✅ | ✅ verify | ✅ verify |
-| Catalyst Hybrid | ✅ both sigs | ✅ ECDSA only | ✅ both sigs |
-| Composite (IETF) | ✅ both sigs | ❌ | ⚠️ parse only* |
+| Classical | 🟢 | 🟢 verify | 🟢 verify |
+| PQC (ML-DSA, SLH-DSA) | 🟢 | 🟢 verify | 🟢 verify |
+| Catalyst Hybrid | 🟢 both sigs | 🟢 ECDSA only | 🟢 both sigs |
+| Composite (IETF) | 🟢 both sigs | 🔴 | 🟡 parse only* |
 
 #### OCSP, TSA, CMS
 
 | Artifact | QPKI | OpenSSL | BouncyCastle |
 |----------|------|---------|--------------|
-| OCSP Response | ✅ | ✅ verify | ✅ verify |
-| TSA Timestamp | ✅ | ✅ verify | ✅ verify |
-| CMS Signed Data | ✅ | ✅ verify | ✅ verify |
-| CMS Enveloped (ML-KEM) | ✅ | ❌ | ✅ decrypt |
+| OCSP Response | 🟢 | 🟢 verify | 🟢 verify |
+| TSA Timestamp | 🟢 | 🟢 verify | 🟢 verify |
+| CMS Signed Data | 🟢 | 🟢 verify | 🟢 verify |
+| CMS Enveloped (ML-KEM) | 🟢 | 🔴 | 🟢 decrypt |
 
 ### Known Limitations
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Composite signatures | ⚠️ Partial | BC 1.83 uses draft-07 OIDs, we use IETF draft-13 |
-| OpenSSL Catalyst | ⚠️ Partial | Only ECDSA signature verified, PQC ignored |
-| HSM support (PKCS#11) | ✅ | Tested with SoftHSM; hardware HSM not yet validated |
+| Composite signatures | 🟡 Partial | BC 1.83 uses draft-07 OIDs, we use IETF draft-13 |
+| OpenSSL Catalyst | 🟡 Partial | Only ECDSA signature verified, PQC ignored |
+| HSM support (PKCS#11) | 🟢 | Tested with SoftHSM; hardware HSM not yet validated |
 
 *\*Composite: BC 1.83 implements draft-07 (Entrust OIDs `2.16.840.1.114027.80.8.1.x`), our implementation uses draft-13 (IETF standard OIDs `1.3.6.1.5.5.7.6.x`). Certificates parse correctly but signature verification requires OID migration in BC.*
 

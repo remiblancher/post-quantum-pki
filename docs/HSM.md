@@ -338,17 +338,17 @@ QPKI uses PKCS#11 for HSM integration.
 
 | HSM | Status | PQC | Notes | Source |
 |-----|--------|-----|-------|--------|
-| SoftHSM2 | ✓ Tested | – | RSA, ECC (CI/CD) | – |
-| YubiHSM2 | – Untested | – | Compact form factor | – |
-| Thales Luna 7.9+ | – Untested | ML-DSA, ML-KEM | | [Thales](https://thalesdocs.com/gphsm/luna/7/docs/network/Content/sdk/extensions/pqc/post_quantum_algorithms.htm) |
-| Entrust nShield | – Untested | ML-DSA, ML-KEM, SLH-DSA | CAVP certified | [Entrust](https://www.entrust.com/blog/2025/09/entrust-nshield-5-hsms-post-quantum-algorithm-support-now-cavp-certified) |
-| Securosys Primus | – Untested | ML-DSA, ML-KEM, SLH-DSA | NIST certified | [Securosys](https://www.securosys.com/en/hsm/post-quantum-cryptography) |
-| Eviden Proteccio | – Untested | ML-DSA, ML-KEM, SLH-DSA | ANSSI QR certified | [Eviden](https://eviden.com/insights/press-releases/eviden-supports-post-quantum-algorithms-with-its-trustway-proteccio-hsm/) |
-| Utimaco | – Untested | ML-DSA, ML-KEM, LMS | CAVP certified | [Utimaco](https://utimaco.com/data-protection/gp-hsm/application-package/quantum-protect) |
-| AWS CloudHSM | – Untested | – | PQC via KMS only | [AWS](https://aws.amazon.com/security/post-quantum-cryptography/) |
-| Azure Key Vault | ✗ N/A | – | No PKCS#11 | – |
+| SoftHSM2 | 🟢 Tested | – | RSA, ECC (CI/CD) | – |
+| YubiHSM2 | 🟡 Untested | – | Compact form factor | – |
+| Thales Luna 7.9+ | 🟡 Untested | ML-DSA, ML-KEM | | [Thales](https://thalesdocs.com/gphsm/luna/7/docs/network/Content/sdk/extensions/pqc/post_quantum_algorithms.htm) |
+| Entrust nShield | 🟡 Untested | ML-DSA, ML-KEM, SLH-DSA | CAVP certified | [Entrust](https://www.entrust.com/blog/2025/09/entrust-nshield-5-hsms-post-quantum-algorithm-support-now-cavp-certified) |
+| Securosys Primus | 🟡 Untested | ML-DSA, ML-KEM, SLH-DSA | NIST certified | [Securosys](https://www.securosys.com/en/hsm/post-quantum-cryptography) |
+| Eviden Proteccio | 🟡 Untested | ML-DSA, ML-KEM, SLH-DSA | ANSSI QR certified | [Eviden](https://eviden.com/insights/press-releases/eviden-supports-post-quantum-algorithms-with-its-trustway-proteccio-hsm/) |
+| Utimaco | 🟡 Untested | ML-DSA, ML-KEM, LMS | CAVP certified | [Utimaco](https://utimaco.com/data-protection/gp-hsm/application-package/quantum-protect) |
+| AWS CloudHSM | 🟡 Untested | – | PQC via KMS only | [AWS](https://aws.amazon.com/security/post-quantum-cryptography/) |
+| Azure Key Vault | 🔴 N/A | – | No PKCS#11 | – |
 
-**Legend:** ✓ Tested in CI · – Untested · ✗ Not compatible
+**Legend:** 🟢 Tested in CI · 🟡 Untested · 🔴 Not compatible
 
 > PQC column shows vendor capabilities, not QPKI integration.
 

@@ -582,12 +582,12 @@ variables:
 
 | Value | Options | Result |
 |-------|---------|--------|
-| `user@example.com` | default | ✅ Valid |
-| `User@Example.COM` | default | ✅ Normalized to lowercase |
-| `user+tag@example.com` | default | ✅ Plus addressing valid |
-| `admin@example.com` | `denied_prefixes: [admin]` | ❌ Denied prefix |
-| `user@other.com` | `allowed_suffixes: [@example.com]` | ❌ Domain not allowed |
-| `not-an-email` | default | ❌ Invalid format |
+| `user@example.com` | default | 🟢 Valid |
+| `User@Example.COM` | default | 🟢 Normalized to lowercase |
+| `user+tag@example.com` | default | 🟢 Plus addressing valid |
+| `admin@example.com` | `denied_prefixes: [admin]` | 🔴 Denied prefix |
+| `user@other.com` | `allowed_suffixes: [@example.com]` | 🔴 Domain not allowed |
+| `not-an-email` | default | 🔴 Invalid format |
 
 **Use case:** S/MIME certificates, TLS client authentication with email identity.
 
@@ -632,12 +632,12 @@ variables:
 
 | Value | Options | Result |
 |-------|---------|--------|
-| `http://example.com` | default | ✅ Valid |
-| `https://example.com/path` | default | ✅ Valid with path |
-| `HTTP://Example.COM` | default | ✅ Scheme normalized |
-| `ftp://example.com` | `allowed_schemes: [http, https]` | ❌ Scheme not allowed |
-| `http://other.com` | `allowed_hosts: [example.com]` | ❌ Host not allowed |
-| `example.com` | default | ❌ Missing scheme |
+| `http://example.com` | default | 🟢 Valid |
+| `https://example.com/path` | default | 🟢 Valid with path |
+| `HTTP://Example.COM` | default | 🟢 Scheme normalized |
+| `ftp://example.com` | `allowed_schemes: [http, https]` | 🔴 Scheme not allowed |
+| `http://other.com` | `allowed_hosts: [example.com]` | 🔴 Host not allowed |
+| `example.com` | default | 🔴 Missing scheme |
 
 **Use case:** AIA (Authority Information Access) URLs, CRL Distribution Points, OCSP responder URLs.
 
@@ -688,13 +688,13 @@ variables:
 
 | Value | Options | Result |
 |-------|---------|--------|
-| `1.2.3` | default | ✅ Valid |
-| `2.16.840.1.101.3.4.3.17` | default | ✅ ML-DSA-44 OID |
-| `0.2.3` | default | ✅ First arc 0 |
-| `3.2.3` | default | ❌ First arc > 2 |
-| `0.40.1` | default | ❌ Second arc >= 40 under arc 0 |
-| `1` | default | ❌ Single arc |
-| `1.a.3` | default | ❌ Non-numeric |
+| `1.2.3` | default | 🟢 Valid |
+| `2.16.840.1.101.3.4.3.17` | default | 🟢 ML-DSA-44 OID |
+| `0.2.3` | default | 🟢 First arc 0 |
+| `3.2.3` | default | 🔴 First arc > 2 |
+| `0.40.1` | default | 🔴 Second arc >= 40 under arc 0 |
+| `1` | default | 🔴 Single arc |
+| `1.a.3` | default | 🔴 Non-numeric |
 
 **Use case:** Certificate policies, custom extension OIDs, algorithm identifiers.
 
@@ -740,14 +740,14 @@ variables:
 
 | Value | Options | Result |
 |-------|---------|--------|
-| `365d` | default | ✅ Valid |
-| `1y` | default | ✅ 365 days |
-| `2w` | default | ✅ 14 days |
-| `30d12h` | default | ✅ Combined |
-| `1h30m` | default | ✅ Go format |
-| `12h` | `min_duration: "1d"` | ❌ Below minimum |
-| `3y` | `max_duration: "825d"` | ❌ Above maximum |
-| `abc` | default | ❌ Invalid format |
+| `365d` | default | 🟢 Valid |
+| `1y` | default | 🟢 365 days |
+| `2w` | default | 🟢 14 days |
+| `30d12h` | default | 🟢 Combined |
+| `1h30m` | default | 🟢 Go format |
+| `12h` | `min_duration: "1d"` | 🔴 Below minimum |
+| `3y` | `max_duration: "825d"` | 🔴 Above maximum |
+| `abc` | default | 🔴 Invalid format |
 
 **Use case:** Certificate validity periods, CRL update intervals.
 
@@ -827,10 +827,10 @@ variables:
 | `forbid_public_suffix` | `false` | Block wildcards on public suffixes (*.co.uk, *.com.au) |
 
 **Wildcard validation rules:**
-- Wildcard must be leftmost label: `*.example.com` ✅, `api.*.com` ❌
-- Minimum 3 labels required: `*.example.com` ✅, `*.com` ❌
-- Only one wildcard allowed: `*.*.example.com` ❌
-- With `forbid_public_suffix: true`: `*.co.uk` ❌, `*.example.co.uk` ✅
+- Wildcard must be leftmost label: `*.example.com` 🟢, `api.*.com` 🔴
+- Minimum 3 labels required: `*.example.com` 🟢, `*.com` 🔴
+- Only one wildcard allowed: `*.*.example.com` 🔴
+- With `forbid_public_suffix: true`: `*.co.uk` 🔴, `*.example.co.uk` 🟢
 
 **Suffix matching (security):**
 
@@ -838,24 +838,24 @@ The `allowed_suffixes` constraint uses label boundary matching to prevent securi
 
 | DNS Name | Suffix | Result | Reason |
 |----------|--------|--------|--------|
-| `api.example.com` | `.example.com` | ✅ | Matches on label boundary |
-| `fakeexample.com` | `.example.com` | ❌ | Not on label boundary |
-| `example.com` | `.example.com` | ✅ | Exact match |
+| `api.example.com` | `.example.com` | 🟢 | Matches on label boundary |
+| `fakeexample.com` | `.example.com` | 🔴 | Not on label boundary |
+| `example.com` | `.example.com` | 🟢 | Exact match |
 
 **Example validation:**
 
 | Value | Options | Result |
 |-------|---------|--------|
-| `api.example.com` | default | ✅ Valid DNS name |
-| `API.Example.COM` | default | ✅ Normalized to lowercase |
-| `example.com.` | default | ✅ Trailing dot stripped |
-| `*.example.com` | `allowed: true` | ✅ Valid wildcard |
-| `*.example.com` | `allowed: false` | ❌ Wildcards not allowed |
-| `*.co.uk` | `forbid_public_suffix: true` | ❌ Public suffix blocked |
-| `localhost` | default | ❌ Single label (needs 2+) |
-| `localhost` | `allow_single_label: true` | ✅ Single label allowed |
-| `*.com` | `allowed: true` | ❌ Too few labels |
-| `example..com` | any | ❌ Empty label (double dot) |
+| `api.example.com` | default | 🟢 Valid DNS name |
+| `API.Example.COM` | default | 🟢 Normalized to lowercase |
+| `example.com.` | default | 🟢 Trailing dot stripped |
+| `*.example.com` | `allowed: true` | 🟢 Valid wildcard |
+| `*.example.com` | `allowed: false` | 🔴 Wildcards not allowed |
+| `*.co.uk` | `forbid_public_suffix: true` | 🔴 Public suffix blocked |
+| `localhost` | default | 🔴 Single label (needs 2+) |
+| `localhost` | `allow_single_label: true` | 🟢 Single label allowed |
+| `*.com` | `allowed: true` | 🔴 Too few labels |
+| `example..com` | any | 🔴 Empty label (double dot) |
 
 **When to use `dns_name` vs `string`:**
 
