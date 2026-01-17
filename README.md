@@ -295,10 +295,10 @@ qpki inspect certificate.crt
 qpki inspect private-key.pem
 
 # Verify certificate chain
-qpki verify --cert server.crt --ca ./myca/ca.crt
+qpki cert verify server.crt --ca ./myca/ca.crt
 
 # Verify with CRL revocation check
-qpki verify --cert server.crt --ca ./myca/ca.crt --crl ./myca/crl/ca.crl
+qpki cert verify server.crt --ca ./myca/ca.crt --crl ./myca/crl/ca.crl
 
 # List all issued certificates
 qpki cert list --ca-dir ./myca

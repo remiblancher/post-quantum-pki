@@ -28,7 +28,7 @@ Examples:
   qpki cert list --ca-dir ./ca
 
   # Verify a certificate
-  qpki cert verify --cert server.crt --ca ca.crt
+  qpki cert verify server.crt --ca ca.crt
 
   # Revoke a certificate
   qpki cert revoke 02 --reason superseded`,
