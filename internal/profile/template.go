@@ -172,20 +172,24 @@ func (e *TemplateEngine) GetResolvedEmails(values VariableValues) []string {
 	return nil
 }
 
-// GetResolvedValidity returns the validity period from resolved variable values.
-func (e *TemplateEngine) GetResolvedValidity(values VariableValues) time.Duration {
-	// Check for validity_days variable
-	if days, ok := values.GetInt("validity_days"); ok && days > 0 {
-		return time.Duration(days) * 24 * time.Hour
+// ResolveProfileValidity resolves the validity template with variable values.
+// Returns the parsed duration, or the profile's fixed Validity if no template.
+func ResolveProfileValidity(prof *Profile, values VariableValues) (time.Duration, error) {
+	if prof.ValidityTemplate == "" {
+		return prof.Validity, nil
 	}
 
-	// Check for validity_hours variable
-	if hours, ok := values.GetInt("validity_hours"); ok && hours > 0 {
-		return time.Duration(hours) * time.Hour
+	engine, err := NewTemplateEngine(prof)
+	if err != nil {
+		return 0, err
 	}
 
-	// Fall back to profile default
-	return e.profile.Validity
+	resolved, err := engine.SubstituteString(prof.ValidityTemplate, values)
+	if err != nil {
+		return 0, fmt.Errorf("validity template: %w", err)
+	}
+
+	return parseDuration(resolved)
 }
 
 // Validator returns the underlying variable validator.

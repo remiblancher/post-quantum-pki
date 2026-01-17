@@ -889,6 +889,26 @@ func (e *ExtensionsConfig) SubstituteVariables(vars map[string][]string) (*Exten
 		result.SubjectAltName.URI = substituteStringSlice(result.SubjectAltName.URI, vars)
 	}
 
+	// Substitute variables in CRL Distribution Points
+	if result.CRLDistributionPoints != nil {
+		result.CRLDistributionPoints.URLs = substituteStringSlice(result.CRLDistributionPoints.URLs, vars)
+	}
+
+	// Substitute variables in Authority Info Access
+	if result.AuthorityInfoAccess != nil {
+		result.AuthorityInfoAccess.CAIssuers = substituteStringSlice(result.AuthorityInfoAccess.CAIssuers, vars)
+		result.AuthorityInfoAccess.OCSP = substituteStringSlice(result.AuthorityInfoAccess.OCSP, vars)
+	}
+
+	// Substitute variables in Certificate Policies
+	if result.CertificatePolicies != nil {
+		for i, policy := range result.CertificatePolicies.Policies {
+			if policy.CPS != "" {
+				result.CertificatePolicies.Policies[i].CPS = substituteString(policy.CPS, vars)
+			}
+		}
+	}
+
 	return result, nil
 }
 
@@ -916,6 +936,22 @@ func substituteStringSlice(values []string, vars map[string][]string) []string {
 	}
 
 	return result
+}
+
+// substituteString replaces a single template variable in a string.
+// If the string is a {{ variable }} pattern, returns the first value from vars.
+// Otherwise returns the original string unchanged.
+func substituteString(s string, vars map[string][]string) string {
+	if matches := sanVarPattern.FindStringSubmatch(strings.TrimSpace(s)); len(matches) == 2 {
+		varName := matches[1]
+		if substitutes, ok := vars[varName]; ok && len(substitutes) > 0 {
+			return substitutes[0]
+		}
+		// If not provided, return empty string (variable not resolved)
+		return ""
+	}
+	// Static value, keep as-is
+	return s
 }
 
 // copyBoolPtr creates a copy of a bool pointer.

@@ -4,11 +4,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"gopkg.in/yaml.v3"
 )
+
+// loaderTemplateVarRegex matches {{ variable_name }} patterns for template detection.
+var loaderTemplateVarRegex = regexp.MustCompile(`\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}`)
+
+// containsTemplate returns true if the string contains a {{ variable }} template.
+func containsTemplate(s string) bool {
+	return loaderTemplateVarRegex.MatchString(s)
+}
 
 // profileYAML is the YAML representation of a Profile.
 // Supports both simple (1 algo) and Catalyst (2 algos) profiles.
@@ -86,12 +95,17 @@ func profileYAMLToProfile(py *profileYAML) (*Profile, error) {
 		return nil, fmt.Errorf("algorithm config: %w", err)
 	}
 
-	// Parse validity duration
-	validity, err := parseDuration(py.Validity)
-	if err != nil {
-		return nil, fmt.Errorf("invalid validity: %w", err)
+	// Parse validity duration (or store template for later resolution)
+	if containsTemplate(py.Validity) {
+		p.ValidityTemplate = py.Validity
+		p.Validity = 0 // Will be resolved at enrollment time
+	} else {
+		validity, err := parseDuration(py.Validity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid validity: %w", err)
+		}
+		p.Validity = validity
 	}
-	p.Validity = validity
 
 	// Validate the profile
 	if err := p.Validate(); err != nil {
@@ -304,12 +318,16 @@ func ProfileToYAML(p *Profile) *profileYAML {
 		py.Algorithm = string(p.GetAlgorithm())
 	}
 
-	// Format validity as hours or days
-	hours := int(p.Validity.Hours())
-	if hours%24 == 0 && hours >= 24 {
-		py.Validity = fmt.Sprintf("%dd", hours/24)
+	// Format validity as hours or days (or preserve template)
+	if p.ValidityTemplate != "" {
+		py.Validity = p.ValidityTemplate
 	} else {
-		py.Validity = p.Validity.String()
+		hours := int(p.Validity.Hours())
+		if hours%24 == 0 && hours >= 24 {
+			py.Validity = fmt.Sprintf("%dd", hours/24)
+		} else {
+			py.Validity = p.Validity.String()
+		}
 	}
 
 	return py

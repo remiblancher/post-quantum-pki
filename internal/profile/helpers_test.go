@@ -197,7 +197,7 @@ func TestBuildSubject(t *testing.T) {
 	})
 }
 
-func TestExtractSANVariables(t *testing.T) {
+func TestExtractTemplateVariables_SAN(t *testing.T) {
 	t.Run("all SAN types", func(t *testing.T) {
 		vars := VariableValues{
 			"dns_names":    []string{"a.com", "b.com"},
@@ -205,7 +205,7 @@ func TestExtractSANVariables(t *testing.T) {
 			"email":        []string{"admin@example.com"},
 		}
 
-		result := ExtractSANVariables(vars)
+		result := ExtractTemplateVariables(vars)
 
 		if len(result["dns_names"]) != 2 {
 			t.Errorf("expected 2 dns_names, got %v", result["dns_names"])
@@ -224,7 +224,7 @@ func TestExtractSANVariables(t *testing.T) {
 			"cn":        "example.com", // Should be ignored
 		}
 
-		result := ExtractSANVariables(vars)
+		result := ExtractTemplateVariables(vars)
 
 		if len(result["dns_names"]) != 1 {
 			t.Errorf("expected 1 dns_names, got %v", result["dns_names"])
@@ -239,7 +239,7 @@ func TestExtractSANVariables(t *testing.T) {
 
 	t.Run("empty vars", func(t *testing.T) {
 		vars := VariableValues{}
-		result := ExtractSANVariables(vars)
+		result := ExtractTemplateVariables(vars)
 
 		if len(result) != 0 {
 			t.Errorf("expected empty result, got %v", result)

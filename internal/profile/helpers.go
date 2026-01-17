@@ -84,11 +84,14 @@ func BuildSubject(vars VariableValues) (pkix.Name, error) {
 	return result, nil
 }
 
-// ExtractSANVariables extracts dns_names, ip_addresses, email as map[string][]string
+// ExtractTemplateVariables extracts template variables as map[string][]string
 // for use with ExtensionsConfig.SubstituteVariables().
-func ExtractSANVariables(vars VariableValues) map[string][]string {
+// Includes SAN variables (dns_names, ip_addresses, email) and CDP/AIA variables
+// (crl_url, ca_issuer, ocsp_url, cps_url).
+func ExtractTemplateVariables(vars VariableValues) map[string][]string {
 	result := make(map[string][]string)
 
+	// SAN variables (existing)
 	if dns, ok := vars.GetStringList("dns_names"); ok {
 		result["dns_names"] = dns
 	}
@@ -99,27 +102,42 @@ func ExtractSANVariables(vars VariableValues) map[string][]string {
 		result["email"] = em
 	}
 
+	// CDP/AIA/CPS variables (new)
+	if url, ok := vars.GetString("crl_url"); ok {
+		result["crl_url"] = []string{url}
+	}
+	if url, ok := vars.GetString("ca_issuer"); ok {
+		result["ca_issuer"] = []string{url}
+	}
+	if url, ok := vars.GetString("ocsp_url"); ok {
+		result["ocsp_url"] = []string{url}
+	}
+	if url, ok := vars.GetString("cps_url"); ok {
+		result["cps_url"] = []string{url}
+	}
+
 	return result
 }
 
-// ResolveProfileExtensions substitutes SAN template variables in profile extensions.
-// This is a convenience function that combines ExtractSANVariables and SubstituteVariables.
+// ResolveProfileExtensions substitutes template variables in profile extensions.
+// This is a convenience function that combines ExtractTemplateVariables and SubstituteVariables.
 //
-// It replaces templates like "{{ dns_names }}", "{{ ip_addresses }}", "{{ email }}"
-// in SubjectAltName configuration with the actual values from varValues.
+// It replaces templates like "{{ dns_names }}", "{{ ip_addresses }}", "{{ email }}",
+// "{{ crl_url }}", "{{ ca_issuer }}", "{{ ocsp_url }}", "{{ cps_url }}"
+// in extension configuration with the actual values from varValues.
 //
 // If the profile has no extensions, returns nil without error.
-// If varValues has no SAN variables, returns the original extensions unchanged.
+// If varValues has no template variables, returns the original extensions unchanged.
 func ResolveProfileExtensions(prof *Profile, varValues VariableValues) (*ExtensionsConfig, error) {
 	if prof == nil || prof.Extensions == nil {
 		return nil, nil
 	}
 
-	varsForSAN := ExtractSANVariables(varValues)
-	if len(varsForSAN) == 0 {
-		// No SAN variables to substitute, return original extensions
+	varsForTemplates := ExtractTemplateVariables(varValues)
+	if len(varsForTemplates) == 0 {
+		// No template variables to substitute, return original extensions
 		return prof.Extensions, nil
 	}
 
-	return prof.Extensions.SubstituteVariables(varsForSAN)
+	return prof.Extensions.SubstituteVariables(varsForTemplates)
 }

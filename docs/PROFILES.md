@@ -287,8 +287,6 @@ Custom profiles can be used in two ways:
 - **Override**: Use the same name as a built-in profile to replace it entirely
 - **New profile**: Use a different name to add a new profile alongside built-ins
 
-> For profile structure examples, see [Section 1.2: Profile Modes](#12-profile-modes). For complete profiles with variables, see [Section 6: Declarative Variables](#6-declarative-variables).
-
 To override a built-in profile:
 
 ```bash
@@ -355,9 +353,10 @@ signature:
     mgf: string           # MGF hash algorithm (defaults to signature hash)
 
 # -----------------------------------------------------------------------------
-# Validity
+# Validity - fixed value or template
 # -----------------------------------------------------------------------------
 validity: duration        # Duration format (e.g., 365d, 8760h, 1y)
+                          # Or template: "{{ validity }}" (resolved at enrollment)
 
 # -----------------------------------------------------------------------------
 # Variables - Input parameters with validation
@@ -409,7 +408,7 @@ extensions:
 
 ### Template Variable Substitution
 
-Variables are referenced using `{{ variable_name }}` syntax. Currently supported in:
+Variables are referenced using `{{ variable_name }}` syntax. Supported locations:
 
 | Location | Supported | Example |
 |----------|-----------|---------|
@@ -417,11 +416,13 @@ Variables are referenced using `{{ variable_name }}` syntax. Currently supported
 | `subjectAltName.dns` | ✅ Yes | `dns: "{{ dns_names }}"` |
 | `subjectAltName.ip` | ✅ Yes | `ip: "{{ ip_addresses }}"` |
 | `subjectAltName.email` | ✅ Yes | `email: "{{ emails }}"` |
-| `validity:` | ❌ No | Use `validity_days` variable name |
-| `crlDistributionPoints:` | ❌ No | Static values only |
-| `authorityInfoAccess:` | ❌ No | Static values only |
+| `validity:` | ✅ Yes | `validity: "{{ validity }}"` |
+| `crlDistributionPoints.urls` | ✅ Yes | `urls: ["{{ crl_url }}"]` |
+| `authorityInfoAccess.caIssuers` | ✅ Yes | `caIssuers: ["{{ ca_issuer }}"]` |
+| `authorityInfoAccess.ocsp` | ✅ Yes | `ocsp: ["{{ ocsp_url }}"]` |
+| `certificatePolicies.cps` | ✅ Yes | `cps: "{{ cps_url }}"` |
 
-**Note**: For validity, declare a variable named `validity_days` or `validity_hours` - the template engine looks for these specific names.
+Template variables are resolved at enrollment time. Use `duration` type for validity and `uri` type for URLs.
 
 ---
 
@@ -457,7 +458,7 @@ name: ec/tls-server-secure
 description: "Production TLS server with validation"
 
 algorithm: ecdsa-p256
-validity: 365d
+validity: "{{ validity }}"    # Template - resolved at enrollment
 
 # Declarative variables with constraints
 variables:
@@ -512,13 +513,27 @@ variables:
       max_items: 5
     description: "IP Subject Alternative Names"
 
-  validity_days:
-    type: integer
+  validity:
+    type: duration
     required: false
-    default: 365
-    min: 1
-    max: 825
-    description: "Certificate validity in days"
+    default: "365d"
+    min_duration: "1d"
+    max_duration: "825d"
+    description: "Certificate validity period"
+
+  crl_url:
+    type: uri
+    required: false
+    constraints:
+      allowed_schemes: ["http", "https"]
+    description: "CRL distribution point URL"
+
+  ocsp_url:
+    type: uri
+    required: false
+    constraints:
+      allowed_schemes: ["http", "https"]
+    description: "OCSP responder URL"
 
 # Subject DN with variable substitution
 subject:
@@ -544,6 +559,13 @@ extensions:
     dns: "{{ dns_names }}"
     ip: "{{ ip_addresses }}"
     dns_include_cn: true
+  # CDP/AIA with template variables
+  crlDistributionPoints:
+    urls:
+      - "{{ crl_url }}"
+  authorityInfoAccess:
+    ocsp:
+      - "{{ ocsp_url }}"
 ```
 
 ### Variable Constraints Reference
@@ -974,7 +996,7 @@ dns_names:
 ip_addresses:
   - 10.0.0.1
   - 10.0.0.2
-validity_days: 365
+validity: "365d"
 ```
 
 Then use it:
@@ -1021,8 +1043,8 @@ variable validation failed: cn: value "-invalid" does not match pattern "^[a-zA-
 # Enum violation
 variable validation failed: environment: value "test" not in allowed values [development staging production]
 
-# Range violation
-variable validation failed: validity_days: value 1000 exceeds maximum 825
+# Duration violation
+variable validation failed: validity: duration "1000d" exceeds maximum "825d"
 
 # Domain constraint
 variable validation failed: dns_names: "api.other.com" does not match allowed suffixes [.example.com .internal]
@@ -1081,21 +1103,26 @@ extensions:
     critical: true
     ca: false
 
+  # CRL Distribution Points - static or template
   crlDistributionPoints:
     urls:
-      - "http://pki.example.com/crl/ca.crl"
+      - "http://pki.example.com/crl/ca.crl"    # Static URL
+      - "{{ crl_url }}"                         # Or template variable
 
+  # Authority Info Access - static or template
   authorityInfoAccess:
     ocsp:
-      - "http://ocsp.example.com"
+      - "{{ ocsp_url }}"                        # Template variable
     caIssuers:
-      - "http://pki.example.com/ca.crt"
+      - "{{ ca_issuer }}"                       # Template variable
 
+  # Certificate Policies - CPS can be template
   certificatePolicies:
     policies:
       - oid: "2.23.140.1.2.1"
-        cps: "http://example.com/cps"
+        cps: "{{ cps_url }}"                    # Template variable
 
+  # Subject Alternative Names - template variables
   subjectAltName:
     dns: "{{ dns_names }}"       # Template variable (expanded at runtime)
     email: "{{ email }}"         # Template variable
