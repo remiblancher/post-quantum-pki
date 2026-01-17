@@ -71,6 +71,10 @@ type Profile struct {
 	// Validity is the default certificate validity period.
 	Validity time.Duration `yaml:"validity" json:"validity"`
 
+	// ValidityTemplate stores the raw validity string if it contains {{ }}.
+	// When set, Validity is resolved at enrollment time using template substitution.
+	ValidityTemplate string `yaml:"-" json:"-"`
+
 	// Extensions defines X.509 extensions with configurable criticality.
 	Extensions *ExtensionsConfig `yaml:"extensions,omitempty" json:"extensions,omitempty"`
 
@@ -94,8 +98,8 @@ func (p *Profile) Validate() error {
 		return fmt.Errorf("algorithm config: %w", err)
 	}
 
-	// Validate validity
-	if p.Validity <= 0 {
+	// Validate validity (must have either fixed value or template)
+	if p.ValidityTemplate == "" && p.Validity <= 0 {
 		return fmt.Errorf("validity must be positive")
 	}
 

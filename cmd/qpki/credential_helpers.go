@@ -73,19 +73,37 @@ func loadEnrollProfiles(caDir string, profileNames []string) ([]*profile.Profile
 	return profiles, nil
 }
 
-// resolveProfilesExtensions resolves template variables in profile extensions.
-func resolveProfilesExtensions(profiles []*profile.Profile, varValues profile.VariableValues) ([]*profile.Profile, error) {
+// resolveProfilesTemplates resolves template variables in profile extensions and validity.
+func resolveProfilesTemplates(profiles []*profile.Profile, varValues profile.VariableValues) ([]*profile.Profile, error) {
 	result := make([]*profile.Profile, len(profiles))
 	copy(result, profiles)
 
 	for i, prof := range profiles {
+		profileCopy := *prof
+		modified := false
+
+		// Resolve extensions (SAN, CDP, AIA, CPS)
 		resolvedExtensions, err := profile.ResolveProfileExtensions(prof, varValues)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve extensions in profile %s: %w", prof.Name, err)
+			return nil, fmt.Errorf("profile %s extensions: %w", prof.Name, err)
 		}
 		if resolvedExtensions != nil {
-			profileCopy := *prof
 			profileCopy.Extensions = resolvedExtensions
+			modified = true
+		}
+
+		// Resolve validity template
+		if prof.ValidityTemplate != "" {
+			validity, err := profile.ResolveProfileValidity(prof, varValues)
+			if err != nil {
+				return nil, fmt.Errorf("profile %s validity: %w", prof.Name, err)
+			}
+			profileCopy.Validity = validity
+			profileCopy.ValidityTemplate = "" // Mark as resolved
+			modified = true
+		}
+
+		if modified {
 			result[i] = &profileCopy
 		}
 	}
@@ -194,7 +212,7 @@ func prepareEnrollVariablesAndProfiles(caDir string, profileNames []string, varF
 		return nil, pkix.Name{}, fmt.Errorf("invalid subject: %w", err)
 	}
 
-	profiles, err = resolveProfilesExtensions(profiles, varValues)
+	profiles, err = resolveProfilesTemplates(profiles, varValues)
 	if err != nil {
 		return nil, pkix.Name{}, err
 	}
