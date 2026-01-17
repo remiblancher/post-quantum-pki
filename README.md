@@ -186,6 +186,7 @@ CIRCL is tested against official NIST test vectors. We rely on their implementat
 ```bash
 # Create a CA with ECDSA P-384 (recommended)
 qpki ca init --profile ec/root-ca --ca-dir ./root-ca --var cn="My Root CA"
+# → root-ca/{ca.crt, private/ca.key, certs/, crl/, index.txt, serial}
 
 # Create a hybrid CA (ECDSA + ML-DSA, ITU-T X.509 Section 9.8)
 qpki ca init --profile hybrid/catalyst/root-ca --ca-dir ./hybrid-ca --var cn="Hybrid Root CA"
@@ -378,11 +379,7 @@ A credential is a managed bundle of **private key(s) + certificate(s)** with cou
 
 ```bash
 qpki credential enroll --ca-dir ./myca --profile ec/tls-client --var cn=Alice
-
-# Output: credentials/<id>/
-#   ├── credential.meta.json  # Metadata
-#   ├── certificates.pem      # Certificate(s)
-#   └── private-keys.pem      # Private key(s)
+# → credentials/<id>/{credential.meta.json, certificates.pem, private-keys.pem}
 ```
 
 **Why use credentials?**
