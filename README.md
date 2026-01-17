@@ -54,11 +54,11 @@ A quantum-safe Public Key Infrastructure (PKI) toolkit to help organizations pre
 ### Classical
 | Algorithm | Security | Notes |
 |-----------|----------|-------|
-| ECDSA P-256 | ~128-bit | Default, wide compatibility |
-| ECDSA P-384 | ~192-bit | Recommended for new deployments |
-| ECDSA P-521 | ~256-bit | Maximum classical security |
-| Ed25519 | ~128-bit | Fast, constant-time |
-| RSA-2048/4096 | ~112/140-bit | Legacy compatibility |
+| ECDSA (P-256, P-384, P-521) | ~128/192/256-bit | NIST curves, P-384 recommended |
+| EdDSA (Ed25519) | ~128-bit | Fast, constant-time |
+| RSA (2048, 4096) | ~112/140-bit | Legacy compatibility |
+
+*EC keys support both ECDSA (signature) and ECDH (key agreement) depending on certificate keyUsage.*
 
 ### Post-Quantum
 | Algorithm | Security | Notes |
