@@ -45,7 +45,7 @@ A quantum-safe Public Key Infrastructure (PKI) toolkit to help organizations pre
 - **Credentials** - group certificates with coupled lifecycle
 - **HSM support** via PKCS#11
 - **Cross-validated** with external implementations (OpenSSL, BouncyCastle)
-- **CLI-only** - simple, scriptable, no database required
+- **CLI-first** - simple, scriptable, no database required
 - **PQC via [Cloudflare CIRCL](https://github.com/cloudflare/circl)** — FIPS 203/204/205 implementations, NIST test vectors validated
 - **Pure Go by default** - CGO optional (only for HSM/PKCS#11)
 
