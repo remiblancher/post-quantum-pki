@@ -2,25 +2,6 @@
 
 **Quantum-Safe X.509 PKI in Go**
 
-## Table of Contents
-
-- [Features](#features)
-- [Supported Algorithms](#supported-algorithms)
-- [Installation](#installation)
-- [Requirements](#requirements)
-- [Dependencies](#dependencies)
-- [Quick Start](#quick-start)
-- [Profiles (Certificate Templates)](#profiles-certificate-templates)
-- [Credentials](#credentials)
-- [Directory Structure](#directory-structure)
-- [Development](#development)
-- [Interoperability & Compatibility](#interoperability--compatibility)
-- [Documentation](#documentation)
-- [About](#about)
-- [License](#license)
-
----
-
 [![CI](https://github.com/remiblancher/post-quantum-pki/actions/workflows/ci.yml/badge.svg)](https://github.com/remiblancher/post-quantum-pki/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/remiblancher/post-quantum-pki/branch/main/graph/badge.svg)](https://codecov.io/gh/remiblancher/post-quantum-pki)
 [![Go Report Card](https://goreportcard.com/badge/github.com/remiblancher/post-quantum-pki)](https://goreportcard.com/report/github.com/remiblancher/post-quantum-pki)
