@@ -1189,6 +1189,32 @@ extensions:
 | `ocspSigning` | OCSP responder signing | 1.3.6.1.5.5.7.3.9 |
 | `any` | Any extended key usage | 2.5.29.37.0 |
 
+#### Custom OIDs
+
+In addition to predefined values, you can specify custom OIDs directly in the values list using dot notation:
+
+```yaml
+extKeyUsage:
+  values:
+    - serverAuth                    # Predefined value
+    - clientAuth                    # Predefined value
+    - "1.3.6.1.5.5.7.3.17"         # Custom OID (Microsoft Document Signing)
+    - "1.2.3.4.5.6.7"              # Organization-specific OID
+```
+
+OID format requirements:
+- Dot-separated integers (e.g., `1.2.3.4.5`)
+- Must have at least 2 components
+- Components must be non-negative integers
+- Must be quoted in YAML to prevent parsing issues
+
+Common custom OIDs:
+| OID | Description |
+|-----|-------------|
+| `1.3.6.1.5.5.7.3.17` | Microsoft Document Signing |
+| `1.3.6.1.4.1.311.20.2.2` | Microsoft Smart Card Logon |
+| `1.3.6.1.5.2.3.5` | Kerberos PKINIT Client Authentication |
+
 ### Name Constraints (CA only)
 
 Restricts which names a CA can issue certificates for. Only valid for CA certificates.
