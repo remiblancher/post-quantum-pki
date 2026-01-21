@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-01-21
+
+### Added
+- **QCStatements extension** for eIDAS qualified certificates (ETSI EN 319 412-5)
+  - QcCompliance, QcType (esign/eseal/web), QcSSCD, QcRetentionPeriod, QcPDS
+- **Automatic esi4-qtstStatement-1** extension for qualified TSA tokens (ETSI EN 319 422)
+- **Custom X.509 extensions** support in profiles
+- **Custom OIDs** in extKeyUsage
+- **DN string encoding** configuration (UTF-8, PrintableString, IA5String per RFC 5280)
+
+### Changed
+- Test coverage improved for QCStatements and eIDAS timestamp features
+
+### Documentation
+- Profiles documentation Table of Contents simplified
+- eIDAS Qualified Timestamps section added to TSA documentation
+
 ## [0.11.2] - 2026-01-21
 
 ### Fixed
