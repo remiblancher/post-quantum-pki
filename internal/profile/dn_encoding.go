@@ -65,6 +65,8 @@ func rfc5280RequiredEncoding(attrName string) DNEncoding {
 
 // ValidateSubjectEncoding validates that the subject encoding configuration
 // complies with RFC 5280 requirements.
+// Only validates explicitly set encodings - if no encoding is specified,
+// the correct RFC 5280 encoding will be auto-applied at marshaling time.
 // Note: Templates ({{ variable }}) are not validated here as the final value
 // is not known. Validation happens at encoding time in MarshalSubjectDN.
 func ValidateSubjectEncoding(cfg *SubjectConfig) error {
@@ -87,14 +89,11 @@ func ValidateSubjectEncoding(cfg *SubjectConfig) error {
 			continue
 		}
 
-		encoding := attr.Encoding
-		if encoding == "" {
-			encoding = DNEncodingUTF8
-		}
-
-		if encoding != required {
+		// Only validate if encoding is explicitly set
+		// If not set, the correct encoding will be auto-applied at marshaling time
+		if attr.Encoding != "" && attr.Encoding != required {
 			return fmt.Errorf("attribute %q requires %s encoding per RFC 5280, got %s",
-				name, required, encoding)
+				name, required, attr.Encoding)
 		}
 	}
 

@@ -405,11 +405,12 @@ subject:
 | `printable` | 19 | A-Za-z0-9 '()+,-./:=? space | Country (C), legacy |
 | `ia5` | 22 | ASCII 7-bit | Email addresses |
 
-**RFC 5280 constraints:**
-- `c` (country): **must** use `encoding: printable`
-- `email`: **must** use `encoding: ia5`
+**RFC 5280 constraints (auto-applied):**
+- `c` (country): automatically uses `printable` encoding
+- `email`: automatically uses `ia5` encoding
 
-If these constraints are not met, a validation error is returned when loading the profile.
+You can omit the encoding for these attributes - it will be applied automatically.
+If you explicitly specify a wrong encoding (e.g., `c: { encoding: utf8 }`), a validation error is returned.
 
 ```yaml
 # -----------------------------------------------------------------------------

@@ -1123,3 +1123,50 @@ subject:
 		t.Error("expected error for RFC 5280 encoding violation (email must be ia5)")
 	}
 }
+
+func TestU_LoadProfileFromBytes_NoExplicitEncoding(t *testing.T) {
+	// Country and email without explicit encoding should pass validation
+	// (RFC 5280 encoding is auto-applied at marshalling time)
+	yaml := `
+name: no-explicit-encoding
+algorithm: ecdsa-p256
+validity: 365d
+subject:
+  c: "FR"
+  cn: "Test"
+  email: "test@example.com"
+`
+	p, err := LoadProfileFromBytes([]byte(yaml))
+	if err != nil {
+		t.Fatalf("LoadProfileFromBytes failed: %v", err)
+	}
+
+	// Verify c has no explicit encoding (will be auto-applied at marshalling)
+	if p.Subject.Attrs["c"].Encoding != "" {
+		t.Errorf("c.Encoding = %q, want empty (auto-applied at marshalling)", p.Subject.Attrs["c"].Encoding)
+	}
+
+	// Verify email has no explicit encoding
+	if p.Subject.Attrs["email"].Encoding != "" {
+		t.Errorf("email.Encoding = %q, want empty (auto-applied at marshalling)", p.Subject.Attrs["email"].Encoding)
+	}
+
+	// Verify marshalling applies correct encodings
+	attrs, err := SubjectConfigToAttributes(p.Subject, nil)
+	if err != nil {
+		t.Fatalf("SubjectConfigToAttributes failed: %v", err)
+	}
+
+	for _, attr := range attrs {
+		if attr.OID.Equal([]int{2, 5, 4, 6}) { // Country OID
+			if attr.Encoding != DNEncodingPrintable {
+				t.Errorf("Country encoding = %q, want %q", attr.Encoding, DNEncodingPrintable)
+			}
+		}
+		if attr.OID.Equal([]int{1, 2, 840, 113549, 1, 9, 1}) { // Email OID
+			if attr.Encoding != DNEncodingIA5 {
+				t.Errorf("Email encoding = %q, want %q", attr.Encoding, DNEncodingIA5)
+			}
+		}
+	}
+}
