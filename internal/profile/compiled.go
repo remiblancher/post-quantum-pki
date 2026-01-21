@@ -221,7 +221,7 @@ func isTemplateVar(s string) bool {
 	return strings.HasPrefix(s, "{{") && strings.HasSuffix(s, "}}")
 }
 
-// compileExtraExtensions pre-builds CertificatePolicies and OCSPNoCheck extensions.
+// compileExtraExtensions pre-builds CertificatePolicies, OCSPNoCheck, and custom extensions.
 func (cp *CompiledProfile) compileExtraExtensions() error {
 	ext := cp.Extensions
 	if ext == nil {
@@ -241,6 +241,15 @@ func (cp *CompiledProfile) compileExtraExtensions() error {
 	if ext.OCSPNoCheck != nil {
 		ocspExt := encodeOCSPNoCheck(ext.OCSPNoCheck)
 		cp.extraExtensions = append(cp.extraExtensions, ocspExt)
+	}
+
+	// Custom extensions
+	for i, custom := range ext.Custom {
+		customExt, err := custom.ToExtension()
+		if err != nil {
+			return fmt.Errorf("compile custom extension %d: %w", i, err)
+		}
+		cp.extraExtensions = append(cp.extraExtensions, customExt)
 	}
 
 	return nil
