@@ -4,9 +4,10 @@
 
 - [1. What is a TSA?](#1-what-is-a-tsa)
 - [2. CLI Commands](#2-cli-commands)
-- [3. OpenSSL Interoperability](#3-openssl-interoperability)
-- [4. Use Cases](#4-use-cases)
-- [5. eIDAS Qualified Timestamps](#5-eidas-qualified-timestamps)
+- [3. TSA Profiles](#3-tsa-profiles)
+- [4. OpenSSL Interoperability](#4-openssl-interoperability)
+- [5. Use Cases](#5-use-cases)
+- [6. eIDAS Qualified Timestamps](#6-eidas-qualified-timestamps)
 - [See Also](#see-also)
 
 ---
@@ -64,26 +65,6 @@ A **Time-Stamp Authority (TSA)** provides cryptographic proof that data existed 
 ---
 
 ## 2. CLI Commands
-
-### Issue a TSA Certificate
-
-```bash
-# ECDSA (classical)
-qpki credential enroll --profile ec/timestamping \
-    --var cn=tsa.example.com --id tsa
-
-# ML-DSA (post-quantum)
-qpki credential enroll --profile ml/timestamping \
-    --var cn=pqc-tsa.example.com --id pqc-tsa
-
-# SLH-DSA (hash-based, long-term)
-qpki credential enroll --profile slh/timestamping \
-    --var cn=archive-tsa.example.com --id archive-tsa
-
-# Hybrid (PQC transition)
-qpki credential enroll --profile hybrid/catalyst/timestamping \
-    --var cn=hybrid-tsa.example.com --id hybrid-tsa
-```
 
 ### tsa sign
 
@@ -243,7 +224,51 @@ qpki tsa stop --pid-file /var/run/tsa.pid
 
 ---
 
-## 3. OpenSSL Interoperability
+## 3. TSA Profiles
+
+### Option A: Credential-based
+
+```bash
+# ECDSA
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile ec/timestamping --var cn=tsa.example.com --id tsa
+
+# ML-DSA
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile ml/timestamping --var cn=pqc-tsa.example.com --id pqc-tsa
+
+# SLH-DSA
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile slh/timestamping --var cn=archive-tsa.example.com --id archive-tsa
+
+# Hybrid Catalyst
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile hybrid/catalyst/timestamping --var cn=hybrid-tsa.example.com --id hybrid-tsa
+
+# Usage
+qpki tsa serve --port 8318 \
+    --cert ./credentials/tsa/tsa.crt --key ./credentials/tsa/tsa.key
+```
+
+### Option B: CSR-based
+
+```bash
+# 1. Generate key
+qpki key gen --algo ecdsa-p256 --out tsa.key
+
+# 2. Create CSR
+qpki csr create --key tsa.key --cn tsa.example.com --out tsa.csr
+
+# 3. Issue certificate
+qpki cert issue --ca-dir ./ca --profile ec/timestamping --csr tsa.csr --out tsa.crt
+
+# Usage
+qpki tsa serve --port 8318 --cert tsa.crt --key tsa.key
+```
+
+---
+
+## 4. OpenSSL Interoperability
 
 ```bash
 # Generate a request
@@ -262,7 +287,7 @@ openssl ts -verify -in response.tsr -data document.pdf -CAfile ca.crt
 
 ---
 
-## 4. Use Cases
+## 5. Use Cases
 
 ### Code Signing
 
@@ -291,7 +316,7 @@ done
 
 ---
 
-## 5. eIDAS Qualified Timestamps
+## 6. eIDAS Qualified Timestamps
 
 QPKI supports **eIDAS qualified electronic timestamps** (EU Regulation 910/2014).
 
