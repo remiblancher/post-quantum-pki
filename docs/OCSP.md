@@ -175,18 +175,42 @@ qpki ocsp stop --pid-file /var/run/ocsp.pid
 
 ## 3. Responder Profiles
 
-```bash
-# ECDSA (classical)
-qpki credential enroll --profile ec/ocsp-responder \
-    --var cn=ocsp.example.com --id ocsp-responder
+### Option A: Credential-based
 
-# ML-DSA (post-quantum)
-qpki credential enroll --profile ml/ocsp-responder \
-    --var cn=pqc-ocsp.example.com --id pqc-ocsp-responder
+```bash
+# ECDSA
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile ec/ocsp-responder --var cn=ocsp.example.com --id ocsp-responder
+
+# ML-DSA
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile ml/ocsp-responder --var cn=pqc-ocsp.example.com --id pqc-ocsp-responder
 
 # Hybrid Catalyst
-qpki credential enroll --profile hybrid/catalyst/ocsp-responder \
-    --var cn=hybrid-ocsp.example.com --id hybrid-ocsp-responder
+qpki credential enroll --ca-dir ./ca --cred-dir ./credentials \
+    --profile hybrid/catalyst/ocsp-responder --var cn=hybrid-ocsp.example.com --id hybrid-ocsp-responder
+
+# Usage
+qpki ocsp serve --port 8080 --ca-dir ./ca \
+    --cert ./credentials/ocsp-responder/ocsp-responder.crt \
+    --key ./credentials/ocsp-responder/ocsp-responder.key
+```
+
+### Option B: CSR-based
+
+```bash
+# 1. Generate key
+qpki key gen --algo ecdsa-p256 --out ocsp-responder.key
+
+# 2. Create CSR
+qpki csr create --key ocsp-responder.key --cn ocsp.example.com --out ocsp-responder.csr
+
+# 3. Issue certificate
+qpki cert issue --ca-dir ./ca --profile ec/ocsp-responder --csr ocsp-responder.csr --out ocsp-responder.crt
+
+# Usage
+qpki ocsp serve --port 8080 --ca-dir ./ca \
+    --cert ocsp-responder.crt --key ocsp-responder.key
 ```
 
 ---

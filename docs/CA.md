@@ -232,7 +232,7 @@ qpki ca rotate [flags]
 | `--ca-dir` | `-d` | ./ca | CA directory |
 | `--profile` | `-P` | | New profile for rotation (repeatable for multi-profile) |
 | `--passphrase` | `-p` | "" | Passphrase for new key |
-| `--cross-sign` | | auto | Cross-sign strategy: auto, on, off |
+| `--cross-sign` | | false | Cross-sign new CA with previous CA |
 | `--dry-run` | | false | Preview rotation plan without executing |
 
 **Examples:**
