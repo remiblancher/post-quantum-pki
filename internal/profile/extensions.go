@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/url"
@@ -27,6 +29,7 @@ type ExtensionsConfig struct {
 	CertificatePolicies   *CertificatePoliciesConfig   `yaml:"certificatePolicies,omitempty"`
 	NameConstraints       *NameConstraintsConfig       `yaml:"nameConstraints,omitempty"`
 	OCSPNoCheck           *OCSPNoCheckConfig           `yaml:"ocspNoCheck,omitempty"`
+	Custom                []CustomExtensionConfig      `yaml:"custom,omitempty"`
 }
 
 // KeyUsageConfig configures the Key Usage extension (OID 2.5.29.15).
@@ -327,6 +330,79 @@ func (c *OCSPNoCheckConfig) IsCritical() bool {
 	return *c.Critical
 }
 
+// CustomExtensionConfig configures a custom X.509 extension with arbitrary OID.
+// This allows profiles to define proprietary or industry-specific extensions.
+// Value must be provided in either hex or base64 encoding (mutually exclusive).
+type CustomExtensionConfig struct {
+	OID         string `yaml:"oid"`                    // OID in dot notation (e.g., "1.2.3.4.5")
+	Critical    bool   `yaml:"critical,omitempty"`     // default: false
+	ValueHex    string `yaml:"value_hex,omitempty"`    // DER value in hex encoding
+	ValueBase64 string `yaml:"value_base64,omitempty"` // DER value in base64 encoding
+}
+
+// ToExtension converts CustomExtensionConfig to a pkix.Extension.
+func (c *CustomExtensionConfig) ToExtension() (pkix.Extension, error) {
+	oid, err := parseOID(c.OID)
+	if err != nil {
+		return pkix.Extension{}, fmt.Errorf("invalid OID %q: %w", c.OID, err)
+	}
+
+	var value []byte
+
+	// Decode value from hex or base64 (mutually exclusive)
+	if c.ValueHex != "" && c.ValueBase64 != "" {
+		return pkix.Extension{}, fmt.Errorf("custom extension %s: cannot specify both value_hex and value_base64", c.OID)
+	}
+
+	if c.ValueHex != "" {
+		value, err = hex.DecodeString(c.ValueHex)
+		if err != nil {
+			return pkix.Extension{}, fmt.Errorf("custom extension %s: invalid hex value: %w", c.OID, err)
+		}
+	} else if c.ValueBase64 != "" {
+		value, err = base64.StdEncoding.DecodeString(c.ValueBase64)
+		if err != nil {
+			return pkix.Extension{}, fmt.Errorf("custom extension %s: invalid base64 value: %w", c.OID, err)
+		}
+	}
+	// Note: empty value is valid (e.g., NULL extension)
+
+	return pkix.Extension{
+		Id:       oid,
+		Critical: c.Critical,
+		Value:    value,
+	}, nil
+}
+
+// Validate checks the CustomExtensionConfig for errors.
+func (c *CustomExtensionConfig) Validate() error {
+	if c.OID == "" {
+		return fmt.Errorf("custom extension: OID is required")
+	}
+
+	if _, err := parseOID(c.OID); err != nil {
+		return fmt.Errorf("custom extension: invalid OID %q: %w", c.OID, err)
+	}
+
+	if c.ValueHex != "" && c.ValueBase64 != "" {
+		return fmt.Errorf("custom extension %s: cannot specify both value_hex and value_base64", c.OID)
+	}
+
+	if c.ValueHex != "" {
+		if _, err := hex.DecodeString(c.ValueHex); err != nil {
+			return fmt.Errorf("custom extension %s: invalid hex value: %w", c.OID, err)
+		}
+	}
+
+	if c.ValueBase64 != "" {
+		if _, err := base64.StdEncoding.DecodeString(c.ValueBase64); err != nil {
+			return fmt.Errorf("custom extension %s: invalid base64 value: %w", c.OID, err)
+		}
+	}
+
+	return nil
+}
+
 // Apply applies the extensions configuration to an x509.Certificate template.
 // Extensions not specified in the config are left unchanged.
 func (e *ExtensionsConfig) Apply(cert *x509.Certificate) error {
@@ -353,6 +429,9 @@ func (e *ExtensionsConfig) Apply(cert *x509.Certificate) error {
 		return err
 	}
 	e.applyOCSPNoCheck(cert)
+	if err := e.applyCustomExtensions(cert); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -534,6 +613,18 @@ func (e *ExtensionsConfig) applyOCSPNoCheck(cert *x509.Certificate) {
 	}
 }
 
+// applyCustomExtensions applies custom X.509 extensions to the certificate.
+func (e *ExtensionsConfig) applyCustomExtensions(cert *x509.Certificate) error {
+	for i, custom := range e.Custom {
+		ext, err := custom.ToExtension()
+		if err != nil {
+			return fmt.Errorf("custom extension %d: %w", i, err)
+		}
+		cert.ExtraExtensions = append(cert.ExtraExtensions, ext)
+	}
+	return nil
+}
+
 // Validate checks the logical consistency of extension configuration per RFC 5280.
 // Returns an error if the configuration violates RFC 5280 requirements.
 func (e *ExtensionsConfig) Validate() error {
@@ -555,6 +646,13 @@ func (e *ExtensionsConfig) Validate() error {
 	for _, v := range validators {
 		if err := v(isCA); err != nil {
 			return err
+		}
+	}
+
+	// Validate custom extensions
+	for i, custom := range e.Custom {
+		if err := custom.Validate(); err != nil {
+			return fmt.Errorf("custom extension %d: %w", i, err)
 		}
 	}
 
@@ -893,6 +991,12 @@ func (e *ExtensionsConfig) DeepCopy() *ExtensionsConfig {
 		result.OCSPNoCheck = &OCSPNoCheckConfig{
 			Critical: copyBoolPtr(e.OCSPNoCheck.Critical),
 		}
+	}
+
+	// Copy Custom extensions
+	if len(e.Custom) > 0 {
+		result.Custom = make([]CustomExtensionConfig, len(e.Custom))
+		copy(result.Custom, e.Custom)
 	}
 
 	return result

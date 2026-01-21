@@ -1269,6 +1269,75 @@ extensions:
         userNotice: "Certificate issued under DV policy"  # Optional notice
 ```
 
+### Custom Extensions
+
+For advanced use cases, you can add arbitrary X.509 extensions with custom OIDs and DER-encoded values:
+
+```yaml
+extensions:
+  custom:
+    - oid: "1.2.3.4.5.6.7"
+      critical: false
+      value_hex: "0403010203"           # DER value as hexadecimal
+
+    - oid: "1.2.3.4.5.6.8"
+      critical: true
+      value_base64: "BAMBAgM="          # DER value as base64
+```
+
+#### Configuration Options
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `oid` | Yes | Object Identifier in dot notation (e.g., `1.2.3.4.5`) |
+| `critical` | No | Whether the extension is critical (default: `false`) |
+| `value_hex` | No* | DER-encoded value as hexadecimal string |
+| `value_base64` | No* | DER-encoded value as base64 string |
+
+\* At least one of `value_hex` or `value_base64` must be provided, but not both.
+
+#### Important Notes
+
+- The value must be valid DER-encoded ASN.1 data
+- You are responsible for correct DER encoding - QPKI passes the value as-is
+- Custom extensions are added to `ExtraExtensions` in the certificate template
+- Use `critical: true` only if clients MUST understand the extension to process the certificate
+
+#### Example: Adobe PDF Signing Extension
+
+```yaml
+extensions:
+  custom:
+    - oid: "1.2.840.113583.1.1.9.1"     # Adobe PDF archive timestamp
+      critical: false
+      value_hex: "0500"                  # ASN.1 NULL (0x05 0x00)
+```
+
+#### Example: Private Enterprise Extension
+
+```yaml
+extensions:
+  custom:
+    - oid: "1.3.6.1.4.1.99999.1.1"      # Your private enterprise OID
+      critical: false
+      value_base64: "MBExDzANBgNVBAMMBnZhbHVlMQ=="  # DER-encoded value
+```
+
+#### DER Encoding Tips
+
+To encode custom values in DER format:
+
+```bash
+# Create a simple UTF8String
+echo -n "value" | openssl asn1parse -genstr "UTF8:value" -out - | xxd -p
+
+# Verify a hex value
+echo "0403010203" | xxd -r -p | openssl asn1parse -inform DER
+
+# Convert hex to base64
+echo "0403010203" | xxd -r -p | base64
+```
+
 ---
 
 ## 8. Signature Algorithm Defaults

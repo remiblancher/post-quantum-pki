@@ -9,6 +9,7 @@ import (
 	"encoding/asn1"
 	"math/big"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -1559,6 +1560,906 @@ func TestValidate_AuthorityInfoAccess_AllowNonCritical(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error for non-critical AIA, got: %v", err)
 	}
+}
+
+// =============================================================================
+// Custom Extensions Tests
+// =============================================================================
+
+func TestU_CustomExtension_ToExtension_Hex(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5",
+		Critical: true,
+		ValueHex: "0403010203", // OCTET STRING containing 01 02 03
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error: %v", err)
+	}
+
+	// Verify OID
+	expectedOID := asn1.ObjectIdentifier{1, 2, 3, 4, 5}
+	if !ext.Id.Equal(expectedOID) {
+		t.Errorf("OID = %v, want %v", ext.Id, expectedOID)
+	}
+
+	// Verify critical
+	if !ext.Critical {
+		t.Error("Critical = false, want true")
+	}
+
+	// Verify value
+	expectedValue := []byte{0x04, 0x03, 0x01, 0x02, 0x03}
+	if string(ext.Value) != string(expectedValue) {
+		t.Errorf("Value = %x, want %x", ext.Value, expectedValue)
+	}
+}
+
+func TestU_CustomExtension_ToExtension_Base64(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:         "1.2.3.4.5",
+		Critical:    false,
+		ValueBase64: "BAMBAgM=", // OCTET STRING containing 01 02 03 (same as hex 0403010203)
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error: %v", err)
+	}
+
+	// Verify critical
+	if ext.Critical {
+		t.Error("Critical = true, want false")
+	}
+
+	// Verify value
+	expectedValue := []byte{0x04, 0x03, 0x01, 0x02, 0x03}
+	if string(ext.Value) != string(expectedValue) {
+		t.Errorf("Value = %x, want %x", ext.Value, expectedValue)
+	}
+}
+
+func TestU_CustomExtension_ToExtension_EmptyValue(t *testing.T) {
+	// Empty value is valid (NULL extension like OCSP No Check)
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5",
+		Critical: false,
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error: %v", err)
+	}
+
+	if len(ext.Value) != 0 {
+		t.Errorf("Value length = %d, want 0", len(ext.Value))
+	}
+}
+
+func TestU_CustomExtension_ToExtension_BothHexAndBase64(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:         "1.2.3.4.5",
+		ValueHex:    "0403010203",
+		ValueBase64: "BAMBAgM=",
+	}
+
+	_, err := cfg.ToExtension()
+	if err == nil {
+		t.Error("expected error when both value_hex and value_base64 are specified")
+	}
+}
+
+func TestU_CustomExtension_ToExtension_InvalidHex(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5",
+		ValueHex: "invalid_hex",
+	}
+
+	_, err := cfg.ToExtension()
+	if err == nil {
+		t.Error("expected error for invalid hex value")
+	}
+}
+
+func TestU_CustomExtension_ToExtension_InvalidBase64(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:         "1.2.3.4.5",
+		ValueBase64: "invalid!!!base64",
+	}
+
+	_, err := cfg.ToExtension()
+	if err == nil {
+		t.Error("expected error for invalid base64 value")
+	}
+}
+
+func TestU_CustomExtension_ToExtension_InvalidOID(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:      "invalid.oid",
+		ValueHex: "0403010203",
+	}
+
+	_, err := cfg.ToExtension()
+	if err == nil {
+		t.Error("expected error for invalid OID")
+	}
+}
+
+func TestU_CustomExtension_Validate_MissingOID(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		ValueHex: "0403010203",
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("expected error for missing OID")
+	}
+}
+
+func TestU_CustomExtension_Validate_Valid(t *testing.T) {
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5",
+		ValueHex: "0403010203",
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("Validate() error: %v", err)
+	}
+}
+
+func TestU_CustomExtension_Apply(t *testing.T) {
+	ext := &ExtensionsConfig{
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "1.2.3.4.5.6.7",
+				Critical: false,
+				ValueHex: "0403010203",
+			},
+			{
+				OID:         "1.2.3.4.5.6.8",
+				Critical:    true,
+				ValueBase64: "BAMBAgM=",
+			},
+		},
+	}
+
+	cert := createTestCertificate(t, ext, false)
+
+	// Check that custom extensions are present
+	foundOID1 := false
+	foundOID2 := false
+	oid1 := asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 7}
+	oid2 := asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 8}
+
+	for _, extItem := range cert.Extensions {
+		if extItem.Id.Equal(oid1) {
+			foundOID1 = true
+			if extItem.Critical {
+				t.Error("first custom extension should not be critical")
+			}
+		}
+		if extItem.Id.Equal(oid2) {
+			foundOID2 = true
+			if !extItem.Critical {
+				t.Error("second custom extension should be critical")
+			}
+		}
+	}
+
+	if !foundOID1 {
+		t.Error("first custom extension (1.2.3.4.5.6.7) not found in certificate")
+	}
+	if !foundOID2 {
+		t.Error("second custom extension (1.2.3.4.5.6.8) not found in certificate")
+	}
+}
+
+func TestU_CustomExtension_DeepCopy(t *testing.T) {
+	ext := &ExtensionsConfig{
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "1.2.3.4.5",
+				Critical: true,
+				ValueHex: "0403010203",
+			},
+		},
+	}
+
+	copied := ext.DeepCopy()
+
+	// Verify copy
+	if len(copied.Custom) != 1 {
+		t.Fatalf("Custom length = %d, want 1", len(copied.Custom))
+	}
+	if copied.Custom[0].OID != "1.2.3.4.5" {
+		t.Errorf("Custom[0].OID = %s, want 1.2.3.4.5", copied.Custom[0].OID)
+	}
+
+	// Modify original and verify copy is independent
+	ext.Custom[0].OID = "9.9.9.9"
+	if copied.Custom[0].OID != "1.2.3.4.5" {
+		t.Error("DeepCopy did not create independent copy")
+	}
+}
+
+func TestU_CustomExtension_Validate_ExtensionsConfig(t *testing.T) {
+	ext := &ExtensionsConfig{
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "1.2.3.4.5",
+				ValueHex: "0403010203",
+			},
+			{
+				OID: "", // Invalid: missing OID
+			},
+		},
+	}
+
+	err := ext.Validate()
+	if err == nil {
+		t.Error("expected validation error for custom extension with missing OID")
+	}
+}
+
+func TestU_CustomExtension_RoundTrip(t *testing.T) {
+	// Test that custom extensions survive YAML round-trip through compiled profile
+	p := &Profile{
+		Name:      "custom-ext-test",
+		Algorithm: "ecdsa-p256",
+		Mode:      ModeSimple,
+		Validity:  24 * time.Hour,
+		Extensions: &ExtensionsConfig{
+			Custom: []CustomExtensionConfig{
+				{
+					OID:      "1.2.3.4.5.6.7",
+					Critical: false,
+					ValueHex: "0403010203",
+				},
+			},
+		},
+	}
+
+	// Compile
+	cp, err := p.Compile()
+	if err != nil {
+		t.Fatalf("Compile() error: %v", err)
+	}
+
+	// Create certificate using compiled profile
+	subject := pkix.Name{CommonName: "test"}
+	tmpl := cp.ApplyToTemplate(subject, nil, nil, nil)
+
+	// Verify custom extension is in ExtraExtensions
+	found := false
+	expectedOID := asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 7}
+	for _, ext := range tmpl.ExtraExtensions {
+		if ext.Id.Equal(expectedOID) {
+			found = true
+			expectedValue := []byte{0x04, 0x03, 0x01, 0x02, 0x03}
+			if string(ext.Value) != string(expectedValue) {
+				t.Errorf("Value = %x, want %x", ext.Value, expectedValue)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Error("custom extension not found in compiled template")
+	}
+}
+
+// =============================================================================
+// Custom Extension Tests with Real ASN.1 Structures
+// =============================================================================
+
+func TestU_CustomExtension_RealASN1_NULL(t *testing.T) {
+	// ASN.1 NULL is commonly used (e.g., OCSP No Check extension)
+	// DER encoding: 05 00 (tag=NULL, length=0)
+	cfg := &CustomExtensionConfig{
+		OID:      "1.3.6.1.5.5.7.48.1.5", // OCSP No Check OID
+		Critical: false,
+		ValueHex: "0500",
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Verify DER encoding
+	if len(ext.Value) != 2 {
+		t.Errorf("Value length = %d, want 2", len(ext.Value))
+	}
+	if ext.Value[0] != 0x05 || ext.Value[1] != 0x00 {
+		t.Errorf("Value = %x, want 0500 (ASN.1 NULL)", ext.Value)
+	}
+}
+
+func TestU_CustomExtension_RealASN1_UTF8String(t *testing.T) {
+	// UTF8String "test" - DER encoding: 0c 04 74 65 73 74
+	// Tag 0x0c = UTF8String, length 4, content "test"
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5.6.7",
+		Critical: false,
+		ValueHex: "0c0474657374",
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Parse to verify it's valid ASN.1
+	var result asn1.RawValue
+	rest, err := asn1.Unmarshal(ext.Value, &result)
+	if err != nil {
+		t.Fatalf("ASN.1 unmarshal error = %v", err)
+	}
+	if len(rest) != 0 {
+		t.Errorf("Trailing data after ASN.1 parse: %x", rest)
+	}
+	if result.Tag != tagUTF8String {
+		t.Errorf("Tag = %d, want %d (UTF8String)", result.Tag, tagUTF8String)
+	}
+	if string(result.Bytes) != "test" {
+		t.Errorf("Content = %q, want %q", string(result.Bytes), "test")
+	}
+}
+
+func TestU_CustomExtension_RealASN1_SEQUENCE_OID(t *testing.T) {
+	// SEQUENCE containing OID for serverAuth (1.3.6.1.5.5.7.3.1)
+	// DER: 30 0a 06 08 2b 06 01 05 05 07 03 01
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5.6.8",
+		Critical: true,
+		ValueHex: "300a06082b0601050507030",
+	}
+
+	// This should fail - incomplete hex (missing last byte)
+	_, err := cfg.ToExtension()
+	if err == nil {
+		t.Fatal("Expected error for odd-length hex string")
+	}
+
+	// Fix with complete hex
+	cfg.ValueHex = "300a06082b06010505070301"
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Parse to verify it's a valid SEQUENCE
+	var result asn1.RawValue
+	rest, err := asn1.Unmarshal(ext.Value, &result)
+	if err != nil {
+		t.Fatalf("ASN.1 unmarshal error = %v", err)
+	}
+	if len(rest) != 0 {
+		t.Errorf("Trailing data after ASN.1 parse: %x", rest)
+	}
+	if result.Tag != 16 { // SEQUENCE tag
+		t.Errorf("Tag = %d, want 16 (SEQUENCE)", result.Tag)
+	}
+}
+
+func TestU_CustomExtension_RealASN1_PrintableString(t *testing.T) {
+	// PrintableString "FR" - DER encoding: 13 02 46 52
+	// Tag 0x13 = PrintableString, length 2, content "FR"
+	cfg := &CustomExtensionConfig{
+		OID:      "2.5.4.6", // Country OID
+		Critical: false,
+		ValueHex: "13024652",
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Parse to verify it's valid ASN.1
+	var result asn1.RawValue
+	rest, err := asn1.Unmarshal(ext.Value, &result)
+	if err != nil {
+		t.Fatalf("ASN.1 unmarshal error = %v", err)
+	}
+	if len(rest) != 0 {
+		t.Errorf("Trailing data after ASN.1 parse: %x", rest)
+	}
+	if result.Tag != tagPrintableString {
+		t.Errorf("Tag = %d, want %d (PrintableString)", result.Tag, tagPrintableString)
+	}
+	if string(result.Bytes) != "FR" {
+		t.Errorf("Content = %q, want %q", string(result.Bytes), "FR")
+	}
+}
+
+func TestU_CustomExtension_RealASN1_INTEGER(t *testing.T) {
+	// INTEGER 42 - DER encoding: 02 01 2a
+	// Tag 0x02 = INTEGER, length 1, value 42
+	cfg := &CustomExtensionConfig{
+		OID:      "1.2.3.4.5",
+		Critical: false,
+		ValueHex: "02012a",
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Parse to verify it's valid ASN.1
+	var result int
+	rest, err := asn1.Unmarshal(ext.Value, &result)
+	if err != nil {
+		t.Fatalf("ASN.1 unmarshal error = %v", err)
+	}
+	if len(rest) != 0 {
+		t.Errorf("Trailing data after ASN.1 parse: %x", rest)
+	}
+	if result != 42 {
+		t.Errorf("Value = %d, want 42", result)
+	}
+}
+
+func TestU_CustomExtension_RealASN1_NestedStructure(t *testing.T) {
+	// SEQUENCE { UTF8String "hello", INTEGER 123 }
+	// Build it programmatically to ensure correctness
+	type testStruct struct {
+		Name  string `asn1:"utf8"`
+		Value int
+	}
+	expected := testStruct{Name: "hello", Value: 123}
+
+	derBytes, err := asn1.Marshal(expected)
+	if err != nil {
+		t.Fatalf("Failed to marshal test structure: %v", err)
+	}
+
+	cfg := &CustomExtensionConfig{
+		OID:      "1.3.6.1.4.1.99999.1.1",
+		Critical: false,
+		ValueHex: string(encodeHex(derBytes)),
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Parse back and verify
+	var parsed testStruct
+	rest, err := asn1.Unmarshal(ext.Value, &parsed)
+	if err != nil {
+		t.Fatalf("ASN.1 unmarshal error = %v", err)
+	}
+	if len(rest) != 0 {
+		t.Errorf("Trailing data after ASN.1 parse: %x", rest)
+	}
+	if parsed.Name != expected.Name || parsed.Value != expected.Value {
+		t.Errorf("Parsed = %+v, want %+v", parsed, expected)
+	}
+}
+
+func TestU_CustomExtension_RealASN1_EnterprisePolicyExtension(t *testing.T) {
+	// Realistic enterprise custom extension example:
+	// A policy extension containing:
+	//   SEQUENCE {
+	//     policyVersion INTEGER,
+	//     policyName    UTF8String,
+	//     department    PrintableString,
+	//     securityLevel INTEGER
+	//   }
+	//
+	// This represents what an organization might use for internal PKI policy tracking.
+
+	type EnterprisePolicyInfo struct {
+		PolicyVersion int    `asn1:"tag:2"` // Context-specific tag [2]
+		PolicyName    string `asn1:"utf8"`
+		Department    string `asn1:"printable"`
+		SecurityLevel int
+	}
+
+	policy := EnterprisePolicyInfo{
+		PolicyVersion: 2,
+		PolicyName:    "Production TLS Policy",
+		Department:    "IT Security",
+		SecurityLevel: 3,
+	}
+
+	derBytes, err := asn1.Marshal(policy)
+	if err != nil {
+		t.Fatalf("Failed to marshal enterprise policy: %v", err)
+	}
+
+	// Create custom extension config
+	cfg := &CustomExtensionConfig{
+		OID:      "1.3.6.1.4.1.99999.1.2.1", // Example private enterprise OID
+		Critical: false,
+		ValueHex: string(encodeHex(derBytes)),
+	}
+
+	ext, err := cfg.ToExtension()
+	if err != nil {
+		t.Fatalf("ToExtension() error = %v", err)
+	}
+
+	// Verify OID
+	expectedOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 1, 2, 1}
+	if !ext.Id.Equal(expectedOID) {
+		t.Errorf("OID = %v, want %v", ext.Id, expectedOID)
+	}
+
+	// Parse back and verify structure
+	var parsed EnterprisePolicyInfo
+	rest, err := asn1.Unmarshal(ext.Value, &parsed)
+	if err != nil {
+		t.Fatalf("ASN.1 unmarshal error = %v", err)
+	}
+	if len(rest) != 0 {
+		t.Errorf("Trailing data after ASN.1 parse: %x", rest)
+	}
+
+	// Verify all fields
+	if parsed.PolicyVersion != policy.PolicyVersion {
+		t.Errorf("PolicyVersion = %d, want %d", parsed.PolicyVersion, policy.PolicyVersion)
+	}
+	if parsed.PolicyName != policy.PolicyName {
+		t.Errorf("PolicyName = %q, want %q", parsed.PolicyName, policy.PolicyName)
+	}
+	if parsed.Department != policy.Department {
+		t.Errorf("Department = %q, want %q", parsed.Department, policy.Department)
+	}
+	if parsed.SecurityLevel != policy.SecurityLevel {
+		t.Errorf("SecurityLevel = %d, want %d", parsed.SecurityLevel, policy.SecurityLevel)
+	}
+}
+
+func TestU_CustomExtension_RealASN1_InCertificate(t *testing.T) {
+	// Test that custom extension actually appears in a generated certificate
+	// with correct OID and value.
+
+	// Build a realistic extension value: UTF8String with department name
+	deptName := "Engineering"
+	derValue, err := asn1.Marshal(deptName)
+	if err != nil {
+		t.Fatalf("Failed to marshal department name: %v", err)
+	}
+
+	ext := &ExtensionsConfig{
+		BasicConstraints: &BasicConstraintsConfig{
+			CA: false,
+		},
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "1.3.6.1.4.1.99999.2.1", // Custom department OID
+				Critical: false,
+				ValueHex: string(encodeHex(derValue)),
+			},
+		},
+	}
+
+	// Create certificate with custom extension
+	cert := createTestCertificate(t, ext, false)
+
+	// Find our custom extension in the certificate
+	targetOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 1}
+	var foundExt *pkix.Extension
+	for i := range cert.Extensions {
+		if cert.Extensions[i].Id.Equal(targetOID) {
+			foundExt = &cert.Extensions[i]
+			break
+		}
+	}
+
+	if foundExt == nil {
+		t.Fatal("Custom extension not found in certificate")
+	}
+
+	// Verify the value can be parsed back
+	var parsedDept string
+	_, err = asn1.Unmarshal(foundExt.Value, &parsedDept)
+	if err != nil {
+		t.Fatalf("Failed to parse custom extension value: %v", err)
+	}
+
+	if parsedDept != deptName {
+		t.Errorf("Department = %q, want %q", parsedDept, deptName)
+	}
+}
+
+// =============================================================================
+// Custom Extension Coverage Tests
+// =============================================================================
+
+func TestU_CustomExtension_LoadFromYAML(t *testing.T) {
+	// Test that custom extensions can be loaded from YAML profile
+	yamlData := `
+name: custom-ext-test
+algorithm: ecdsa-p256
+validity: 365d
+extensions:
+  basicConstraints:
+    ca: false
+  custom:
+    - oid: "1.3.6.1.4.1.99999.1.1"
+      critical: false
+      value_hex: "0500"
+    - oid: "1.3.6.1.4.1.99999.1.2"
+      critical: true
+      value_base64: "BAMBAgM="
+`
+	p, err := LoadProfileFromBytes([]byte(yamlData))
+	if err != nil {
+		t.Fatalf("LoadProfileFromBytes failed: %v", err)
+	}
+
+	if p.Extensions == nil {
+		t.Fatal("Extensions should not be nil")
+	}
+	if len(p.Extensions.Custom) != 2 {
+		t.Fatalf("Expected 2 custom extensions, got %d", len(p.Extensions.Custom))
+	}
+
+	// Verify first extension
+	ext1 := p.Extensions.Custom[0]
+	if ext1.OID != "1.3.6.1.4.1.99999.1.1" {
+		t.Errorf("ext1.OID = %q, want %q", ext1.OID, "1.3.6.1.4.1.99999.1.1")
+	}
+	if ext1.Critical != false {
+		t.Errorf("ext1.Critical = %v, want false", ext1.Critical)
+	}
+	if ext1.ValueHex != "0500" {
+		t.Errorf("ext1.ValueHex = %q, want %q", ext1.ValueHex, "0500")
+	}
+
+	// Verify second extension
+	ext2 := p.Extensions.Custom[1]
+	if ext2.OID != "1.3.6.1.4.1.99999.1.2" {
+		t.Errorf("ext2.OID = %q, want %q", ext2.OID, "1.3.6.1.4.1.99999.1.2")
+	}
+	if ext2.Critical != true {
+		t.Errorf("ext2.Critical = %v, want true", ext2.Critical)
+	}
+	if ext2.ValueBase64 != "BAMBAgM=" {
+		t.Errorf("ext2.ValueBase64 = %q, want %q", ext2.ValueBase64, "BAMBAgM=")
+	}
+}
+
+func TestU_CustomExtension_MultipleInCertificate(t *testing.T) {
+	// Test multiple custom extensions appear correctly in certificate
+	ext := &ExtensionsConfig{
+		BasicConstraints: &BasicConstraintsConfig{CA: false},
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "1.3.6.1.4.1.99999.1.1",
+				Critical: false,
+				ValueHex: "0500", // NULL
+			},
+			{
+				OID:      "1.3.6.1.4.1.99999.1.2",
+				Critical: true,
+				ValueHex: "02012a", // INTEGER 42
+			},
+			{
+				OID:      "1.3.6.1.4.1.99999.1.3",
+				Critical: false,
+				ValueHex: "0c0474657374", // UTF8String "test"
+			},
+		},
+	}
+
+	cert := createTestCertificate(t, ext, false)
+
+	// Verify all three custom extensions are present
+	expectedOIDs := []asn1.ObjectIdentifier{
+		{1, 3, 6, 1, 4, 1, 99999, 1, 1},
+		{1, 3, 6, 1, 4, 1, 99999, 1, 2},
+		{1, 3, 6, 1, 4, 1, 99999, 1, 3},
+	}
+
+	for _, expectedOID := range expectedOIDs {
+		found := false
+		for _, certExt := range cert.Extensions {
+			if certExt.Id.Equal(expectedOID) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Custom extension %v not found in certificate", expectedOID)
+		}
+	}
+}
+
+func TestU_CustomExtension_CriticalFlagInCertificate(t *testing.T) {
+	// Test that critical flag is correctly set in the generated certificate
+	ext := &ExtensionsConfig{
+		BasicConstraints: &BasicConstraintsConfig{CA: false},
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "1.3.6.1.4.1.99999.2.1",
+				Critical: true, // CRITICAL
+				ValueHex: "0500",
+			},
+			{
+				OID:      "1.3.6.1.4.1.99999.2.2",
+				Critical: false, // NOT CRITICAL
+				ValueHex: "0500",
+			},
+		},
+	}
+
+	cert := createTestCertificate(t, ext, false)
+
+	// Find and verify critical extension
+	criticalOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 1}
+	nonCriticalOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2, 2}
+
+	for _, certExt := range cert.Extensions {
+		if certExt.Id.Equal(criticalOID) {
+			if !certExt.Critical {
+				t.Error("Extension 99999.2.1 should be critical")
+			}
+		}
+		if certExt.Id.Equal(nonCriticalOID) {
+			if certExt.Critical {
+				t.Error("Extension 99999.2.2 should NOT be critical")
+			}
+		}
+	}
+}
+
+func TestU_CustomExtension_CompiledProfile(t *testing.T) {
+	// Test that custom extensions work through the CompiledProfile path
+	p := &Profile{
+		Name:      "compiled-custom-test",
+		Mode:      ModeSimple,
+		Algorithm: "ecdsa-p256",
+		Validity:  24 * time.Hour,
+		Extensions: &ExtensionsConfig{
+			BasicConstraints: &BasicConstraintsConfig{CA: false},
+			Custom: []CustomExtensionConfig{
+				{
+					OID:      "1.3.6.1.4.1.99999.3.1",
+					Critical: false,
+					ValueHex: "02017b", // INTEGER 123
+				},
+			},
+		},
+	}
+
+	// Compile the profile
+	cp, err := p.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+
+	// Apply to template
+	tmpl := cp.ApplyToTemplate(pkix.Name{CommonName: "test"}, nil, nil, nil)
+
+	// Verify custom extension is in ExtraExtensions
+	targetOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 3, 1}
+	found := false
+	for _, ext := range tmpl.ExtraExtensions {
+		if ext.Id.Equal(targetOID) {
+			found = true
+			// Verify value
+			var val int
+			_, err := asn1.Unmarshal(ext.Value, &val)
+			if err != nil {
+				t.Fatalf("Failed to unmarshal extension value: %v", err)
+			}
+			if val != 123 {
+				t.Errorf("Extension value = %d, want 123", val)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("Custom extension not found in compiled template")
+	}
+}
+
+func TestU_CustomExtension_EmptyCustomList(t *testing.T) {
+	// Test that empty custom extensions list doesn't cause issues
+	ext := &ExtensionsConfig{
+		BasicConstraints: &BasicConstraintsConfig{CA: false},
+		Custom:           []CustomExtensionConfig{}, // Empty list
+	}
+
+	// Should not error
+	if err := ext.Validate(); err != nil {
+		t.Errorf("Validate failed with empty custom list: %v", err)
+	}
+
+	// Should apply without error
+	cert := &x509.Certificate{}
+	if err := ext.Apply(cert); err != nil {
+		t.Errorf("Apply failed with empty custom list: %v", err)
+	}
+}
+
+func TestU_CustomExtension_NilCustomList(t *testing.T) {
+	// Test that nil custom extensions list doesn't cause issues
+	ext := &ExtensionsConfig{
+		BasicConstraints: &BasicConstraintsConfig{CA: false},
+		Custom:           nil, // Nil list
+	}
+
+	// Should not error
+	if err := ext.Validate(); err != nil {
+		t.Errorf("Validate failed with nil custom list: %v", err)
+	}
+
+	// Should apply without error
+	cert := &x509.Certificate{}
+	if err := ext.Apply(cert); err != nil {
+		t.Errorf("Apply failed with nil custom list: %v", err)
+	}
+}
+
+func TestU_CustomExtension_ValidationError_PropagatesInExtensionsConfig(t *testing.T) {
+	// Test that validation errors from custom extensions propagate up
+	ext := &ExtensionsConfig{
+		Custom: []CustomExtensionConfig{
+			{
+				OID:      "", // Invalid: empty OID
+				ValueHex: "0500",
+			},
+		},
+	}
+
+	err := ext.Validate()
+	if err == nil {
+		t.Fatal("Expected validation error for empty OID")
+	}
+	if !strings.Contains(err.Error(), "OID is required") {
+		t.Errorf("Error message should mention OID: %v", err)
+	}
+}
+
+func TestU_CustomExtension_DeepCopy_MultipleExtensions(t *testing.T) {
+	// Test that DeepCopy correctly copies multiple custom extensions
+	original := &ExtensionsConfig{
+		Custom: []CustomExtensionConfig{
+			{OID: "1.2.3.4", Critical: true, ValueHex: "0500"},
+			{OID: "1.2.3.5", Critical: false, ValueBase64: "BAMBAgM="},
+		},
+	}
+
+	copied := original.DeepCopy()
+
+	// Verify copy has same data
+	if len(copied.Custom) != 2 {
+		t.Fatalf("Copied has %d custom extensions, want 2", len(copied.Custom))
+	}
+
+	// Verify first extension
+	if copied.Custom[0].OID != "1.2.3.4" {
+		t.Errorf("copied[0].OID = %q, want %q", copied.Custom[0].OID, "1.2.3.4")
+	}
+	if copied.Custom[0].Critical != true {
+		t.Error("copied[0].Critical should be true")
+	}
+
+	// Modify original - should not affect copy
+	original.Custom[0].OID = "modified"
+	if copied.Custom[0].OID == "modified" {
+		t.Error("Modifying original should not affect copy")
+	}
+}
+
+// encodeHex converts bytes to hex string
+func encodeHex(b []byte) []byte {
+	const hexChars = "0123456789abcdef"
+	result := make([]byte, len(b)*2)
+	for i, v := range b {
+		result[i*2] = hexChars[v>>4]
+		result[i*2+1] = hexChars[v&0x0f]
+	}
+	return result
 }
 
 // =============================================================================
