@@ -4,13 +4,11 @@
 
 - [1. What is a Profile?](#1-what-is-a-profile)
 - [2. Builtin Profiles](#2-builtin-profiles)
-  - [eIDAS Qualified Certificates](#eidas-qualified-certificates)
 - [3. CLI Commands](#3-cli-commands)
 - [4. Creating Custom Profiles](#4-creating-custom-profiles)
 - [5. YAML Schema](#5-yaml-schema)
 - [6. Declarative Variables](#6-declarative-variables)
 - [7. X.509 Extensions](#7-x509-extensions)
-  - [QCStatements (eIDAS)](#qcstatements-eidas-qualified-certificates)
 - [8. Signature Algorithm Defaults](#8-signature-algorithm-defaults)
 - [9. Supported Algorithms](#9-supported-algorithms)
 - [10. Usage Examples](#10-usage-examples)
@@ -1229,6 +1227,28 @@ Common custom OIDs:
 | `1.3.6.1.4.1.311.20.2.2` | Microsoft Smart Card Logon |
 | `1.3.6.1.5.2.3.5` | Kerberos PKINIT Client Authentication |
 
+### Basic Constraints
+
+```yaml
+extensions:
+  basicConstraints:
+    critical: true           # RFC 5280: MUST be critical for CA
+    ca: true                 # true for CA, false for end-entity
+    pathLen: 0               # Optional: max intermediate CAs (0 = no intermediates)
+```
+
+### Certificate Policies
+
+```yaml
+extensions:
+  certificatePolicies:
+    critical: false
+    policies:
+      - oid: "2.23.140.1.2.1"           # CA/Browser Forum DV
+        cps: "http://example.com/cps"   # CPS URL
+        userNotice: "Certificate issued under DV policy"  # Optional notice
+```
+
 ### Name Constraints (CA only)
 
 Restricts which names a CA can issue certificates for. Only valid for CA certificates.
@@ -1339,28 +1359,6 @@ extensions:
 | QESeal | `eidas/qc-eseal` | Legal person (O, organizationIdentifier) | Qualified electronic seal |
 | QWAC | `eidas/qc-web` | Legal person + domain | Qualified website authentication |
 | QTSA | `eidas/qc-tsa` | TSA service | Qualified timestamping |
-
-### Basic Constraints
-
-```yaml
-extensions:
-  basicConstraints:
-    critical: true           # RFC 5280: MUST be critical for CA
-    ca: true                 # true for CA, false for end-entity
-    pathLen: 0               # Optional: max intermediate CAs (0 = no intermediates)
-```
-
-### Certificate Policies
-
-```yaml
-extensions:
-  certificatePolicies:
-    critical: false
-    policies:
-      - oid: "2.23.140.1.2.1"           # CA/Browser Forum DV
-        cps: "http://example.com/cps"   # CPS URL
-        userNotice: "Certificate issued under DV policy"  # Optional notice
-```
 
 ### Custom Extensions
 
