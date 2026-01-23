@@ -1567,3 +1567,504 @@ func TestF_Sign_WithoutSigningCertV2(t *testing.T) {
 		}
 	}
 }
+
+// =============================================================================
+// Unit Tests: RFC 9882 Digest Auto-Selection
+// =============================================================================
+
+// TestU_SelectDigestForSigner_RFC9882 tests that digest is automatically selected
+// based on ML-DSA security level per RFC 9882 recommendations.
+func TestU_SelectDigestForSigner_RFC9882(t *testing.T) {
+	tests := []struct {
+		name           string
+		alg            pkicrypto.AlgorithmID
+		expectedDigest crypto.Hash
+	}{
+		{
+			name:           "[Unit] RFC9882: ML-DSA-44 → SHA-256",
+			alg:            pkicrypto.AlgMLDSA44,
+			expectedDigest: crypto.SHA256,
+		},
+		{
+			name:           "[Unit] RFC9882: ML-DSA-65 → SHA-384",
+			alg:            pkicrypto.AlgMLDSA65,
+			expectedDigest: crypto.SHA384,
+		},
+		{
+			name:           "[Unit] RFC9882: ML-DSA-87 → SHA-512",
+			alg:            pkicrypto.AlgMLDSA87,
+			expectedDigest: crypto.SHA512,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateMLDSAKeyPair(t, tt.alg)
+			cert := generateMLDSACertificate(t, kp, tt.alg)
+
+			digest := selectDigestForSigner(kp.PrivateKey, cert)
+			if digest != tt.expectedDigest {
+				t.Errorf("Expected digest %v for %s, got %v", tt.expectedDigest, tt.alg, digest)
+			}
+		})
+	}
+}
+
+// TestF_Sign_MLDSA_DigestAutoSelection tests that signing with ML-DSA
+// automatically selects the correct digest algorithm per RFC 9882.
+func TestF_Sign_MLDSA_DigestAutoSelection(t *testing.T) {
+	tests := []struct {
+		name              string
+		alg               pkicrypto.AlgorithmID
+		expectedDigestOID asn1.ObjectIdentifier
+	}{
+		{
+			name:              "[Functional] RFC9882: ML-DSA-44 auto-selects SHA-256",
+			alg:               pkicrypto.AlgMLDSA44,
+			expectedDigestOID: OIDSHA256,
+		},
+		{
+			name:              "[Functional] RFC9882: ML-DSA-65 auto-selects SHA-384",
+			alg:               pkicrypto.AlgMLDSA65,
+			expectedDigestOID: OIDSHA384,
+		},
+		{
+			name:              "[Functional] RFC9882: ML-DSA-87 auto-selects SHA-512",
+			alg:               pkicrypto.AlgMLDSA87,
+			expectedDigestOID: OIDSHA512,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateMLDSAKeyPair(t, tt.alg)
+			cert := generateMLDSACertificate(t, kp, tt.alg)
+
+			content := []byte("RFC 9882 digest auto-selection test")
+
+			// Sign WITHOUT specifying DigestAlg - should auto-select
+			signedData, err := Sign(context.Background(), content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				IncludeCerts: true,
+				// DigestAlg NOT set - should auto-select based on ML-DSA level
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// Parse and verify digest algorithm OID
+			digestOID := extractDigestAlgorithmOID(t, signedData)
+			if !digestOID.Equal(tt.expectedDigestOID) {
+				t.Errorf("Digest OID mismatch: expected %v, got %v", tt.expectedDigestOID, digestOID)
+			}
+
+			// Verify signature is valid
+			_, err = Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("Verification failed: %v", err)
+			}
+		})
+	}
+}
+
+// TestU_SelectDigestForSigner_Classical tests that classical algorithms default to SHA-256.
+func TestU_SelectDigestForSigner_Classical(t *testing.T) {
+	kp := generateECDSAKeyPair(t, elliptic.P256())
+	cert := generateTestCertificate(t, kp)
+
+	digest := selectDigestForSigner(kp.PrivateKey, cert)
+	if digest != crypto.SHA256 {
+		t.Errorf("Expected SHA-256 for classical (ECDSA), got %v", digest)
+	}
+}
+
+// TestU_SelectDigestForSigner_SLHDSA tests that SLH-DSA defaults to SHA-256.
+func TestU_SelectDigestForSigner_SLHDSA(t *testing.T) {
+	tests := []struct {
+		name           string
+		alg            pkicrypto.AlgorithmID
+		expectedDigest crypto.Hash
+	}{
+		{
+			name:           "[Unit] RFC9882: SLH-DSA-128f → SHA-256 (default)",
+			alg:            pkicrypto.AlgSLHDSA128f,
+			expectedDigest: crypto.SHA256,
+		},
+		{
+			name:           "[Unit] RFC9882: SLH-DSA-128s → SHA-256 (default)",
+			alg:            pkicrypto.AlgSLHDSA128s,
+			expectedDigest: crypto.SHA256,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateSLHDSAKeyPair(t, tt.alg)
+			cert := generateSLHDSACertificate(t, kp, tt.alg)
+
+			digest := selectDigestForSigner(kp.PrivateKey, cert)
+			if digest != tt.expectedDigest {
+				t.Errorf("Expected digest %v for %s, got %v", tt.expectedDigest, tt.alg, digest)
+			}
+		})
+	}
+}
+
+// TestU_SelectDigestForSigner_RSA tests that RSA defaults to SHA-256.
+func TestU_SelectDigestForSigner_RSA(t *testing.T) {
+	kp := generateRSAKeyPair(t, 2048)
+	cert := generateTestCertificate(t, kp)
+
+	digest := selectDigestForSigner(kp.PrivateKey, cert)
+	if digest != crypto.SHA256 {
+		t.Errorf("Expected SHA-256 for RSA, got %v", digest)
+	}
+}
+
+// TestU_SelectDigestForSigner_Ed25519 tests that Ed25519 defaults to SHA-256.
+func TestU_SelectDigestForSigner_Ed25519(t *testing.T) {
+	kp := generateEd25519KeyPair(t)
+	cert := generateTestCertificate(t, kp)
+
+	digest := selectDigestForSigner(kp.PrivateKey, cert)
+	if digest != crypto.SHA256 {
+		t.Errorf("Expected SHA-256 for Ed25519, got %v", digest)
+	}
+}
+
+// =============================================================================
+// Unit Tests: SHA3 Digest Support (RFC 9882)
+// =============================================================================
+
+// TestU_ComputeDigest_SHA3 tests SHA3 digest computation.
+func TestU_ComputeDigest_SHA3(t *testing.T) {
+	tests := []struct {
+		name         string
+		alg          crypto.Hash
+		expectedSize int
+	}{
+		{"[Unit] Digest: SHA3-256", crypto.SHA3_256, 32},
+		{"[Unit] Digest: SHA3-384", crypto.SHA3_384, 48},
+		{"[Unit] Digest: SHA3-512", crypto.SHA3_512, 64},
+	}
+
+	data := []byte("test data for SHA3 digest")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			digest, err := computeDigest(data, tt.alg)
+			if err != nil {
+				t.Fatalf("computeDigest failed: %v", err)
+			}
+
+			if len(digest) != tt.expectedSize {
+				t.Errorf("Expected digest size %d, got %d", tt.expectedSize, len(digest))
+			}
+		})
+	}
+}
+
+// TestU_ComputeDigest_SHA3_Deterministic tests that SHA3 digests are deterministic.
+func TestU_ComputeDigest_SHA3_Deterministic(t *testing.T) {
+	data := []byte("deterministic test data")
+
+	for _, alg := range []crypto.Hash{crypto.SHA3_256, crypto.SHA3_384, crypto.SHA3_512} {
+		digest1, err := computeDigest(data, alg)
+		if err != nil {
+			t.Fatalf("computeDigest failed: %v", err)
+		}
+
+		digest2, err := computeDigest(data, alg)
+		if err != nil {
+			t.Fatalf("computeDigest failed: %v", err)
+		}
+
+		if string(digest1) != string(digest2) {
+			t.Errorf("%v digest not deterministic", alg)
+		}
+	}
+}
+
+// TestU_ComputeDigest_SHA3_DifferentData tests that different data produces different SHA3 digests.
+func TestU_ComputeDigest_SHA3_DifferentData(t *testing.T) {
+	data1 := []byte("data one")
+	data2 := []byte("data two")
+
+	for _, alg := range []crypto.Hash{crypto.SHA3_256, crypto.SHA3_384, crypto.SHA3_512} {
+		digest1, _ := computeDigest(data1, alg)
+		digest2, _ := computeDigest(data2, alg)
+
+		if string(digest1) == string(digest2) {
+			t.Errorf("%v: Different data produced same digest", alg)
+		}
+	}
+}
+
+// =============================================================================
+// Unit Tests: SHAKE256 XOF Support (RFC 9882)
+// =============================================================================
+
+// TestU_ComputeSHAKE256 tests SHAKE256 computation.
+func TestU_ComputeSHAKE256(t *testing.T) {
+	tests := []struct {
+		name      string
+		outputLen int
+	}{
+		{"[Unit] SHAKE256: 32 bytes", 32},
+		{"[Unit] SHAKE256: 48 bytes", 48},
+		{"[Unit] SHAKE256: 64 bytes (recommended)", 64},
+		{"[Unit] SHAKE256: 128 bytes", 128},
+	}
+
+	data := []byte("test data for SHAKE256")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			digest := computeSHAKE256(data, tt.outputLen)
+			if len(digest) != tt.outputLen {
+				t.Errorf("Expected output length %d, got %d", tt.outputLen, len(digest))
+			}
+		})
+	}
+}
+
+// TestU_ComputeSHAKE256_Deterministic tests that SHAKE256 is deterministic.
+func TestU_ComputeSHAKE256_Deterministic(t *testing.T) {
+	data := []byte("deterministic SHAKE256 test")
+	outputLen := 64
+
+	digest1 := computeSHAKE256(data, outputLen)
+	digest2 := computeSHAKE256(data, outputLen)
+
+	if string(digest1) != string(digest2) {
+		t.Error("SHAKE256 digest not deterministic")
+	}
+}
+
+// TestU_ComputeSHAKE256_DifferentOutputLengths tests that different output lengths produce different results.
+func TestU_ComputeSHAKE256_DifferentOutputLengths(t *testing.T) {
+	data := []byte("SHAKE256 test data")
+
+	digest32 := computeSHAKE256(data, 32)
+	digest64 := computeSHAKE256(data, 64)
+
+	// The first 32 bytes of digest64 should match digest32
+	// (SHAKE256 is an XOF, so extending the output just adds more bytes)
+	if string(digest32) != string(digest64[:32]) {
+		t.Error("SHAKE256: First 32 bytes of 64-byte output should match 32-byte output")
+	}
+}
+
+// TestU_ComputeSHAKE256_EmptyData tests SHAKE256 with empty data.
+func TestU_ComputeSHAKE256_EmptyData(t *testing.T) {
+	data := []byte{}
+	outputLen := 64
+
+	digest := computeSHAKE256(data, outputLen)
+	if len(digest) != outputLen {
+		t.Errorf("Expected output length %d for empty data, got %d", outputLen, len(digest))
+	}
+
+	// Empty data should still produce a non-zero digest
+	allZero := true
+	for _, b := range digest {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		t.Error("SHAKE256 of empty data should not be all zeros")
+	}
+}
+
+// =============================================================================
+// Unit Tests: SHA3 OID Mapping (RFC 9882)
+// =============================================================================
+
+// TestU_GetDigestAlgorithmIdentifier_SHA3 tests SHA3 OID mapping.
+func TestU_GetDigestAlgorithmIdentifier_SHA3(t *testing.T) {
+	tests := []struct {
+		name        string
+		alg         crypto.Hash
+		expectedOID asn1.ObjectIdentifier
+	}{
+		{"[Unit] DigestAlg: SHA3-256", crypto.SHA3_256, OIDSHA3_256},
+		{"[Unit] DigestAlg: SHA3-384", crypto.SHA3_384, OIDSHA3_384},
+		{"[Unit] DigestAlg: SHA3-512", crypto.SHA3_512, OIDSHA3_512},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			algID := getDigestAlgorithmIdentifier(tt.alg)
+			if !algID.Algorithm.Equal(tt.expectedOID) {
+				t.Errorf("Expected %v, got %v", tt.expectedOID, algID.Algorithm)
+			}
+		})
+	}
+}
+
+// TestU_GetDigestAlgorithmIdentifier_AllAlgorithms tests all supported digest algorithms.
+func TestU_GetDigestAlgorithmIdentifier_AllAlgorithms(t *testing.T) {
+	tests := []struct {
+		name        string
+		alg         crypto.Hash
+		expectedOID asn1.ObjectIdentifier
+	}{
+		// SHA-2 family
+		{"[Unit] DigestAlg: SHA-256", crypto.SHA256, OIDSHA256},
+		{"[Unit] DigestAlg: SHA-384", crypto.SHA384, OIDSHA384},
+		{"[Unit] DigestAlg: SHA-512", crypto.SHA512, OIDSHA512},
+		// SHA-3 family
+		{"[Unit] DigestAlg: SHA3-256", crypto.SHA3_256, OIDSHA3_256},
+		{"[Unit] DigestAlg: SHA3-384", crypto.SHA3_384, OIDSHA3_384},
+		{"[Unit] DigestAlg: SHA3-512", crypto.SHA3_512, OIDSHA3_512},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			algID := getDigestAlgorithmIdentifier(tt.alg)
+			if !algID.Algorithm.Equal(tt.expectedOID) {
+				t.Errorf("Expected %v, got %v", tt.expectedOID, algID.Algorithm)
+			}
+		})
+	}
+}
+
+// TestU_GetDigestAlgorithmIdentifier_UnsupportedFallback tests fallback to SHA-256 for unsupported.
+func TestU_GetDigestAlgorithmIdentifier_UnsupportedFallback(t *testing.T) {
+	// Unsupported algorithm should fall back to SHA-256
+	algID := getDigestAlgorithmIdentifier(crypto.MD5)
+	if !algID.Algorithm.Equal(OIDSHA256) {
+		t.Errorf("Expected fallback to SHA-256 for unsupported algorithm, got %v", algID.Algorithm)
+	}
+}
+
+// =============================================================================
+// Functional Tests: Sign with SHA3 Digest
+// =============================================================================
+
+// TestF_Sign_MLDSA_WithSHA3Digest tests signing with SHA3 digest algorithms using ML-DSA.
+// Note: SHA3 digests are primarily intended for PQC algorithms per RFC 9882.
+// Classical algorithms (ECDSA, RSA) typically use SHA-2 in CMS.
+func TestF_Sign_MLDSA_WithSHA3Digest(t *testing.T) {
+	tests := []struct {
+		name              string
+		alg               pkicrypto.AlgorithmID
+		digestAlg         crypto.Hash
+		expectedDigestOID asn1.ObjectIdentifier
+	}{
+		{
+			name:              "[Functional] ML-DSA-44 with SHA3-256",
+			alg:               pkicrypto.AlgMLDSA44,
+			digestAlg:         crypto.SHA3_256,
+			expectedDigestOID: OIDSHA3_256,
+		},
+		{
+			name:              "[Functional] ML-DSA-65 with SHA3-384",
+			alg:               pkicrypto.AlgMLDSA65,
+			digestAlg:         crypto.SHA3_384,
+			expectedDigestOID: OIDSHA3_384,
+		},
+		{
+			name:              "[Functional] ML-DSA-87 with SHA3-512",
+			alg:               pkicrypto.AlgMLDSA87,
+			digestAlg:         crypto.SHA3_512,
+			expectedDigestOID: OIDSHA3_512,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateMLDSAKeyPair(t, tt.alg)
+			cert := generateMLDSACertificate(t, kp, tt.alg)
+
+			content := []byte("SHA3 digest test content")
+
+			signedData, err := Sign(context.Background(), content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				DigestAlg:    tt.digestAlg,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// Verify digest algorithm OID
+			digestOID := extractDigestAlgorithmOID(t, signedData)
+			if !digestOID.Equal(tt.expectedDigestOID) {
+				t.Errorf("Digest OID mismatch: expected %v, got %v", tt.expectedDigestOID, digestOID)
+			}
+
+			// Verify the signature is valid
+			_, err = Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("Verification failed: %v", err)
+			}
+		})
+	}
+}
+
+// TestF_Sign_MLDSA_WithExplicitDigest tests ML-DSA signing with explicit digest override.
+func TestF_Sign_MLDSA_WithExplicitDigest(t *testing.T) {
+	tests := []struct {
+		name              string
+		alg               pkicrypto.AlgorithmID
+		explicitDigest    crypto.Hash
+		expectedDigestOID asn1.ObjectIdentifier
+	}{
+		{
+			name:              "[Functional] ML-DSA-87 with explicit SHA-256 (non-recommended)",
+			alg:               pkicrypto.AlgMLDSA87,
+			explicitDigest:    crypto.SHA256,
+			expectedDigestOID: OIDSHA256,
+		},
+		{
+			name:              "[Functional] ML-DSA-65 with explicit SHA-512",
+			alg:               pkicrypto.AlgMLDSA65,
+			explicitDigest:    crypto.SHA512,
+			expectedDigestOID: OIDSHA512,
+		},
+		{
+			name:              "[Functional] ML-DSA-44 with explicit SHA-384",
+			alg:               pkicrypto.AlgMLDSA44,
+			explicitDigest:    crypto.SHA384,
+			expectedDigestOID: OIDSHA384,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := generateMLDSAKeyPair(t, tt.alg)
+			cert := generateMLDSACertificate(t, kp, tt.alg)
+
+			content := []byte("ML-DSA explicit digest test")
+
+			// Sign with explicit digest (override auto-selection)
+			signedData, err := Sign(context.Background(), content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				DigestAlg:    tt.explicitDigest,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			// Verify explicit digest was used
+			digestOID := extractDigestAlgorithmOID(t, signedData)
+			if !digestOID.Equal(tt.expectedDigestOID) {
+				t.Errorf("Digest OID mismatch: expected %v, got %v", tt.expectedDigestOID, digestOID)
+			}
+
+			// Verify the signature is valid
+			_, err = Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Errorf("Verification failed: %v", err)
+			}
+		})
+	}
+}
+

@@ -1027,3 +1027,473 @@ func TestU_ParseCertificates(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// Unit Tests: RFC 9882 Digest Security Level Warnings
+// =============================================================================
+
+// TestU_CheckDigestSecurityLevel_RFC9882 tests the checkDigestSecurityLevel function.
+func TestU_CheckDigestSecurityLevel_RFC9882(t *testing.T) {
+	tests := []struct {
+		name          string
+		sigAlgOID     asn1.ObjectIdentifier
+		digestAlg     crypto.Hash
+		expectWarning bool
+	}{
+		// ML-DSA-87 (Level 5) - requires SHA-512
+		{
+			name:          "[Unit] RFC9882: ML-DSA-87 + SHA-512 = OK",
+			sigAlgOID:     OIDMLDSA87,
+			digestAlg:     crypto.SHA512,
+			expectWarning: false,
+		},
+		{
+			name:          "[Unit] RFC9882: ML-DSA-87 + SHA-384 = Warning",
+			sigAlgOID:     OIDMLDSA87,
+			digestAlg:     crypto.SHA384,
+			expectWarning: true,
+		},
+		{
+			name:          "[Unit] RFC9882: ML-DSA-87 + SHA-256 = Warning",
+			sigAlgOID:     OIDMLDSA87,
+			digestAlg:     crypto.SHA256,
+			expectWarning: true,
+		},
+		// ML-DSA-65 (Level 3) - requires SHA-384 or SHA-512
+		{
+			name:          "[Unit] RFC9882: ML-DSA-65 + SHA-512 = OK",
+			sigAlgOID:     OIDMLDSA65,
+			digestAlg:     crypto.SHA512,
+			expectWarning: false,
+		},
+		{
+			name:          "[Unit] RFC9882: ML-DSA-65 + SHA-384 = OK",
+			sigAlgOID:     OIDMLDSA65,
+			digestAlg:     crypto.SHA384,
+			expectWarning: false,
+		},
+		{
+			name:          "[Unit] RFC9882: ML-DSA-65 + SHA-256 = Warning",
+			sigAlgOID:     OIDMLDSA65,
+			digestAlg:     crypto.SHA256,
+			expectWarning: true,
+		},
+		// ML-DSA-44 (Level 1) - SHA-256 is fine
+		{
+			name:          "[Unit] RFC9882: ML-DSA-44 + SHA-256 = OK",
+			sigAlgOID:     OIDMLDSA44,
+			digestAlg:     crypto.SHA256,
+			expectWarning: false,
+		},
+		// Classical algorithms - no warning
+		{
+			name:          "[Unit] RFC9882: ECDSA + SHA-256 = OK (no warning)",
+			sigAlgOID:     OIDECDSAWithSHA256,
+			digestAlg:     crypto.SHA256,
+			expectWarning: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warning := checkDigestSecurityLevel(tt.sigAlgOID, tt.digestAlg)
+			hasWarning := warning != ""
+			if hasWarning != tt.expectWarning {
+				if tt.expectWarning {
+					t.Error("Expected warning but got none")
+				} else {
+					t.Errorf("Unexpected warning: %s", warning)
+				}
+			}
+		})
+	}
+}
+
+// TestF_Verify_RFC9882_Warning tests that verification produces warnings for
+// suboptimal digest/ML-DSA combinations.
+func TestF_Verify_RFC9882_Warning(t *testing.T) {
+	// Create ML-DSA-87 key and cert
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA87)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA87)
+
+	content := []byte("RFC 9882 warning test")
+
+	// Sign with ML-DSA-87 but force SHA-256 (suboptimal per RFC 9882)
+	signedData, err := Sign(context.Background(), content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		DigestAlg:    crypto.SHA256, // Force SHA-256 (should trigger warning)
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	// Verify - should succeed but produce a warning
+	result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	// Check that a warning was produced
+	if len(result.Warnings) == 0 {
+		t.Error("Expected RFC 9882 warning for ML-DSA-87 + SHA-256, but got none")
+	} else {
+		t.Logf("Got expected warning: %s", result.Warnings[0])
+	}
+}
+
+// TestF_Verify_RFC9882_NoWarning tests that verification produces no warnings
+// for correct digest/ML-DSA combinations.
+func TestF_Verify_RFC9882_NoWarning(t *testing.T) {
+	// Create ML-DSA-87 key and cert
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA87)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA87)
+
+	content := []byte("RFC 9882 no warning test")
+
+	// Sign with ML-DSA-87 and SHA-512 (correct per RFC 9882)
+	signedData, err := Sign(context.Background(), content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		DigestAlg:    crypto.SHA512, // Correct digest
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	// Verify - should succeed without warning
+	result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	// Check that no warning was produced
+	if len(result.Warnings) > 0 {
+		t.Errorf("Unexpected warning for ML-DSA-87 + SHA-512: %s", result.Warnings[0])
+	}
+}
+
+// =============================================================================
+// Unit Tests: RFC 9882 Warning Edge Cases
+// =============================================================================
+
+// TestU_CheckDigestSecurityLevel_MLDSA44_AllDigests tests ML-DSA-44 with all digests.
+func TestU_CheckDigestSecurityLevel_MLDSA44_AllDigests(t *testing.T) {
+	tests := []struct {
+		name          string
+		digestAlg     crypto.Hash
+		expectWarning bool
+	}{
+		{"ML-DSA-44 + SHA-256 = OK", crypto.SHA256, false},
+		{"ML-DSA-44 + SHA-384 = OK", crypto.SHA384, false},
+		{"ML-DSA-44 + SHA-512 = OK", crypto.SHA512, false},
+		{"ML-DSA-44 + SHA3-256 = OK", crypto.SHA3_256, false},
+		{"ML-DSA-44 + SHA3-384 = OK", crypto.SHA3_384, false},
+		{"ML-DSA-44 + SHA3-512 = OK", crypto.SHA3_512, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warning := checkDigestSecurityLevel(OIDMLDSA44, tt.digestAlg)
+			hasWarning := warning != ""
+			if hasWarning != tt.expectWarning {
+				if tt.expectWarning {
+					t.Error("Expected warning but got none")
+				} else {
+					t.Errorf("Unexpected warning: %s", warning)
+				}
+			}
+		})
+	}
+}
+
+// TestU_CheckDigestSecurityLevel_SLHDSA tests SLH-DSA OIDs (no warnings expected).
+func TestU_CheckDigestSecurityLevel_SLHDSA(t *testing.T) {
+	slhdsaOIDs := []asn1.ObjectIdentifier{
+		OIDSLHDSA128s, OIDSLHDSA128f,
+		OIDSLHDSA192s, OIDSLHDSA192f,
+		OIDSLHDSA256s, OIDSLHDSA256f,
+	}
+
+	digests := []crypto.Hash{crypto.SHA256, crypto.SHA384, crypto.SHA512}
+
+	for _, oid := range slhdsaOIDs {
+		for _, digest := range digests {
+			t.Run(oid.String()+"_"+digest.String(), func(t *testing.T) {
+				warning := checkDigestSecurityLevel(oid, digest)
+				if warning != "" {
+					t.Errorf("Unexpected warning for SLH-DSA: %s", warning)
+				}
+			})
+		}
+	}
+}
+
+// TestU_CheckDigestSecurityLevel_Classical tests classical algorithms (no warnings).
+func TestU_CheckDigestSecurityLevel_Classical(t *testing.T) {
+	classicalOIDs := []asn1.ObjectIdentifier{
+		OIDECDSAWithSHA256, OIDECDSAWithSHA384, OIDECDSAWithSHA512,
+		OIDSHA256WithRSA, OIDSHA384WithRSA, OIDSHA512WithRSA,
+		OIDEd25519,
+	}
+
+	digests := []crypto.Hash{crypto.SHA256, crypto.SHA384, crypto.SHA512}
+
+	for _, oid := range classicalOIDs {
+		for _, digest := range digests {
+			t.Run(oid.String()+"_"+digest.String(), func(t *testing.T) {
+				warning := checkDigestSecurityLevel(oid, digest)
+				if warning != "" {
+					t.Errorf("Unexpected warning for classical algorithm: %s", warning)
+				}
+			})
+		}
+	}
+}
+
+// TestU_CheckDigestSecurityLevel_WarningMessage tests the warning message content.
+func TestU_CheckDigestSecurityLevel_WarningMessage(t *testing.T) {
+	tests := []struct {
+		name            string
+		sigAlgOID       asn1.ObjectIdentifier
+		digestAlg       crypto.Hash
+		expectedContain string
+	}{
+		{
+			name:            "ML-DSA-87 warning mentions SHA-512",
+			sigAlgOID:       OIDMLDSA87,
+			digestAlg:       crypto.SHA256,
+			expectedContain: "SHA-512",
+		},
+		{
+			name:            "ML-DSA-87 warning mentions Level 5",
+			sigAlgOID:       OIDMLDSA87,
+			digestAlg:       crypto.SHA256,
+			expectedContain: "Level 5",
+		},
+		{
+			name:            "ML-DSA-65 warning mentions SHA-384",
+			sigAlgOID:       OIDMLDSA65,
+			digestAlg:       crypto.SHA256,
+			expectedContain: "SHA-384",
+		},
+		{
+			name:            "ML-DSA-65 warning mentions Level 3",
+			sigAlgOID:       OIDMLDSA65,
+			digestAlg:       crypto.SHA256,
+			expectedContain: "Level 3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warning := checkDigestSecurityLevel(tt.sigAlgOID, tt.digestAlg)
+			if warning == "" {
+				t.Fatal("Expected warning but got none")
+			}
+			if !containsString(warning, tt.expectedContain) {
+				t.Errorf("Warning should contain %q, got: %s", tt.expectedContain, warning)
+			}
+		})
+	}
+}
+
+// containsString checks if str contains substr (case-insensitive would need strings.Contains).
+func containsString(str, substr string) bool {
+	return len(str) >= len(substr) && (str == substr || len(str) > len(substr) && findSubstring(str, substr))
+}
+
+func findSubstring(str, substr string) bool {
+	for i := 0; i <= len(str)-len(substr); i++ {
+		if str[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// =============================================================================
+// Functional Tests: RFC 9882 Warning Integration
+// =============================================================================
+
+// TestF_Verify_RFC9882_MLDSA65_Warning tests ML-DSA-65 with SHA-256 produces warning.
+func TestF_Verify_RFC9882_MLDSA65_Warning(t *testing.T) {
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA65)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA65)
+
+	content := []byte("ML-DSA-65 warning test")
+
+	// Sign with SHA-256 (suboptimal for Level 3)
+	signedData, err := Sign(context.Background(), content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		DigestAlg:    crypto.SHA256,
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	if len(result.Warnings) == 0 {
+		t.Error("Expected RFC 9882 warning for ML-DSA-65 + SHA-256")
+	}
+}
+
+// TestF_Verify_RFC9882_MLDSA65_NoWarning_SHA384 tests ML-DSA-65 with SHA-384 produces no warning.
+func TestF_Verify_RFC9882_MLDSA65_NoWarning_SHA384(t *testing.T) {
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA65)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA65)
+
+	content := []byte("ML-DSA-65 no warning test")
+
+	// Sign with SHA-384 (correct for Level 3)
+	signedData, err := Sign(context.Background(), content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		DigestAlg:    crypto.SHA384,
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	if len(result.Warnings) > 0 {
+		t.Errorf("Unexpected warning for ML-DSA-65 + SHA-384: %s", result.Warnings[0])
+	}
+}
+
+// TestF_Verify_RFC9882_MLDSA44_NoWarning tests ML-DSA-44 with SHA-256 produces no warning.
+func TestF_Verify_RFC9882_MLDSA44_NoWarning(t *testing.T) {
+	kp := generateMLDSAKeyPair(t, pkicrypto.AlgMLDSA44)
+	cert := generateMLDSACertificate(t, kp, pkicrypto.AlgMLDSA44)
+
+	content := []byte("ML-DSA-44 test")
+
+	signedData, err := Sign(context.Background(), content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		DigestAlg:    crypto.SHA256,
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	if len(result.Warnings) > 0 {
+		t.Errorf("Unexpected warning for ML-DSA-44 + SHA-256: %s", result.Warnings[0])
+	}
+}
+
+// TestF_Verify_RFC9882_SLHDSA_NoWarning tests SLH-DSA produces no warnings.
+func TestF_Verify_RFC9882_SLHDSA_NoWarning(t *testing.T) {
+	kp := generateSLHDSAKeyPair(t, pkicrypto.AlgSLHDSA128f)
+	cert := generateSLHDSACertificate(t, kp, pkicrypto.AlgSLHDSA128f)
+
+	content := []byte("SLH-DSA test")
+
+	signedData, err := Sign(context.Background(), content, &SignerConfig{
+		Certificate:  cert,
+		Signer:       kp.PrivateKey,
+		DigestAlg:    crypto.SHA256,
+		IncludeCerts: true,
+	})
+	if err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+
+	result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+	if err != nil {
+		t.Fatalf("Verify failed: %v", err)
+	}
+
+	if len(result.Warnings) > 0 {
+		t.Errorf("Unexpected warning for SLH-DSA: %s", result.Warnings[0])
+	}
+}
+
+// TestF_Verify_Classical_NoWarning tests classical algorithms produce no warnings.
+func TestF_Verify_Classical_NoWarning(t *testing.T) {
+	tests := []struct {
+		name      string
+		keyGen    func(t *testing.T) *testKeyPair
+		digestAlg crypto.Hash
+	}{
+		{"ECDSA P-256 + SHA-256", func(t *testing.T) *testKeyPair { return generateECDSAKeyPair(t, elliptic.P256()) }, crypto.SHA256},
+		{"ECDSA P-384 + SHA-384", func(t *testing.T) *testKeyPair { return generateECDSAKeyPair(t, elliptic.P384()) }, crypto.SHA384},
+		{"RSA + SHA-256", func(t *testing.T) *testKeyPair { return generateRSAKeyPair(t, 2048) }, crypto.SHA256},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kp := tt.keyGen(t)
+			cert := generateTestCertificate(t, kp)
+
+			content := []byte("classical test")
+
+			signedData, err := Sign(context.Background(), content, &SignerConfig{
+				Certificate:  cert,
+				Signer:       kp.PrivateKey,
+				DigestAlg:    tt.digestAlg,
+				IncludeCerts: true,
+			})
+			if err != nil {
+				t.Fatalf("Sign failed: %v", err)
+			}
+
+			result, err := Verify(context.Background(), signedData, &VerifyConfig{SkipCertVerify: true})
+			if err != nil {
+				t.Fatalf("Verify failed: %v", err)
+			}
+
+			if len(result.Warnings) > 0 {
+				t.Errorf("Unexpected warning for classical algorithm: %s", result.Warnings[0])
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Unit Tests: OID to Hash Mapping (Additional Coverage)
+// =============================================================================
+
+// TestU_OidToHash_SHA3 tests SHA3 OID to hash mapping.
+func TestU_OidToHash_SHA3(t *testing.T) {
+	tests := []struct {
+		name         string
+		oid          asn1.ObjectIdentifier
+		expectedHash crypto.Hash
+	}{
+		{"SHA3-256", OIDSHA3_256, crypto.SHA3_256},
+		{"SHA3-384", OIDSHA3_384, crypto.SHA3_384},
+		{"SHA3-512", OIDSHA3_512, crypto.SHA3_512},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash, err := oidToHash(tt.oid)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if hash != tt.expectedHash {
+				t.Errorf("Hash mismatch: expected %v, got %v", tt.expectedHash, hash)
+			}
+		})
+	}
+}

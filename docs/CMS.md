@@ -5,6 +5,7 @@
 - [1. What is CMS?](#1-what-is-cms)
 - [2. CLI Commands](#2-cli-commands)
 - [3. Algorithm Support](#3-algorithm-support)
+  - [3.1 RFC 9882 Compliance (ML-DSA)](#31-rfc-9882-compliance-ml-dsa)
 - [4. OpenSSL Interoperability](#4-openssl-interoperability)
 - [5. Use Cases](#5-use-cases)
 - [6. Hybrid Encryption (PQC Transition)](#6-hybrid-encryption-pqc-transition)
@@ -61,7 +62,7 @@ qpki cms sign --data <file> --cert <cert> --key <key> --out <output> [flags]
 | `--cert` | (required) | Signer certificate (PEM) |
 | `--key` | | Private key (PEM, or use --hsm-config) |
 | `--out, -o` | (required) | Output file (.p7s) |
-| `--hash` | sha256 | Hash algorithm (sha256, sha384, sha512) |
+| `--hash` | (auto) | Hash algorithm. Auto-selected for ML-DSA per RFC 9882. Options: sha256, sha384, sha512, sha3-256, sha3-384, sha3-512 |
 | `--detached` | true | Create detached signature (content not included) |
 | `--include-certs` | true | Include signer certificate in output |
 | `--hsm-config` | | HSM configuration file (YAML) |
@@ -234,6 +235,55 @@ qpki cms info encrypted.p7m
 | AES-256-GCM | 256-bit | AEAD (default) |
 | AES-128-GCM | 128-bit | AEAD |
 | AES-256-CBC | 256-bit | CBC |
+
+### 3.1 RFC 9882 Compliance (ML-DSA)
+
+QPKI implements RFC 9882 recommendations for ML-DSA in CMS:
+
+#### Automatic Digest Selection
+
+When signing with ML-DSA certificates, the digest algorithm is automatically
+selected based on the ML-DSA security level if not explicitly specified:
+
+| ML-DSA Variant | Security Level | Auto-Selected Digest |
+|----------------|----------------|---------------------|
+| ML-DSA-44 | NIST Level 1 | SHA-256 |
+| ML-DSA-65 | NIST Level 3 | SHA-384 |
+| ML-DSA-87 | NIST Level 5 | SHA-512 |
+
+**Example:**
+
+```bash
+# SHA-512 is auto-selected for ML-DSA-87
+qpki cms sign --data doc.pdf --cert mldsa87.crt --key mldsa87.key --out doc.p7s
+
+# Override with explicit hash (not recommended for ML-DSA-87)
+qpki cms sign --data doc.pdf --cert mldsa87.crt --key mldsa87.key --hash sha256 --out doc.p7s
+```
+
+#### Verification Warnings
+
+During verification, QPKI checks if the digest algorithm matches the ML-DSA
+security level and issues warnings for suboptimal combinations:
+
+```bash
+# Verify a signature - warning shown if digest doesn't match ML-DSA level
+qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
+
+# Example warning:
+# WARNING: ML-DSA-87 signature uses SHA-256 (RFC 9882 recommends SHA-512 for NIST Level 5)
+```
+
+#### Supported Digest Algorithms
+
+| Algorithm | OID | Notes |
+|-----------|-----|-------|
+| SHA-256 | 2.16.840.1.101.3.4.2.1 | Default for ML-DSA-44, classical |
+| SHA-384 | 2.16.840.1.101.3.4.2.2 | Default for ML-DSA-65 |
+| SHA-512 | 2.16.840.1.101.3.4.2.3 | Default for ML-DSA-87 |
+| SHA3-256 | 2.16.840.1.101.3.4.2.8 | SHA-3 family |
+| SHA3-384 | 2.16.840.1.101.3.4.2.9 | SHA-3 family |
+| SHA3-512 | 2.16.840.1.101.3.4.2.10 | SHA-3 family |
 
 ---
 

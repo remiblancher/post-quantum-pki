@@ -46,6 +46,22 @@ type VerifyResult struct {
 	SigningTime time.Time
 	// ContentType is the content type OID
 	ContentType asn1.ObjectIdentifier
+	// Warnings contains non-fatal warnings (e.g., RFC compliance recommendations)
+	Warnings []string
+}
+
+// checkDigestSecurityLevel checks if the digest algorithm provides adequate security
+// for the signature algorithm per RFC 9882 recommendations.
+// Returns a warning message if the combination is suboptimal, empty string otherwise.
+func checkDigestSecurityLevel(sigAlgOID asn1.ObjectIdentifier, digestAlg crypto.Hash) string {
+	// RFC 9882: ML-DSA digest security level recommendations
+	if sigAlgOID.Equal(OIDMLDSA87) && digestAlg != crypto.SHA512 {
+		return fmt.Sprintf("ML-DSA-87 signature uses %s (RFC 9882 recommends SHA-512 for NIST Level 5)", digestAlg)
+	}
+	if sigAlgOID.Equal(OIDMLDSA65) && digestAlg != crypto.SHA384 && digestAlg != crypto.SHA512 {
+		return fmt.Sprintf("ML-DSA-65 signature uses %s (RFC 9882 recommends SHA-384 or SHA-512 for NIST Level 3)", digestAlg)
+	}
+	return ""
 }
 
 // Verify verifies a CMS SignedData signature.
@@ -100,9 +116,17 @@ func Verify(ctx context.Context, signedDataDER []byte, config *VerifyConfig) (*V
 		return nil, fmt.Errorf("signature verification failed: %w", err)
 	}
 
+	// Get digest algorithm for RFC 9882 compliance check
+	hashAlg, _ := oidToHash(signerInfo.DigestAlgorithm.Algorithm)
+
 	result := &VerifyResult{
 		SignerCert:  signerCert,
 		ContentType: signedData.EncapContentInfo.EContentType,
+	}
+
+	// Check RFC 9882 digest security level recommendation
+	if warning := checkDigestSecurityLevel(signerInfo.SignatureAlgorithm.Algorithm, hashAlg); warning != "" {
+		result.Warnings = append(result.Warnings, warning)
 	}
 
 	// Extract content if present
