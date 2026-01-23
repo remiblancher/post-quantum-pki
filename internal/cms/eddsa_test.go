@@ -177,7 +177,7 @@ func TestF_SignVerify_Ed448(t *testing.T) {
 
 	signConfig := &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 	}
 
@@ -211,7 +211,7 @@ func TestF_Sign_Ed448_VerifyOID(t *testing.T) {
 
 	signedData, err := Sign(context.Background(), content, &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 	})
 	if err != nil {
@@ -242,7 +242,7 @@ func TestF_SignVerify_DetachedEd448(t *testing.T) {
 
 	signConfig := &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 		Detached:     true,
 	}
@@ -282,7 +282,7 @@ func TestF_Sign_DetachedEd448_VerifyOID(t *testing.T) {
 
 	signedData, err := Sign(context.Background(), content, &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 		Detached:     true,
 	})
@@ -320,7 +320,7 @@ func TestF_Verify_AlgorithmMismatch_Ed448DeclaredECDSAKey(t *testing.T) {
 	// Sign with Ed448
 	signedData, err := Sign(context.Background(), content, &SignerConfig{
 		Certificate:  ed448Cert,
-		Signer:       ed448KP.PrivateKey.(crypto.Signer),
+		Signer:       ed448KP.PrivateKey,
 		IncludeCerts: true,
 	})
 	if err != nil {
@@ -423,7 +423,7 @@ func TestF_Verify_Ed448_InvalidSignature(t *testing.T) {
 
 	signedData, err := Sign(context.Background(), content, &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 	})
 	if err != nil {
@@ -449,7 +449,7 @@ func TestF_Verify_Ed448_ModifiedContent(t *testing.T) {
 
 	signedData, err := Sign(context.Background(), content, &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 	})
 	if err != nil {
@@ -509,7 +509,7 @@ func TestF_RFC8419_Ed448_PureMode(t *testing.T) {
 
 	signedData, err := Sign(context.Background(), content, &SignerConfig{
 		Certificate:  cert,
-		Signer:       kp.PrivateKey.(crypto.Signer),
+		Signer:       kp.PrivateKey,
 		IncludeCerts: true,
 	})
 	if err != nil {
@@ -538,7 +538,7 @@ func TestF_RFC8419_Ed448_PureMode(t *testing.T) {
 func TestU_GetSignatureAlgorithmIdentifier_Ed448(t *testing.T) {
 	kp := generateEd448KeyPair(t)
 
-	algId, err := getSignatureAlgorithmIdentifier(kp.PrivateKey.(crypto.Signer), crypto.Hash(0))
+	algId, err := getSignatureAlgorithmIdentifier(kp.PrivateKey, crypto.Hash(0))
 	if err != nil {
 		t.Fatalf("getSignatureAlgorithmIdentifier failed: %v", err)
 	}
@@ -594,7 +594,7 @@ func TestF_EdDSA_BothAlgorithmsWork(t *testing.T) {
 
 			signedData, err := Sign(context.Background(), content, &SignerConfig{
 				Certificate:  cert,
-				Signer:       kp.PrivateKey.(crypto.Signer),
+				Signer:       kp.PrivateKey,
 				IncludeCerts: true,
 			})
 			if err != nil {

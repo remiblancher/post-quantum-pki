@@ -38,23 +38,36 @@ type SignerConfig struct {
 }
 
 // selectDigestForSigner returns the appropriate digest algorithm based on the signer's
-// algorithm and certificate type, following RFC 9882 (ML-DSA) recommendations.
+// algorithm and certificate type, following RFC 9882 (ML-DSA) and RFC 9814 (SLH-DSA).
 // If the digest is explicitly specified in SignerConfig, it takes precedence.
 func selectDigestForSigner(signer crypto.Signer, cert *x509.Certificate) crypto.Hash {
 	certType := x509util.GetCertificateType(cert)
 
 	if certType == x509util.CertTypePQC {
-		// RFC 9882: ML-DSA digest selection based on security level
 		alg := pkicrypto.AlgorithmFromPublicKey(signer.Public())
 		switch alg {
+		// RFC 9882: ML-DSA digest selection based on security level
 		case pkicrypto.AlgMLDSA87:
 			return crypto.SHA512 // NIST Level 5
 		case pkicrypto.AlgMLDSA65:
 			return crypto.SHA384 // NIST Level 3
 		case pkicrypto.AlgMLDSA44:
 			return crypto.SHA256 // NIST Level 1
+
+		// RFC 9814: SLH-DSA digest selection based on security level
+		// 128-bit security → SHA-256, 192/256-bit security → SHA-512
+		case pkicrypto.AlgSLHDSASHA2128s, pkicrypto.AlgSLHDSASHA2128f,
+			pkicrypto.AlgSLHDSASHAKE128s, pkicrypto.AlgSLHDSASHAKE128f:
+			return crypto.SHA256 // NIST Level 1
+		case pkicrypto.AlgSLHDSASHA2192s, pkicrypto.AlgSLHDSASHA2192f,
+			pkicrypto.AlgSLHDSASHAKE192s, pkicrypto.AlgSLHDSASHAKE192f:
+			return crypto.SHA512 // NIST Level 3
+		case pkicrypto.AlgSLHDSASHA2256s, pkicrypto.AlgSLHDSASHA2256f,
+			pkicrypto.AlgSLHDSASHAKE256s, pkicrypto.AlgSLHDSASHAKE256f:
+			return crypto.SHA512 // NIST Level 5
+
 		default:
-			// Other PQC algorithms (SLH-DSA) - default to SHA-256
+			// Unknown PQC - default to SHA-256
 			return crypto.SHA256
 		}
 	}
@@ -297,7 +310,7 @@ func computeSHAKE256(data []byte, outputLen int) []byte {
 	h := sha3.NewShake256()
 	h.Write(data)
 	out := make([]byte, outputLen)
-	h.Read(out)
+	_, _ = h.Read(out) // ShakeHash.Read never returns an error
 	return out
 }
 
@@ -553,19 +566,32 @@ func algorithmIDToOID(alg pkicrypto.AlgorithmID) asn1.ObjectIdentifier {
 		return OIDMLDSA65
 	case pkicrypto.AlgMLDSA87:
 		return OIDMLDSA87
-	// SLH-DSA
-	case pkicrypto.AlgSLHDSA128s:
-		return OIDSLHDSA128s
-	case pkicrypto.AlgSLHDSA128f:
-		return OIDSLHDSA128f
-	case pkicrypto.AlgSLHDSA192s:
-		return OIDSLHDSA192s
-	case pkicrypto.AlgSLHDSA192f:
-		return OIDSLHDSA192f
-	case pkicrypto.AlgSLHDSA256s:
-		return OIDSLHDSA256s
-	case pkicrypto.AlgSLHDSA256f:
-		return OIDSLHDSA256f
+	// SLH-DSA SHA2 variants
+	case pkicrypto.AlgSLHDSASHA2128s:
+		return OIDSLHDSASHA2128s
+	case pkicrypto.AlgSLHDSASHA2128f:
+		return OIDSLHDSASHA2128f
+	case pkicrypto.AlgSLHDSASHA2192s:
+		return OIDSLHDSASHA2192s
+	case pkicrypto.AlgSLHDSASHA2192f:
+		return OIDSLHDSASHA2192f
+	case pkicrypto.AlgSLHDSASHA2256s:
+		return OIDSLHDSASHA2256s
+	case pkicrypto.AlgSLHDSASHA2256f:
+		return OIDSLHDSASHA2256f
+	// SLH-DSA SHAKE variants
+	case pkicrypto.AlgSLHDSASHAKE128s:
+		return OIDSLHDSASHAKE128s
+	case pkicrypto.AlgSLHDSASHAKE128f:
+		return OIDSLHDSASHAKE128f
+	case pkicrypto.AlgSLHDSASHAKE192s:
+		return OIDSLHDSASHAKE192s
+	case pkicrypto.AlgSLHDSASHAKE192f:
+		return OIDSLHDSASHAKE192f
+	case pkicrypto.AlgSLHDSASHAKE256s:
+		return OIDSLHDSASHAKE256s
+	case pkicrypto.AlgSLHDSASHAKE256f:
+		return OIDSLHDSASHAKE256f
 	default:
 		return nil
 	}

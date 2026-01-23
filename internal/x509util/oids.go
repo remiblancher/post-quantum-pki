@@ -91,13 +91,22 @@ var (
 	OIDMLKEM768  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 2}
 	OIDMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
 
-	// SLH-DSA (Stateless Hash-Based Digital Signature Algorithm) - FIPS 205
+	// SLH-DSA (Stateless Hash-Based Digital Signature Algorithm) - FIPS 205, RFC 9814
+	// SHA2 variants (OIDs 20-25)
 	OIDSLHDSA128s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 20}
 	OIDSLHDSA128f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 21}
 	OIDSLHDSA192s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 22}
 	OIDSLHDSA192f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 23}
 	OIDSLHDSA256s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 24}
 	OIDSLHDSA256f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 25}
+
+	// SHAKE variants (OIDs 26-31) - RFC 9814
+	OIDSLHDSASHAKE128s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 26}
+	OIDSLHDSASHAKE128f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 27}
+	OIDSLHDSASHAKE192s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 28}
+	OIDSLHDSASHAKE192f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 29}
+	OIDSLHDSASHAKE256s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 30}
+	OIDSLHDSASHAKE256f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 31}
 )
 
 // Catalyst Extensions OIDs (ITU-T X.509 Section 9.8).
@@ -323,12 +332,20 @@ func IsPQCSignatureAlgorithmOID(rawTBS []byte) bool {
 	return OIDEqual(tbs.SigAlg.Algorithm, OIDMLDSA44) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDMLDSA65) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDMLDSA87) ||
+		// SLH-DSA SHA2 variants
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA128s) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA128f) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA192s) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA192f) ||
 		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256f)
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256f) ||
+		// SLH-DSA SHAKE variants (RFC 9814)
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE128s) ||
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE128f) ||
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE192s) ||
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE192f) ||
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE256s) ||
+		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE256f)
 }
 
 // ExtractSignatureAlgorithmOID extracts the signature algorithm OID from certificate raw bytes.

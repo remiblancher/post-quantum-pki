@@ -29,13 +29,22 @@ func IsPQCOID(oid asn1.ObjectIdentifier) bool {
 		OIDEqual(oid, OIDMLDSA87) {
 		return true
 	}
-	// SLH-DSA (FIPS 205)
+	// SLH-DSA SHA2 variants (FIPS 205)
 	if OIDEqual(oid, OIDSLHDSA128s) ||
 		OIDEqual(oid, OIDSLHDSA128f) ||
 		OIDEqual(oid, OIDSLHDSA192s) ||
 		OIDEqual(oid, OIDSLHDSA192f) ||
 		OIDEqual(oid, OIDSLHDSA256s) ||
 		OIDEqual(oid, OIDSLHDSA256f) {
+		return true
+	}
+	// SLH-DSA SHAKE variants (RFC 9814)
+	if OIDEqual(oid, OIDSLHDSASHAKE128s) ||
+		OIDEqual(oid, OIDSLHDSASHAKE128f) ||
+		OIDEqual(oid, OIDSLHDSASHAKE192s) ||
+		OIDEqual(oid, OIDSLHDSASHAKE192f) ||
+		OIDEqual(oid, OIDSLHDSASHAKE256s) ||
+		OIDEqual(oid, OIDSLHDSASHAKE256f) {
 		return true
 	}
 	return false

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ed448 signature support (OID 1.3.101.113)
   - Ed448 key generation, CA creation, certificate issuance
   - Pure mode signing (no pre-hash) per RFC 8419
+- **RFC 9814 compliance** for SLH-DSA in CMS
+  - 6 new SHAKE variants: slh-dsa-shake-128s/f, slh-dsa-shake-192s/f, slh-dsa-shake-256s/f
+  - Auto-selection of digest algorithm based on SLH-DSA security level
+  - 128-bit → SHA-256, 192-bit → SHA-512, 256-bit → SHA-512
+  - Renamed SHA2 variants to explicit names (slh-dsa-sha2-*)
 - **RFC 9882 compliance** for ML-DSA in CMS
   - Auto-selection of digest algorithm based on ML-DSA security level
   - ML-DSA-44 → SHA-256, ML-DSA-65 → SHA-384, ML-DSA-87 → SHA-512

@@ -110,11 +110,27 @@ var (
 	OIDMLDSA65 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 18}
 	OIDMLDSA87 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 19}
 
-	// SLH-DSA (FIPS 205) - using placeholder OIDs
-	OIDSLHDSA128s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 20}
-	OIDSLHDSA128f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 21}
-	OIDSLHDSA192s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 22}
-	OIDSLHDSA192f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 23}
-	OIDSLHDSA256s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 24}
-	OIDSLHDSA256f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 25}
+	// SLH-DSA (FIPS 205, RFC 9814) - SHA2 variants
+	OIDSLHDSASHA2128s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 20}
+	OIDSLHDSASHA2128f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 21}
+	OIDSLHDSASHA2192s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 22}
+	OIDSLHDSASHA2192f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 23}
+	OIDSLHDSASHA2256s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 24}
+	OIDSLHDSASHA2256f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 25}
+
+	// SLH-DSA (FIPS 205, RFC 9814) - SHAKE variants
+	OIDSLHDSASHAKE128s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 26}
+	OIDSLHDSASHAKE128f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 27}
+	OIDSLHDSASHAKE192s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 28}
+	OIDSLHDSASHAKE192f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 29}
+	OIDSLHDSASHAKE256s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 30}
+	OIDSLHDSASHAKE256f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 31}
+
+	// Backwards compatibility aliases (deprecated)
+	OIDSLHDSA128s = OIDSLHDSASHA2128s
+	OIDSLHDSA128f = OIDSLHDSASHA2128f
+	OIDSLHDSA192s = OIDSLHDSASHA2192s
+	OIDSLHDSA192f = OIDSLHDSASHA2192f
+	OIDSLHDSA256s = OIDSLHDSASHA2256s
+	OIDSLHDSA256f = OIDSLHDSASHA2256f
 )

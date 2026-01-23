@@ -37,15 +37,33 @@ const (
 	AlgMLDSA87 AlgorithmID = "ml-dsa-87"
 )
 
-// Post-quantum signature algorithms (FIPS 205 SLH-DSA).
+// Post-quantum signature algorithms (FIPS 205 SLH-DSA, RFC 9814).
 // Variants: s = small signatures (~8KB), f = fast signing (~17-50KB).
+// SHA2 variants use SHA-256/SHA-512, SHAKE variants use SHAKE128/SHAKE256.
 const (
-	AlgSLHDSA128s AlgorithmID = "slh-dsa-128s"
-	AlgSLHDSA128f AlgorithmID = "slh-dsa-128f"
-	AlgSLHDSA192s AlgorithmID = "slh-dsa-192s"
-	AlgSLHDSA192f AlgorithmID = "slh-dsa-192f"
-	AlgSLHDSA256s AlgorithmID = "slh-dsa-256s"
-	AlgSLHDSA256f AlgorithmID = "slh-dsa-256f"
+	// SHA2 variants (RFC 9814 OIDs 20-25)
+	AlgSLHDSASHA2128s AlgorithmID = "slh-dsa-sha2-128s"
+	AlgSLHDSASHA2128f AlgorithmID = "slh-dsa-sha2-128f"
+	AlgSLHDSASHA2192s AlgorithmID = "slh-dsa-sha2-192s"
+	AlgSLHDSASHA2192f AlgorithmID = "slh-dsa-sha2-192f"
+	AlgSLHDSASHA2256s AlgorithmID = "slh-dsa-sha2-256s"
+	AlgSLHDSASHA2256f AlgorithmID = "slh-dsa-sha2-256f"
+
+	// SHAKE variants (RFC 9814 OIDs 26-31)
+	AlgSLHDSASHAKE128s AlgorithmID = "slh-dsa-shake-128s"
+	AlgSLHDSASHAKE128f AlgorithmID = "slh-dsa-shake-128f"
+	AlgSLHDSASHAKE192s AlgorithmID = "slh-dsa-shake-192s"
+	AlgSLHDSASHAKE192f AlgorithmID = "slh-dsa-shake-192f"
+	AlgSLHDSASHAKE256s AlgorithmID = "slh-dsa-shake-256s"
+	AlgSLHDSASHAKE256f AlgorithmID = "slh-dsa-shake-256f"
+
+	// Aliases for backwards compatibility (deprecated, use SHA2 variants)
+	AlgSLHDSA128s AlgorithmID = AlgSLHDSASHA2128s
+	AlgSLHDSA128f AlgorithmID = AlgSLHDSASHA2128f
+	AlgSLHDSA192s AlgorithmID = AlgSLHDSASHA2192s
+	AlgSLHDSA192f AlgorithmID = AlgSLHDSASHA2192f
+	AlgSLHDSA256s AlgorithmID = AlgSLHDSASHA2256s
+	AlgSLHDSA256f AlgorithmID = AlgSLHDSASHA2256f
 )
 
 // Post-quantum KEM algorithms (FIPS 203 ML-KEM).
@@ -185,48 +203,92 @@ var algorithms = map[AlgorithmID]algorithmInfo{
 		Description: "ML-DSA-87 (NIST Level 5)",
 	},
 
-	// PQC Signatures (SLH-DSA, FIPS 205) - Hash-based stateless signatures
-	AlgSLHDSA128s: {
+	// PQC Signatures (SLH-DSA, FIPS 205, RFC 9814) - Hash-based stateless signatures
+	// SHA2 variants (OIDs 20-25)
+	AlgSLHDSASHA2128s: {
 		Type:        TypePQCSignature,
 		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 20},
 		X509SigAlg:  0,
 		KeySizeBits: 0,
 		Description: "SLH-DSA-SHA2-128s (NIST Level 1, small)",
 	},
-	AlgSLHDSA128f: {
+	AlgSLHDSASHA2128f: {
 		Type:        TypePQCSignature,
 		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 21},
 		X509SigAlg:  0,
 		KeySizeBits: 0,
 		Description: "SLH-DSA-SHA2-128f (NIST Level 1, fast)",
 	},
-	AlgSLHDSA192s: {
+	AlgSLHDSASHA2192s: {
 		Type:        TypePQCSignature,
 		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 22},
 		X509SigAlg:  0,
 		KeySizeBits: 0,
 		Description: "SLH-DSA-SHA2-192s (NIST Level 3, small)",
 	},
-	AlgSLHDSA192f: {
+	AlgSLHDSASHA2192f: {
 		Type:        TypePQCSignature,
 		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 23},
 		X509SigAlg:  0,
 		KeySizeBits: 0,
 		Description: "SLH-DSA-SHA2-192f (NIST Level 3, fast)",
 	},
-	AlgSLHDSA256s: {
+	AlgSLHDSASHA2256s: {
 		Type:        TypePQCSignature,
 		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 24},
 		X509SigAlg:  0,
 		KeySizeBits: 0,
 		Description: "SLH-DSA-SHA2-256s (NIST Level 5, small)",
 	},
-	AlgSLHDSA256f: {
+	AlgSLHDSASHA2256f: {
 		Type:        TypePQCSignature,
 		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 25},
 		X509SigAlg:  0,
 		KeySizeBits: 0,
 		Description: "SLH-DSA-SHA2-256f (NIST Level 5, fast)",
+	},
+	// SHAKE variants (OIDs 26-31)
+	AlgSLHDSASHAKE128s: {
+		Type:        TypePQCSignature,
+		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 26},
+		X509SigAlg:  0,
+		KeySizeBits: 0,
+		Description: "SLH-DSA-SHAKE-128s (NIST Level 1, small)",
+	},
+	AlgSLHDSASHAKE128f: {
+		Type:        TypePQCSignature,
+		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 27},
+		X509SigAlg:  0,
+		KeySizeBits: 0,
+		Description: "SLH-DSA-SHAKE-128f (NIST Level 1, fast)",
+	},
+	AlgSLHDSASHAKE192s: {
+		Type:        TypePQCSignature,
+		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 28},
+		X509SigAlg:  0,
+		KeySizeBits: 0,
+		Description: "SLH-DSA-SHAKE-192s (NIST Level 3, small)",
+	},
+	AlgSLHDSASHAKE192f: {
+		Type:        TypePQCSignature,
+		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 29},
+		X509SigAlg:  0,
+		KeySizeBits: 0,
+		Description: "SLH-DSA-SHAKE-192f (NIST Level 3, fast)",
+	},
+	AlgSLHDSASHAKE256s: {
+		Type:        TypePQCSignature,
+		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 30},
+		X509SigAlg:  0,
+		KeySizeBits: 0,
+		Description: "SLH-DSA-SHAKE-256s (NIST Level 5, small)",
+	},
+	AlgSLHDSASHAKE256f: {
+		Type:        TypePQCSignature,
+		OID:         asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 31},
+		X509SigAlg:  0,
+		KeySizeBits: 0,
+		Description: "SLH-DSA-SHAKE-256f (NIST Level 5, fast)",
 	},
 
 	// PQC KEM (ML-KEM, FIPS 203)
@@ -359,7 +421,8 @@ func (a AlgorithmID) Family() string {
 		return "rsa"
 	case AlgMLDSA44, AlgMLDSA65, AlgMLDSA87:
 		return "ml-dsa"
-	case AlgSLHDSA128s, AlgSLHDSA128f, AlgSLHDSA192s, AlgSLHDSA192f, AlgSLHDSA256s, AlgSLHDSA256f:
+	case AlgSLHDSASHA2128s, AlgSLHDSASHA2128f, AlgSLHDSASHA2192s, AlgSLHDSASHA2192f, AlgSLHDSASHA2256s, AlgSLHDSASHA2256f,
+		AlgSLHDSASHAKE128s, AlgSLHDSASHAKE128f, AlgSLHDSASHAKE192s, AlgSLHDSASHAKE192f, AlgSLHDSASHAKE256s, AlgSLHDSASHAKE256f:
 		return "slh-dsa"
 	case AlgMLKEM512, AlgMLKEM768, AlgMLKEM1024:
 		return "ml-kem"

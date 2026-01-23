@@ -85,24 +85,43 @@ var keyGenerators = map[AlgorithmID]keyGenerator{
 	AlgMLDSA44: generateMLDSA44,
 	AlgMLDSA65: generateMLDSA65,
 	AlgMLDSA87: generateMLDSA87,
-	// SLH-DSA (SPHINCS+)
-	AlgSLHDSA128s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	// SLH-DSA (SPHINCS+) - SHA2 variants
+	AlgSLHDSASHA2128s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateSLHDSA(r, slhdsa.SHA2_128s)
 	},
-	AlgSLHDSA128f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	AlgSLHDSASHA2128f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateSLHDSA(r, slhdsa.SHA2_128f)
 	},
-	AlgSLHDSA192s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	AlgSLHDSASHA2192s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateSLHDSA(r, slhdsa.SHA2_192s)
 	},
-	AlgSLHDSA192f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	AlgSLHDSASHA2192f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateSLHDSA(r, slhdsa.SHA2_192f)
 	},
-	AlgSLHDSA256s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	AlgSLHDSASHA2256s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateSLHDSA(r, slhdsa.SHA2_256s)
 	},
-	AlgSLHDSA256f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	AlgSLHDSASHA2256f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateSLHDSA(r, slhdsa.SHA2_256f)
+	},
+	// SLH-DSA (SPHINCS+) - SHAKE variants
+	AlgSLHDSASHAKE128s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+		return generateSLHDSA(r, slhdsa.SHAKE_128s)
+	},
+	AlgSLHDSASHAKE128f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+		return generateSLHDSA(r, slhdsa.SHAKE_128f)
+	},
+	AlgSLHDSASHAKE192s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+		return generateSLHDSA(r, slhdsa.SHAKE_192s)
+	},
+	AlgSLHDSASHAKE192f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+		return generateSLHDSA(r, slhdsa.SHAKE_192f)
+	},
+	AlgSLHDSASHAKE256s: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+		return generateSLHDSA(r, slhdsa.SHAKE_256s)
+	},
+	AlgSLHDSASHAKE256f: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+		return generateSLHDSA(r, slhdsa.SHAKE_256f)
 	},
 }
 
@@ -331,7 +350,8 @@ func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
 		}
 		return &pub, nil
 
-	case AlgSLHDSA128s, AlgSLHDSA128f, AlgSLHDSA192s, AlgSLHDSA192f, AlgSLHDSA256s, AlgSLHDSA256f:
+	case AlgSLHDSASHA2128s, AlgSLHDSASHA2128f, AlgSLHDSASHA2192s, AlgSLHDSASHA2192f, AlgSLHDSASHA2256s, AlgSLHDSASHA2256f,
+		AlgSLHDSASHAKE128s, AlgSLHDSASHAKE128f, AlgSLHDSASHAKE192s, AlgSLHDSASHAKE192f, AlgSLHDSASHAKE256s, AlgSLHDSASHAKE256f:
 		var pub slhdsa.PublicKey
 		pub.ID = algorithmToSLHDSAID(alg)
 		if err := pub.UnmarshalBinary(data); err != nil {
@@ -386,18 +406,32 @@ func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
 // algorithmToSLHDSAID maps AlgorithmID to slhdsa.ID.
 func algorithmToSLHDSAID(alg AlgorithmID) slhdsa.ID {
 	switch alg {
-	case AlgSLHDSA128s:
+	// SHA2 variants
+	case AlgSLHDSASHA2128s:
 		return slhdsa.SHA2_128s
-	case AlgSLHDSA128f:
+	case AlgSLHDSASHA2128f:
 		return slhdsa.SHA2_128f
-	case AlgSLHDSA192s:
+	case AlgSLHDSASHA2192s:
 		return slhdsa.SHA2_192s
-	case AlgSLHDSA192f:
+	case AlgSLHDSASHA2192f:
 		return slhdsa.SHA2_192f
-	case AlgSLHDSA256s:
+	case AlgSLHDSASHA2256s:
 		return slhdsa.SHA2_256s
-	case AlgSLHDSA256f:
+	case AlgSLHDSASHA2256f:
 		return slhdsa.SHA2_256f
+	// SHAKE variants
+	case AlgSLHDSASHAKE128s:
+		return slhdsa.SHAKE_128s
+	case AlgSLHDSASHAKE128f:
+		return slhdsa.SHAKE_128f
+	case AlgSLHDSASHAKE192s:
+		return slhdsa.SHAKE_192s
+	case AlgSLHDSASHAKE192f:
+		return slhdsa.SHAKE_192f
+	case AlgSLHDSASHAKE256s:
+		return slhdsa.SHAKE_256s
+	case AlgSLHDSASHAKE256f:
+		return slhdsa.SHAKE_256f
 	default:
 		return 0
 	}

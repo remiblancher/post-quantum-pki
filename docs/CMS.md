@@ -7,6 +7,7 @@
 - [3. Algorithm Support](#3-algorithm-support)
   - [3.1 RFC 9882 Compliance (ML-DSA)](#31-rfc-9882-compliance-ml-dsa)
   - [3.2 RFC 8419 Compliance (EdDSA)](#32-rfc-8419-compliance-eddsa)
+  - [3.3 RFC 9814 Compliance (SLH-DSA)](#33-rfc-9814-compliance-slh-dsa)
 - [4. OpenSSL Interoperability](#4-openssl-interoperability)
 - [5. Use Cases](#5-use-cases)
 - [6. Hybrid Encryption (PQC Transition)](#6-hybrid-encryption-pqc-transition)
@@ -31,11 +32,12 @@ This guide covers the Cryptographic Message Syntax (CMS) implementation for sign
 | RFC 5652 | Cryptographic Message Syntax (CMS) |
 | RFC 8419 | EdDSA (Ed25519/Ed448) in CMS |
 | RFC 9629 | Using Key Encapsulation Mechanisms in CMS |
+| RFC 9814 | SLH-DSA in CMS |
 | RFC 9880 | ML-KEM for CMS |
 | RFC 9882 | ML-DSA in CMS |
+| FIPS 203 | ML-KEM (Kyber) |
 | FIPS 204 | ML-DSA (Dilithium) |
 | FIPS 205 | SLH-DSA (SPHINCS+) |
-| FIPS 203 | ML-KEM (Kyber) |
 
 ### Content Types
 
@@ -334,6 +336,71 @@ qpki cms verify doc.p7s --data doc.pdf --ca /tmp/ed448-ca/ca.crt
 | Public key size | 32 bytes | 57 bytes |
 | Performance | Faster | Slower |
 | Use case | General purpose | Higher security requirements |
+
+---
+
+### 3.3 RFC 9814 Compliance (SLH-DSA)
+
+QPKI implements RFC 9814 for SLH-DSA (SPHINCS+) algorithms in CMS:
+
+#### Supported Algorithms
+
+| Algorithm | OID | Security | Mode |
+|-----------|-----|----------|------|
+| SLH-DSA-SHA2-128s | 2.16.840.1.101.3.4.3.20 | NIST Level 1 | Small signatures |
+| SLH-DSA-SHA2-128f | 2.16.840.1.101.3.4.3.21 | NIST Level 1 | Fast signing |
+| SLH-DSA-SHA2-192s | 2.16.840.1.101.3.4.3.22 | NIST Level 3 | Small signatures |
+| SLH-DSA-SHA2-192f | 2.16.840.1.101.3.4.3.23 | NIST Level 3 | Fast signing |
+| SLH-DSA-SHA2-256s | 2.16.840.1.101.3.4.3.24 | NIST Level 5 | Small signatures |
+| SLH-DSA-SHA2-256f | 2.16.840.1.101.3.4.3.25 | NIST Level 5 | Fast signing |
+| SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 | NIST Level 1 | Small signatures |
+| SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 | NIST Level 1 | Fast signing |
+| SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 | NIST Level 3 | Small signatures |
+| SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 | NIST Level 3 | Fast signing |
+| SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 | NIST Level 5 | Small signatures |
+| SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 | NIST Level 5 | Fast signing |
+
+#### Digest Auto-Selection
+
+Per RFC 9814, the digest algorithm is auto-selected based on SLH-DSA security level:
+
+| Security Level | Digest Algorithm |
+|----------------|------------------|
+| 128-bit (Level 1) | SHA-256 |
+| 192-bit (Level 3) | SHA-512 |
+| 256-bit (Level 5) | SHA-512 |
+
+#### Pure Mode Signing
+
+All SLH-DSA variants operate in "pure" mode:
+- Data is signed directly without pre-hashing
+- Parameters field is absent in AlgorithmIdentifier
+- Empty context string per RFC 9814
+
+**Example:**
+
+```bash
+# Generate SLH-DSA-SHAKE-128f key (fast variant)
+qpki key gen --algorithm slh-dsa-shake-128f --out slh-shake.key
+
+# Generate SLH-DSA-SHA2-256s key (small signatures)
+qpki key gen --algorithm slh-dsa-sha2-256s --out slh-sha2.key
+
+# Sign with SLH-DSA
+qpki cms sign --data doc.pdf --cert slh.crt --key slh.key --out doc.p7s
+
+# Verify SLH-DSA signature
+qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
+```
+
+#### SHA2 vs SHAKE Variants
+
+| Feature | SHA2 variants | SHAKE variants |
+|---------|---------------|----------------|
+| Hash function | SHA-256/SHA-512 | SHAKE128/SHAKE256 |
+| Interoperability | Wider support | Newer standard |
+| Performance | Similar | Similar |
+| Use case | General purpose | SHAKE-based systems |
 
 ---
 

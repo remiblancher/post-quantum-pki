@@ -82,7 +82,7 @@ variables:
 #   - "s" = small variant (smaller signatures, slower signing)
 #   - Public key: ~64 bytes, Signature: ~29,792 bytes
 #
-algorithm: slh-dsa-256s
+algorithm: slh-dsa-sha2-256s
 
 # -----------------------------------------------------------------------------
 # Validity

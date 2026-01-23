@@ -42,10 +42,25 @@ Supported algorithms:
     rsa-4096     - RSA 4096-bit
 
   Post-Quantum Signature (file only):
-    ml-dsa-44    - ML-DSA-44 (NIST Level 1)
-    ml-dsa-65    - ML-DSA-65 (NIST Level 3)
-    ml-dsa-87    - ML-DSA-87 (NIST Level 5)
-    slh-dsa-*    - SLH-DSA variants
+    ml-dsa-44         - ML-DSA-44 (NIST Level 1)
+    ml-dsa-65         - ML-DSA-65 (NIST Level 3)
+    ml-dsa-87         - ML-DSA-87 (NIST Level 5)
+
+  SLH-DSA SHA2 variants (RFC 9814):
+    slh-dsa-sha2-128s - SLH-DSA-SHA2-128s (Level 1, small sig)
+    slh-dsa-sha2-128f - SLH-DSA-SHA2-128f (Level 1, fast)
+    slh-dsa-sha2-192s - SLH-DSA-SHA2-192s (Level 3, small sig)
+    slh-dsa-sha2-192f - SLH-DSA-SHA2-192f (Level 3, fast)
+    slh-dsa-sha2-256s - SLH-DSA-SHA2-256s (Level 5, small sig)
+    slh-dsa-sha2-256f - SLH-DSA-SHA2-256f (Level 5, fast)
+
+  SLH-DSA SHAKE variants (RFC 9814):
+    slh-dsa-shake-128s - SLH-DSA-SHAKE-128s (Level 1, small sig)
+    slh-dsa-shake-128f - SLH-DSA-SHAKE-128f (Level 1, fast)
+    slh-dsa-shake-192s - SLH-DSA-SHAKE-192s (Level 3, small sig)
+    slh-dsa-shake-192f - SLH-DSA-SHAKE-192f (Level 3, fast)
+    slh-dsa-shake-256s - SLH-DSA-SHAKE-256s (Level 5, small sig)
+    slh-dsa-shake-256f - SLH-DSA-SHAKE-256f (Level 5, fast)
 
   Post-Quantum KEM (file only):
     ml-kem-512   - ML-KEM-512 (NIST Level 1)
@@ -452,19 +467,32 @@ func pqcPublicKeyPEMType(alg crypto.AlgorithmID) string {
 		return "ML-DSA-65 PUBLIC KEY"
 	case crypto.AlgMLDSA87:
 		return "ML-DSA-87 PUBLIC KEY"
-	// SLH-DSA (signature)
-	case crypto.AlgSLHDSA128s:
+	// SLH-DSA SHA2 variants (signature)
+	case crypto.AlgSLHDSASHA2128s:
 		return "SLH-DSA-SHA2-128s PUBLIC KEY"
-	case crypto.AlgSLHDSA128f:
+	case crypto.AlgSLHDSASHA2128f:
 		return "SLH-DSA-SHA2-128f PUBLIC KEY"
-	case crypto.AlgSLHDSA192s:
+	case crypto.AlgSLHDSASHA2192s:
 		return "SLH-DSA-SHA2-192s PUBLIC KEY"
-	case crypto.AlgSLHDSA192f:
+	case crypto.AlgSLHDSASHA2192f:
 		return "SLH-DSA-SHA2-192f PUBLIC KEY"
-	case crypto.AlgSLHDSA256s:
+	case crypto.AlgSLHDSASHA2256s:
 		return "SLH-DSA-SHA2-256s PUBLIC KEY"
-	case crypto.AlgSLHDSA256f:
+	case crypto.AlgSLHDSASHA2256f:
 		return "SLH-DSA-SHA2-256f PUBLIC KEY"
+	// SLH-DSA SHAKE variants (signature)
+	case crypto.AlgSLHDSASHAKE128s:
+		return "SLH-DSA-SHAKE-128s PUBLIC KEY"
+	case crypto.AlgSLHDSASHAKE128f:
+		return "SLH-DSA-SHAKE-128f PUBLIC KEY"
+	case crypto.AlgSLHDSASHAKE192s:
+		return "SLH-DSA-SHAKE-192s PUBLIC KEY"
+	case crypto.AlgSLHDSASHAKE192f:
+		return "SLH-DSA-SHAKE-192f PUBLIC KEY"
+	case crypto.AlgSLHDSASHAKE256s:
+		return "SLH-DSA-SHAKE-256s PUBLIC KEY"
+	case crypto.AlgSLHDSASHAKE256f:
+		return "SLH-DSA-SHAKE-256f PUBLIC KEY"
 	// ML-KEM (encryption)
 	case crypto.AlgMLKEM512:
 		return "ML-KEM-512 PUBLIC KEY"
