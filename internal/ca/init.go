@@ -380,7 +380,8 @@ func getAlgorithmFamily(alg pkicrypto.AlgorithmID) string {
 		return "ed"
 	case "ml-dsa-44", "ml-dsa-65", "ml-dsa-87":
 		return "ml-dsa"
-	case "slh-dsa-sha2-128f", "slh-dsa-sha2-128s":
+	case "slh-dsa-sha2-128s", "slh-dsa-sha2-128f", "slh-dsa-sha2-192s", "slh-dsa-sha2-192f", "slh-dsa-sha2-256s", "slh-dsa-sha2-256f",
+		"slh-dsa-shake-128s", "slh-dsa-shake-128f", "slh-dsa-shake-192s", "slh-dsa-shake-192f", "slh-dsa-shake-256s", "slh-dsa-shake-256f":
 		return "slh-dsa"
 	default:
 		return string(alg)

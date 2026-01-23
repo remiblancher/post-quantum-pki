@@ -79,7 +79,7 @@ variables:
 #   - "f" = fast variant (optimized for speed)
 #   - Public key: ~48 bytes, Signature: ~16,224 bytes
 #
-algorithm: slh-dsa-192f
+algorithm: slh-dsa-sha2-192f
 
 # -----------------------------------------------------------------------------
 # Validity

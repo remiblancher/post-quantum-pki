@@ -167,14 +167,24 @@ func TestU_getAlgorithmFamily(t *testing.T) {
 		{crypto.AlgMLDSA65, "ml-dsa"},
 		{crypto.AlgMLDSA87, "ml-dsa"},
 
-		// SLH-DSA (post-quantum) - note: function expects "slh-dsa-sha2-*" format
-		{crypto.AlgorithmID("slh-dsa-sha2-128f"), "slh-dsa"},
-		{crypto.AlgorithmID("slh-dsa-sha2-128s"), "slh-dsa"},
+		// SLH-DSA SHA2 variants (post-quantum)
+		{crypto.AlgSLHDSASHA2128f, "slh-dsa"},
+		{crypto.AlgSLHDSASHA2128s, "slh-dsa"},
+		{crypto.AlgSLHDSASHA2192f, "slh-dsa"},
+		{crypto.AlgSLHDSASHA2192s, "slh-dsa"},
+		{crypto.AlgSLHDSASHA2256f, "slh-dsa"},
+		{crypto.AlgSLHDSASHA2256s, "slh-dsa"},
+
+		// SLH-DSA SHAKE variants (post-quantum)
+		{crypto.AlgSLHDSASHAKE128f, "slh-dsa"},
+		{crypto.AlgSLHDSASHAKE128s, "slh-dsa"},
+		{crypto.AlgSLHDSASHAKE192f, "slh-dsa"},
+		{crypto.AlgSLHDSASHAKE192s, "slh-dsa"},
+		{crypto.AlgSLHDSASHAKE256f, "slh-dsa"},
+		{crypto.AlgSLHDSASHAKE256s, "slh-dsa"},
 
 		// Unknown algorithm - returns as-is
 		{crypto.AlgorithmID("unknown-algorithm"), "unknown-algorithm"},
-		// Note: "slh-dsa-128f" (without sha2) is not recognized, returns as-is
-		{crypto.AlgSLHDSA128f, "slh-dsa-128f"},
 	}
 
 	for _, tc := range testCases {

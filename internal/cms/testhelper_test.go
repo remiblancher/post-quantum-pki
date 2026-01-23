@@ -526,21 +526,36 @@ func generateSLHDSAKeyPair(t *testing.T, alg pkicrypto.AlgorithmID) *testKeyPair
 func generateSLHDSACertificate(t *testing.T, kp *testKeyPair, alg pkicrypto.AlgorithmID) *x509.Certificate {
 	t.Helper()
 
-	// Get the SLH-DSA OID
+	// Get the SLH-DSA OID (SHA2 and SHAKE variants)
+	// Note: AlgSLHDSA*s/f are aliases for AlgSLHDSASHA2*s/f
 	var sigOID asn1.ObjectIdentifier
 	switch alg {
-	case pkicrypto.AlgSLHDSA128s:
-		sigOID = OIDSLHDSA128s
-	case pkicrypto.AlgSLHDSA128f:
-		sigOID = OIDSLHDSA128f
-	case pkicrypto.AlgSLHDSA192s:
-		sigOID = OIDSLHDSA192s
-	case pkicrypto.AlgSLHDSA192f:
-		sigOID = OIDSLHDSA192f
-	case pkicrypto.AlgSLHDSA256s:
-		sigOID = OIDSLHDSA256s
-	case pkicrypto.AlgSLHDSA256f:
-		sigOID = OIDSLHDSA256f
+	// SHA2 variants (includes backwards-compatible aliases)
+	case pkicrypto.AlgSLHDSASHA2128s:
+		sigOID = OIDSLHDSASHA2128s
+	case pkicrypto.AlgSLHDSASHA2128f:
+		sigOID = OIDSLHDSASHA2128f
+	case pkicrypto.AlgSLHDSASHA2192s:
+		sigOID = OIDSLHDSASHA2192s
+	case pkicrypto.AlgSLHDSASHA2192f:
+		sigOID = OIDSLHDSASHA2192f
+	case pkicrypto.AlgSLHDSASHA2256s:
+		sigOID = OIDSLHDSASHA2256s
+	case pkicrypto.AlgSLHDSASHA2256f:
+		sigOID = OIDSLHDSASHA2256f
+	// SHAKE variants (RFC 9814)
+	case pkicrypto.AlgSLHDSASHAKE128s:
+		sigOID = OIDSLHDSASHAKE128s
+	case pkicrypto.AlgSLHDSASHAKE128f:
+		sigOID = OIDSLHDSASHAKE128f
+	case pkicrypto.AlgSLHDSASHAKE192s:
+		sigOID = OIDSLHDSASHAKE192s
+	case pkicrypto.AlgSLHDSASHAKE192f:
+		sigOID = OIDSLHDSASHAKE192f
+	case pkicrypto.AlgSLHDSASHAKE256s:
+		sigOID = OIDSLHDSASHAKE256s
+	case pkicrypto.AlgSLHDSASHAKE256f:
+		sigOID = OIDSLHDSASHAKE256f
 	default:
 		t.Fatalf("Unsupported SLH-DSA algorithm: %s", alg)
 	}

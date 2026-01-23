@@ -332,18 +332,32 @@ func detectAlgorithmFromPublicKey(pub crypto.PublicKey) AlgorithmID {
 // slhdsaAlgorithmFromID maps SLH-DSA ID to AlgorithmID.
 func slhdsaAlgorithmFromID(id slhdsa.ID) AlgorithmID {
 	switch id {
+	// SHA2 variants
 	case slhdsa.SHA2_128s:
-		return AlgSLHDSA128s
+		return AlgSLHDSASHA2128s
 	case slhdsa.SHA2_128f:
-		return AlgSLHDSA128f
+		return AlgSLHDSASHA2128f
 	case slhdsa.SHA2_192s:
-		return AlgSLHDSA192s
+		return AlgSLHDSASHA2192s
 	case slhdsa.SHA2_192f:
-		return AlgSLHDSA192f
+		return AlgSLHDSASHA2192f
 	case slhdsa.SHA2_256s:
-		return AlgSLHDSA256s
+		return AlgSLHDSASHA2256s
 	case slhdsa.SHA2_256f:
-		return AlgSLHDSA256f
+		return AlgSLHDSASHA2256f
+	// SHAKE variants
+	case slhdsa.SHAKE_128s:
+		return AlgSLHDSASHAKE128s
+	case slhdsa.SHAKE_128f:
+		return AlgSLHDSASHAKE128f
+	case slhdsa.SHAKE_192s:
+		return AlgSLHDSASHAKE192s
+	case slhdsa.SHAKE_192f:
+		return AlgSLHDSASHAKE192f
+	case slhdsa.SHAKE_256s:
+		return AlgSLHDSASHAKE256s
+	case slhdsa.SHAKE_256f:
+		return AlgSLHDSASHAKE256f
 	default:
 		return AlgUnknown
 	}

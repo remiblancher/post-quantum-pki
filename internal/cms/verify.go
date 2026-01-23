@@ -400,11 +400,18 @@ func validateMLDSAKeyMatch(sigAlgOID asn1.ObjectIdentifier, pub crypto.PublicKey
 	return nil
 }
 
-// isSLHDSAOID returns true if the OID is a SLH-DSA variant.
+// isSLHDSAOID returns true if the OID is a SLH-DSA variant (SHA2 or SHAKE).
 func isSLHDSAOID(sigAlgOID asn1.ObjectIdentifier) bool {
-	return sigAlgOID.Equal(OIDSLHDSA128s) || sigAlgOID.Equal(OIDSLHDSA128f) ||
-		sigAlgOID.Equal(OIDSLHDSA192s) || sigAlgOID.Equal(OIDSLHDSA192f) ||
-		sigAlgOID.Equal(OIDSLHDSA256s) || sigAlgOID.Equal(OIDSLHDSA256f)
+	// SHA2 variants
+	if sigAlgOID.Equal(OIDSLHDSASHA2128s) || sigAlgOID.Equal(OIDSLHDSASHA2128f) ||
+		sigAlgOID.Equal(OIDSLHDSASHA2192s) || sigAlgOID.Equal(OIDSLHDSASHA2192f) ||
+		sigAlgOID.Equal(OIDSLHDSASHA2256s) || sigAlgOID.Equal(OIDSLHDSASHA2256f) {
+		return true
+	}
+	// SHAKE variants
+	return sigAlgOID.Equal(OIDSLHDSASHAKE128s) || sigAlgOID.Equal(OIDSLHDSASHAKE128f) ||
+		sigAlgOID.Equal(OIDSLHDSASHAKE192s) || sigAlgOID.Equal(OIDSLHDSASHAKE192f) ||
+		sigAlgOID.Equal(OIDSLHDSASHAKE256s) || sigAlgOID.Equal(OIDSLHDSASHAKE256f)
 }
 
 // Algorithm lookup tables for validation.

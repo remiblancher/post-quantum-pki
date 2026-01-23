@@ -85,7 +85,7 @@ variables:
 #   - Public key: ~64 bytes, Signature: ~29,792 bytes
 #   - Conservative: security relies only on hash function
 #
-algorithm: slh-dsa-256f
+algorithm: slh-dsa-sha2-256f
 
 # -----------------------------------------------------------------------------
 # Validity
