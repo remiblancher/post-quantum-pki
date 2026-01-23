@@ -18,6 +18,7 @@ const (
 	AlgECDSAP384 AlgorithmID = "ecdsa-p384"
 	AlgECDSAP521 AlgorithmID = "ecdsa-p521"
 	AlgEd25519   AlgorithmID = "ed25519"
+	AlgEd448     AlgorithmID = "ed448"
 	AlgRSA2048   AlgorithmID = "rsa-2048"
 	AlgRSA4096   AlgorithmID = "rsa-4096"
 )
@@ -136,6 +137,13 @@ var algorithms = map[AlgorithmID]algorithmInfo{
 		X509SigAlg:  x509.PureEd25519,
 		KeySizeBits: 256,
 		Description: "Ed25519 (EdDSA with Curve25519)",
+	},
+	AlgEd448: {
+		Type:        TypeClassicalSignature,
+		OID:         asn1.ObjectIdentifier{1, 3, 101, 113},
+		X509SigAlg:  0, // Go's x509 doesn't support Ed448 yet
+		KeySizeBits: 448,
+		Description: "Ed448 (EdDSA with Curve448)",
 	},
 
 	// RSA
@@ -345,8 +353,8 @@ func (a AlgorithmID) Family() string {
 	switch a {
 	case AlgECDSAP256, AlgECDSAP384, AlgECDSAP521, AlgECP256, AlgECP384, AlgECP521:
 		return "ec"
-	case AlgEd25519:
-		return "ed25519"
+	case AlgEd25519, AlgEd448:
+		return "ed"
 	case AlgRSA2048, AlgRSA4096:
 		return "rsa"
 	case AlgMLDSA44, AlgMLDSA65, AlgMLDSA87:

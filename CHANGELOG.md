@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **RFC 8419 compliance** for EdDSA in CMS
+  - Ed448 signature support (OID 1.3.101.113)
+  - Ed448 key generation, CA creation, certificate issuance
+  - Pure mode signing (no pre-hash) per RFC 8419
 - **RFC 9882 compliance** for ML-DSA in CMS
   - Auto-selection of digest algorithm based on ML-DSA security level
   - ML-DSA-44 → SHA-256, ML-DSA-65 → SHA-384, ML-DSA-87 → SHA-512

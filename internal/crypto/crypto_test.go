@@ -1232,8 +1232,9 @@ func TestU_AlgorithmID_Family(t *testing.T) {
 		{"[Unit] Family: EC alias P-256", AlgECP256, "ec"},
 		{"[Unit] Family: EC alias P-384", AlgECP384, "ec"},
 		{"[Unit] Family: EC alias P-521", AlgECP521, "ec"},
-		// Ed25519
-		{"[Unit] Family: Ed25519", AlgEd25519, "ed25519"},
+		// EdDSA
+		{"[Unit] Family: Ed25519", AlgEd25519, "ed"},
+		{"[Unit] Family: Ed448", AlgEd448, "ed"},
 		// RSA
 		{"[Unit] Family: RSA-2048", AlgRSA2048, "rsa"},
 		{"[Unit] Family: RSA-4096", AlgRSA4096, "rsa"},

@@ -14,6 +14,7 @@ import (
 	"github.com/cloudflare/circl/kem/mlkem/mlkem1024"
 	"github.com/cloudflare/circl/kem/mlkem/mlkem512"
 	"github.com/cloudflare/circl/kem/mlkem/mlkem768"
+	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
@@ -300,6 +301,8 @@ func detectAlgorithmFromPublicKey(pub crypto.PublicKey) AlgorithmID {
 		}
 	case ed25519.PublicKey:
 		return AlgEd25519
+	case ed448.PublicKey:
+		return AlgEd448
 	case *rsa.PublicKey:
 		if k.N.BitLen() <= 2048 {
 			return AlgRSA2048

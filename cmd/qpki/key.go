@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/spf13/cobra"
 
 	"github.com/remiblancher/post-quantum-pki/internal/crypto"
@@ -35,6 +36,7 @@ Supported algorithms:
     ecdsa-p384   - ECDSA with P-384 curve
     ecdsa-p521   - ECDSA with P-521 curve
     ed25519      - Ed25519 (EdDSA) [file only]
+    ed448        - Ed448 (EdDSA) [file only]
     rsa-2048     - RSA 2048-bit
     rsa-3072     - RSA 3072-bit [HSM only]
     rsa-4096     - RSA 4096-bit
@@ -379,7 +381,7 @@ func runKeyPub(cmd *cobra.Command, args []string) error {
 	switch alg {
 	case crypto.AlgECDSAP256, crypto.AlgECDSAP384, crypto.AlgECDSAP521,
 		crypto.AlgECP256, crypto.AlgECP384, crypto.AlgECP521,
-		crypto.AlgEd25519, crypto.AlgRSA2048, crypto.AlgRSA4096:
+		crypto.AlgEd25519, crypto.AlgEd448, crypto.AlgRSA2048, crypto.AlgRSA4096:
 		// Classical keys: use PKIX format
 		pubKeyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 		if err != nil {
@@ -696,6 +698,8 @@ func getKeySize(signer *crypto.SoftwareSigner) string {
 		return fmt.Sprintf("%d bits", k.Curve.Params().BitSize)
 	case ed25519.PublicKey:
 		return "256 bits"
+	case ed448.PublicKey:
+		return "448 bits"
 	case *rsa.PublicKey:
 		return fmt.Sprintf("%d bits", k.N.BitLen())
 	default:
@@ -774,7 +778,7 @@ func marshalPrivateKeyDER(signer *crypto.SoftwareSigner) ([]byte, error) {
 	priv := signer.PrivateKey()
 
 	switch k := priv.(type) {
-	case *ecdsa.PrivateKey, ed25519.PrivateKey, *rsa.PrivateKey:
+	case *ecdsa.PrivateKey, ed25519.PrivateKey, ed448.PrivateKey, *rsa.PrivateKey:
 		// Use PKCS#8 for classical keys
 		return x509.MarshalPKCS8PrivateKey(priv)
 	default:
