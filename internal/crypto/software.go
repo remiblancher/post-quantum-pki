@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
@@ -77,6 +78,10 @@ func (s *SoftwareSigner) Sign(random io.Reader, digest []byte, opts crypto.Signe
 	case ed25519.PrivateKey:
 		// Ed25519 expects the full message, not a digest
 		return ed25519.Sign(priv, digest), nil
+
+	case ed448.PrivateKey:
+		// Ed448 expects the full message with empty context (pure mode per RFC 8419)
+		return ed448.Sign(priv, digest, ""), nil
 
 	case *rsa.PrivateKey:
 		// Check if we have extended options for PSS
@@ -150,6 +155,13 @@ func VerifyWithOpts(alg AlgorithmID, pub crypto.PublicKey, message, signature []
 		}
 		return ed25519.Verify(edPub, message, signature)
 
+	case AlgEd448:
+		ed448Pub, ok := pub.(ed448.PublicKey)
+		if !ok {
+			return false
+		}
+		return ed448.Verify(ed448Pub, message, signature, "")
+
 	case AlgRSA2048, AlgRSA4096:
 		rsaPub, ok := pub.(*rsa.PublicKey)
 		if !ok {
@@ -210,7 +222,7 @@ func (s *SoftwareSigner) SavePrivateKey(path string, passphrase []byte) error {
 	var pemBlock *pem.Block
 
 	switch priv := s.priv.(type) {
-	case *ecdsa.PrivateKey, ed25519.PrivateKey, *rsa.PrivateKey:
+	case *ecdsa.PrivateKey, ed25519.PrivateKey, ed448.PrivateKey, *rsa.PrivateKey:
 		// Use PKCS#8 for classical keys
 		der, err := x509.MarshalPKCS8PrivateKey(s.priv)
 		if err != nil {
@@ -575,6 +587,8 @@ func classicalKeyInfo(priv crypto.PrivateKey) (AlgorithmID, crypto.PublicKey) {
 		}
 	case ed25519.PrivateKey:
 		return AlgEd25519, k.Public()
+	case ed448.PrivateKey:
+		return AlgEd448, k.Public()
 	case *rsa.PrivateKey:
 		if k.N.BitLen() <= 2048 {
 			return AlgRSA2048, &k.PublicKey

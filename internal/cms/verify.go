@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/x509util"
@@ -326,6 +327,8 @@ func validateAlgorithmKeyMatch(sigAlgOID asn1.ObjectIdentifier, pub crypto.Publi
 		return validateECDSAKeyMatch(sigAlgOID, hashAlg)
 	case ed25519.PublicKey:
 		return validateEd25519KeyMatch(sigAlgOID)
+	case ed448.PublicKey:
+		return validateEd448KeyMatch(sigAlgOID)
 	case *rsa.PublicKey:
 		return validateRSAKeyMatch(sigAlgOID, hashAlg)
 	default:
@@ -349,6 +352,14 @@ func validateECDSAKeyMatch(sigAlgOID asn1.ObjectIdentifier, hashAlg crypto.Hash)
 func validateEd25519KeyMatch(sigAlgOID asn1.ObjectIdentifier) error {
 	if !sigAlgOID.Equal(OIDEd25519) {
 		return fmt.Errorf("algorithm mismatch: OID %v is not valid for Ed25519 key", sigAlgOID)
+	}
+	return nil
+}
+
+// validateEd448KeyMatch validates Ed448 OID (RFC 8419).
+func validateEd448KeyMatch(sigAlgOID asn1.ObjectIdentifier) error {
+	if !sigAlgOID.Equal(OIDEd448) {
+		return fmt.Errorf("algorithm mismatch: OID %v is not valid for Ed448 key", sigAlgOID)
 	}
 	return nil
 }
@@ -448,9 +459,23 @@ func verifySignatureBytes(data, signature []byte, cert *x509.Certificate, hashAl
 	}
 }
 
-// verifyClassicalSignature verifies a classical signature (ECDSA, RSA, Ed25519).
+// verifyClassicalSignature verifies a classical signature (ECDSA, RSA, Ed25519, Ed448).
 func verifyClassicalSignature(data, signature []byte, cert *x509.Certificate, hashAlg crypto.Hash, sigAlgOID asn1.ObjectIdentifier) error {
 	pub := cert.PublicKey
+
+	// Handle Ed448 specially: Go's x509 library doesn't support Ed448,
+	// so cert.PublicKey will be nil. We need to extract it from RawSubjectPublicKeyInfo.
+	if pub == nil && sigAlgOID.Equal(OIDEd448) {
+		ed448Pub, err := extractEd448PublicKey(cert)
+		if err != nil {
+			return fmt.Errorf("failed to extract Ed448 public key: %w", err)
+		}
+		// Ed448 pure mode verification with empty context (RFC 8419)
+		if !ed448.Verify(ed448Pub, data, signature, "") {
+			return fmt.Errorf("Ed448 signature verification failed")
+		}
+		return nil
+	}
 
 	// SECURITY: Validate that the declared OID matches the key type
 	// BEFORE attempting cryptographic verification
@@ -472,6 +497,13 @@ func verifyClassicalSignature(data, signature []byte, cert *x509.Certificate, ha
 	case ed25519.PublicKey:
 		if !ed25519.Verify(pubKey, data, signature) {
 			return fmt.Errorf("Ed25519 signature verification failed")
+		}
+		return nil
+
+	case ed448.PublicKey:
+		// Ed448 pure mode verification with empty context (RFC 8419)
+		if !ed448.Verify(pubKey, data, signature, "") {
+			return fmt.Errorf("Ed448 signature verification failed")
 		}
 		return nil
 
@@ -547,6 +579,32 @@ func extractPQCPublicKey(cert *x509.Certificate) (crypto.PublicKey, pkicrypto.Al
 	}
 
 	return pubKey, alg, nil
+}
+
+// extractEd448PublicKey extracts an Ed448 public key from a certificate's RawSubjectPublicKeyInfo.
+// This is needed because Go's x509 library doesn't support Ed448 natively.
+func extractEd448PublicKey(cert *x509.Certificate) (ed448.PublicKey, error) {
+	raw := cert.RawSubjectPublicKeyInfo
+	var spki struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}
+	if _, err := asn1.Unmarshal(raw, &spki); err != nil {
+		return nil, fmt.Errorf("failed to parse SPKI: %w", err)
+	}
+
+	// Verify the algorithm OID is Ed448
+	if !spki.Algorithm.Algorithm.Equal(OIDEd448) {
+		return nil, fmt.Errorf("expected Ed448 OID, got %v", spki.Algorithm.Algorithm)
+	}
+
+	// Ed448 public key should be 57 bytes
+	pubBytes := spki.PublicKey.Bytes
+	if len(pubBytes) != ed448.PublicKeySize {
+		return nil, fmt.Errorf("invalid Ed448 public key size: %d, expected %d", len(pubBytes), ed448.PublicKeySize)
+	}
+
+	return ed448.PublicKey(pubBytes), nil
 }
 
 // oidToHash converts a hash algorithm OID to crypto.Hash.

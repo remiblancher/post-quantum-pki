@@ -376,8 +376,8 @@ func getAlgorithmFamily(alg pkicrypto.AlgorithmID) string {
 		return "ec"
 	case "rsa-2048", "rsa-3072", "rsa-4096":
 		return "rsa"
-	case "ed25519":
-		return "ed25519"
+	case "ed25519", "ed448":
+		return "ed"
 	case "ml-dsa-44", "ml-dsa-65", "ml-dsa-87":
 		return "ml-dsa"
 	case "slh-dsa-sha2-128f", "slh-dsa-sha2-128s":

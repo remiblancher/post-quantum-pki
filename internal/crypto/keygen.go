@@ -19,6 +19,7 @@ import (
 	"github.com/cloudflare/circl/kem/mlkem/mlkem1024"
 	"github.com/cloudflare/circl/kem/mlkem/mlkem512"
 	"github.com/cloudflare/circl/kem/mlkem/mlkem768"
+	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
@@ -72,6 +73,7 @@ var keyGenerators = map[AlgorithmID]keyGenerator{
 	},
 	// EdDSA
 	AlgEd25519: generateEd25519,
+	AlgEd448:   generateEd448,
 	// RSA
 	AlgRSA2048: func(r io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 		return generateRSA(r, 2048)
@@ -166,6 +168,15 @@ func generateECDSA(random io.Reader, curve elliptic.Curve) (crypto.PrivateKey, c
 // generateEd25519 generates an Ed25519 key pair.
 func generateEd25519(random io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
 	pub, priv, err := ed25519.GenerateKey(random)
+	if err != nil {
+		return nil, nil, err
+	}
+	return priv, pub, nil
+}
+
+// generateEd448 generates an Ed448 key pair.
+func generateEd448(random io.Reader) (crypto.PrivateKey, crypto.PublicKey, error) {
+	pub, priv, err := ed448.GenerateKey(random)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -358,6 +369,12 @@ func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
 		}
 		return ed25519.PublicKey(data), nil
 
+	case AlgEd448:
+		if len(data) != ed448.PublicKeySize {
+			return nil, fmt.Errorf("invalid Ed448 public key size: %d", len(data))
+		}
+		return ed448.PublicKey(data), nil
+
 	case AlgMLKEM512, AlgMLKEM768, AlgMLKEM1024:
 		return ParseMLKEMPublicKey(alg, data)
 
@@ -396,6 +413,8 @@ func (kp *KeyPair) PublicKeyBytes() ([]byte, error) {
 		return elliptic.Marshal(pub.Curve, pub.X, pub.Y), nil
 	case ed25519.PublicKey:
 		return pub, nil
+	case ed448.PublicKey:
+		return pub, nil
 	case *rsa.PublicKey:
 		// For RSA, we'd need to use x509 encoding
 		return nil, fmt.Errorf("RSA public key bytes not implemented")
@@ -426,6 +445,8 @@ func PublicKeyBytes(pub crypto.PublicKey) ([]byte, error) {
 		//nolint:staticcheck // elliptic.Marshal is deprecated but still needed for X.509
 		return elliptic.Marshal(p.Curve, p.X, p.Y), nil
 	case ed25519.PublicKey:
+		return p, nil
+	case ed448.PublicKey:
 		return p, nil
 	case *rsa.PublicKey:
 		return nil, fmt.Errorf("RSA public key bytes not implemented")

@@ -18,6 +18,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/x509util"
@@ -344,10 +345,15 @@ func signDataWithCert(data []byte, signer crypto.Signer, digestAlg crypto.Hash, 
 	}
 }
 
-// signClassical performs a classical signature (ECDSA, RSA, Ed25519).
+// signClassical performs a classical signature (ECDSA, RSA, Ed25519, Ed448).
 func signClassical(data []byte, signer crypto.Signer, digestAlg crypto.Hash) ([]byte, error) {
 	// For Ed25519, sign the data directly (no digest)
 	if _, ok := signer.Public().(ed25519.PublicKey); ok {
+		return signer.Sign(rand.Reader, data, crypto.Hash(0))
+	}
+
+	// For Ed448, sign the data directly with empty context (RFC 8419 pure mode)
+	if _, ok := signer.Public().(ed448.PublicKey); ok {
 		return signer.Sign(rand.Reader, data, crypto.Hash(0))
 	}
 
@@ -466,6 +472,8 @@ func getSignatureAlgorithmIdentifier(signer crypto.Signer, digestAlg crypto.Hash
 		}
 	case ed25519.PublicKey:
 		return pkix.AlgorithmIdentifier{Algorithm: OIDEd25519}, nil
+	case ed448.PublicKey:
+		return pkix.AlgorithmIdentifier{Algorithm: OIDEd448}, nil
 	case *rsa.PublicKey:
 		switch digestAlg {
 		case crypto.SHA256:
@@ -512,6 +520,8 @@ func getClassicalSignatureAlgorithmIdentifier(pub crypto.PublicKey, digestAlg cr
 		}
 	case ed25519.PublicKey:
 		return pkix.AlgorithmIdentifier{Algorithm: OIDEd25519}, nil
+	case ed448.PublicKey:
+		return pkix.AlgorithmIdentifier{Algorithm: OIDEd448}, nil
 	default:
 		return pkix.AlgorithmIdentifier{}, fmt.Errorf("unsupported classical public key type: %T", pub)
 	}

@@ -96,8 +96,9 @@ var (
 	OIDECDSAWithSHA384 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3}
 	OIDECDSAWithSHA512 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 4}
 
-	// Ed25519
+	// EdDSA (RFC 8419)
 	OIDEd25519 = asn1.ObjectIdentifier{1, 3, 101, 112}
+	OIDEd448   = asn1.ObjectIdentifier{1, 3, 101, 113}
 
 	// RSA
 	OIDSHA256WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}

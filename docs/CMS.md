@@ -6,6 +6,7 @@
 - [2. CLI Commands](#2-cli-commands)
 - [3. Algorithm Support](#3-algorithm-support)
   - [3.1 RFC 9882 Compliance (ML-DSA)](#31-rfc-9882-compliance-ml-dsa)
+  - [3.2 RFC 8419 Compliance (EdDSA)](#32-rfc-8419-compliance-eddsa)
 - [4. OpenSSL Interoperability](#4-openssl-interoperability)
 - [5. Use Cases](#5-use-cases)
 - [6. Hybrid Encryption (PQC Transition)](#6-hybrid-encryption-pqc-transition)
@@ -21,13 +22,14 @@ This guide covers the Cryptographic Message Syntax (CMS) implementation for sign
 
 ## 1. What is CMS?
 
-**Cryptographic Message Syntax (CMS)** is a standard format (RFC 5652) for signing and encrypting data. It supports classical algorithms (ECDSA, RSA, Ed25519), post-quantum (ML-DSA, SLH-DSA, ML-KEM), and hybrid modes.
+**Cryptographic Message Syntax (CMS)** is a standard format (RFC 5652) for signing and encrypting data. It supports classical algorithms (ECDSA, RSA, Ed25519, Ed448), post-quantum (ML-DSA, SLH-DSA, ML-KEM), and hybrid modes.
 
 ### Standards
 
 | Standard | Description |
 |----------|-------------|
 | RFC 5652 | Cryptographic Message Syntax (CMS) |
+| RFC 8419 | EdDSA (Ed25519/Ed448) in CMS |
 | RFC 9629 | Using Key Encapsulation Mechanisms in CMS |
 | RFC 9880 | ML-KEM for CMS |
 | RFC 9882 | ML-DSA in CMS |
@@ -216,7 +218,8 @@ qpki cms info encrypted.p7m
 |-----------|----------|----------|
 | ECDSA-SHA256/384/512 | EC P-256/384/521 | Classical (recommended) |
 | RSA-SHA256/384/512 | RSA 2048-4096 | Legacy compatibility |
-| Ed25519 | Ed25519 | Modern classical |
+| Ed25519 | Ed25519 | Modern classical (~128-bit security) |
+| Ed448 | Ed448 | Modern classical (~224-bit security) |
 | ML-DSA-44/65/87 | ML-DSA | Post-quantum |
 | SLH-DSA-* | SLH-DSA | Hash-based PQC |
 
@@ -284,6 +287,53 @@ qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
 | SHA3-256 | 2.16.840.1.101.3.4.2.8 | SHA-3 family |
 | SHA3-384 | 2.16.840.1.101.3.4.2.9 | SHA-3 family |
 | SHA3-512 | 2.16.840.1.101.3.4.2.10 | SHA-3 family |
+
+### 3.2 RFC 8419 Compliance (EdDSA)
+
+QPKI implements RFC 8419 for EdDSA algorithms (Ed25519 and Ed448) in CMS:
+
+#### Supported Algorithms
+
+| Algorithm | OID | Security Level | Mode |
+|-----------|-----|----------------|------|
+| Ed25519 | 1.3.101.112 | ~128 bits | Pure (no pre-hash) |
+| Ed448 | 1.3.101.113 | ~224 bits | Pure (no pre-hash) |
+
+#### Pure Mode Signing
+
+Both Ed25519 and Ed448 operate in "pure" mode per RFC 8419:
+- Data is signed directly without pre-hashing
+- Parameters field is absent in AlgorithmIdentifier
+- Ed448 uses empty context string (`""`)
+
+**Example:**
+
+```bash
+# Generate Ed448 key
+qpki key gen --algorithm ed448 --out ed448.key
+
+# Create Ed448 CA
+qpki ca init --ca-dir /tmp/ed448-ca --algorithm ed448 --cn "Test Ed448 CA"
+
+# Issue certificate with Ed448
+qpki cert issue --ca-dir /tmp/ed448-ca --cn "Test User" --out user.crt
+
+# Sign with Ed448
+qpki cms sign --data doc.pdf --cert user.crt --key user.key --out doc.p7s
+
+# Verify Ed448 signature
+qpki cms verify doc.p7s --data doc.pdf --ca /tmp/ed448-ca/ca.crt
+```
+
+#### Ed25519 vs Ed448
+
+| Feature | Ed25519 | Ed448 |
+|---------|---------|-------|
+| Security | ~128 bits | ~224 bits |
+| Signature size | 64 bytes | 114 bytes |
+| Public key size | 32 bytes | 57 bytes |
+| Performance | Faster | Slower |
+| Use case | General purpose | Higher security requirements |
 
 ---
 
@@ -396,5 +446,6 @@ qpki cms decrypt --key alice-mlkem.key --in secret.p7m --out decrypted.txt
 - [TSA](TSA.md) - Timestamping for long-term validity
 - [CREDENTIALS](CREDENTIALS.md) - Signing and encryption credentials
 - [RFC 5652](https://www.rfc-editor.org/rfc/rfc5652) - CMS specification
+- [RFC 8419](https://www.rfc-editor.org/rfc/rfc8419) - EdDSA (Ed25519/Ed448) in CMS
 - [RFC 9880](https://www.rfc-editor.org/rfc/rfc9880) - ML-KEM for CMS
 - [RFC 9882](https://www.rfc-editor.org/rfc/rfc9882) - ML-DSA in CMS

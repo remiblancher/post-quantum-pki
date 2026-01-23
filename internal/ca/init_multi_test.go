@@ -442,7 +442,7 @@ func TestF_InitializeMultiProfile_Ed25519(t *testing.T) {
 		t.Fatalf("InitializeMultiProfile() error = %v", err)
 	}
 
-	cert, ok := result.Certificates["ed25519"]
+	cert, ok := result.Certificates["ed"]
 	if !ok {
 		t.Fatal("InitializeMultiProfile() did not create Ed25519 certificate")
 	}

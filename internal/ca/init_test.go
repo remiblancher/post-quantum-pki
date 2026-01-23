@@ -158,8 +158,9 @@ func TestU_getAlgorithmFamily(t *testing.T) {
 		{crypto.AlgorithmID("rsa-3072"), "rsa"},
 		{crypto.AlgRSA4096, "rsa"},
 
-		// Ed25519
-		{crypto.AlgEd25519, "ed25519"},
+		// EdDSA
+		{crypto.AlgEd25519, "ed"},
+		{crypto.AlgEd448, "ed"},
 
 		// ML-DSA (post-quantum)
 		{crypto.AlgMLDSA44, "ml-dsa"},
