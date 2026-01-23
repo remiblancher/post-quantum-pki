@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **RFC 9882 compliance** for ML-DSA in CMS
+  - Auto-selection of digest algorithm based on ML-DSA security level
+  - ML-DSA-44 → SHA-256, ML-DSA-65 → SHA-384, ML-DSA-87 → SHA-512
+  - Verification warnings for suboptimal digest/ML-DSA combinations
+- **SHA-3 digest support** in CMS (SHA3-256, SHA3-384, SHA3-512)
+- **SHAKE256 XOF** function for future use
+
+### Changed
+- `cms sign --hash` flag now auto-selects based on ML-DSA level when not specified
+
 ## [0.12.0] - 2026-01-21
 
 ### Added

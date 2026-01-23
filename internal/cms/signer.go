@@ -21,6 +21,7 @@ import (
 	"github.com/remiblancher/post-quantum-pki/internal/ca"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/x509util"
+	"golang.org/x/crypto/sha3"
 )
 
 // SignerConfig contains options for signing.
@@ -35,6 +36,32 @@ type SignerConfig struct {
 	IncludeSigningCertV2 bool // If true, include ESSCertIDv2 attribute (RFC 5816 TSA)
 }
 
+// selectDigestForSigner returns the appropriate digest algorithm based on the signer's
+// algorithm and certificate type, following RFC 9882 (ML-DSA) recommendations.
+// If the digest is explicitly specified in SignerConfig, it takes precedence.
+func selectDigestForSigner(signer crypto.Signer, cert *x509.Certificate) crypto.Hash {
+	certType := x509util.GetCertificateType(cert)
+
+	if certType == x509util.CertTypePQC {
+		// RFC 9882: ML-DSA digest selection based on security level
+		alg := pkicrypto.AlgorithmFromPublicKey(signer.Public())
+		switch alg {
+		case pkicrypto.AlgMLDSA87:
+			return crypto.SHA512 // NIST Level 5
+		case pkicrypto.AlgMLDSA65:
+			return crypto.SHA384 // NIST Level 3
+		case pkicrypto.AlgMLDSA44:
+			return crypto.SHA256 // NIST Level 1
+		default:
+			// Other PQC algorithms (SLH-DSA) - default to SHA-256
+			return crypto.SHA256
+		}
+	}
+
+	// Classical algorithms: default to SHA-256
+	return crypto.SHA256
+}
+
 // Sign creates a CMS SignedData structure.
 func Sign(ctx context.Context, content []byte, config *SignerConfig) ([]byte, error) {
 	_ = ctx // TODO: use for cancellation
@@ -45,7 +72,8 @@ func Sign(ctx context.Context, content []byte, config *SignerConfig) ([]byte, er
 		return nil, fmt.Errorf("signer is required")
 	}
 	if config.DigestAlg == 0 {
-		config.DigestAlg = crypto.SHA256
+		// Auto-select digest based on signer algorithm (RFC 9882)
+		config.DigestAlg = selectDigestForSigner(config.Signer, config.Certificate)
 	}
 	if config.SigningTime.IsZero() {
 		config.SigningTime = time.Now().UTC()
@@ -248,11 +276,28 @@ func computeDigest(data []byte, alg crypto.Hash) ([]byte, error) {
 		h = sha512.New384()
 	case crypto.SHA512:
 		h = sha512.New()
+	case crypto.SHA3_256:
+		h = sha3.New256()
+	case crypto.SHA3_384:
+		h = sha3.New384()
+	case crypto.SHA3_512:
+		h = sha3.New512()
 	default:
 		return nil, fmt.Errorf("unsupported digest algorithm: %v", alg)
 	}
 	h.Write(data)
 	return h.Sum(nil), nil
+}
+
+// computeSHAKE256 computes a SHAKE256 digest with the specified output length.
+// SHAKE256 is an extendable output function (XOF) recommended by RFC 9882.
+// For CMS usage, outputLen should typically be 64 (512 bits) to match SHA-512 security.
+func computeSHAKE256(data []byte, outputLen int) []byte {
+	h := sha3.NewShake256()
+	h.Write(data)
+	out := make([]byte, outputLen)
+	h.Read(out)
+	return out
 }
 
 // signDataWithCert signs data using the appropriate signature format based on the certificate type.
@@ -339,6 +384,12 @@ func getDigestAlgorithmIdentifier(alg crypto.Hash) pkix.AlgorithmIdentifier {
 		return pkix.AlgorithmIdentifier{Algorithm: OIDSHA384}
 	case crypto.SHA512:
 		return pkix.AlgorithmIdentifier{Algorithm: OIDSHA512}
+	case crypto.SHA3_256:
+		return pkix.AlgorithmIdentifier{Algorithm: OIDSHA3_256}
+	case crypto.SHA3_384:
+		return pkix.AlgorithmIdentifier{Algorithm: OIDSHA3_384}
+	case crypto.SHA3_512:
+		return pkix.AlgorithmIdentifier{Algorithm: OIDSHA3_512}
 	default:
 		return pkix.AlgorithmIdentifier{Algorithm: OIDSHA256}
 	}

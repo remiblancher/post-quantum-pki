@@ -464,6 +464,7 @@ All artifacts are designed to be compatible with standard PKI tooling and are **
 | RFC 6960 | OCSP | 🟢 |
 | RFC 3161 | TSA Timestamping | 🟢 |
 | RFC 5652 | CMS Signed Data | 🟢 |
+| RFC 9882 | ML-DSA in CMS | 🟢 |
 | FIPS 203 | ML-KEM | 🟢 |
 | FIPS 204 | ML-DSA | 🟢 |
 | FIPS 205 | SLH-DSA | 🟢 |
