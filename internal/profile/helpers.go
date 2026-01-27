@@ -88,6 +88,7 @@ func BuildSubject(vars VariableValues) (pkix.Name, error) {
 // for use with ExtensionsConfig.SubstituteVariables().
 // Includes SAN variables (dns_names, ip_addresses, email) and CDP/AIA variables
 // (crl_url, ca_issuer, ocsp_url, cps_url).
+// Deprecated: Use ExtractAllTemplateVariables for dynamic variable extraction.
 func ExtractTemplateVariables(vars VariableValues) map[string][]string {
 	result := make(map[string][]string)
 
@@ -119,25 +120,73 @@ func ExtractTemplateVariables(vars VariableValues) map[string][]string {
 	return result
 }
 
+// ExtractAllTemplateVariables extracts all variables from VariableValues
+// for use with template substitution. Unlike ExtractTemplateVariables,
+// this function extracts all variables dynamically, not just hardcoded names.
+func ExtractAllTemplateVariables(vars VariableValues) map[string][]string {
+	result := make(map[string][]string)
+
+	for name, value := range vars {
+		result[name] = toStringSlice(value)
+	}
+
+	return result
+}
+
+// toStringSlice converts an interface{} value to a string slice.
+func toStringSlice(value interface{}) []string {
+	if value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		if v != "" {
+			return []string{v}
+		}
+		return nil
+	case []string:
+		return v
+	case []interface{}:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	default:
+		// Try to convert to string
+		return []string{fmt.Sprintf("%v", v)}
+	}
+}
+
 // ResolveProfileExtensions substitutes template variables in profile extensions.
-// This is a convenience function that combines ExtractTemplateVariables and SubstituteVariables.
+// This validates that required variables are provided and omits optional missing variables.
 //
-// It replaces templates like "{{ dns_names }}", "{{ ip_addresses }}", "{{ email }}",
-// "{{ crl_url }}", "{{ ca_issuer }}", "{{ ocsp_url }}", "{{ cps_url }}"
-// in extension configuration with the actual values from varValues.
+// If a variable is defined with required: true and not provided, returns an error.
+// If a variable is optional (required: false or undefined) and not provided, the field is omitted.
+// RFC 5280 compliance: if SAN has no entries after substitution, the extension is omitted.
 //
 // If the profile has no extensions, returns nil without error.
-// If varValues has no template variables, returns the original extensions unchanged.
 func ResolveProfileExtensions(prof *Profile, varValues VariableValues) (*ExtensionsConfig, error) {
 	if prof == nil || prof.Extensions == nil {
 		return nil, nil
 	}
 
-	varsForTemplates := ExtractTemplateVariables(varValues)
-	if len(varsForTemplates) == 0 {
-		// No template variables to substitute, return original extensions
-		return prof.Extensions, nil
+	// Extract all variables dynamically
+	varsForTemplates := ExtractAllTemplateVariables(varValues)
+
+	// Substitute with validation against profile variable definitions
+	resolved, err := prof.Extensions.SubstituteVariablesWithValidation(varsForTemplates, prof.Variables)
+	if err != nil {
+		return nil, err
 	}
 
-	return prof.Extensions.SubstituteVariables(varsForTemplates)
+	// Safety check: ensure no templates remain
+	if remaining := resolved.FindTemplateVariables(); len(remaining) > 0 {
+		return nil, fmt.Errorf("unresolved template variables in extensions: %v", remaining)
+	}
+
+	return resolved, nil
 }
