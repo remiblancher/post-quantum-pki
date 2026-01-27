@@ -442,7 +442,7 @@ func TestResolveProfileExtensions(t *testing.T) {
 		}
 	})
 
-	t.Run("no template variables returns original", func(t *testing.T) {
+	t.Run("no template variables preserves values", func(t *testing.T) {
 		prof := &Profile{
 			Name: "test",
 			Extensions: &ExtensionsConfig{
@@ -457,9 +457,15 @@ func TestResolveProfileExtensions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// Should return original extensions unchanged
-		if result != prof.Extensions {
-			t.Error("expected original extensions when no template variables")
+		// Should preserve static values
+		if result.CRLDistributionPoints == nil {
+			t.Fatal("expected CRLDistributionPoints to be preserved")
+		}
+		if len(result.CRLDistributionPoints.URLs) != 1 {
+			t.Errorf("expected 1 URL, got %d", len(result.CRLDistributionPoints.URLs))
+		}
+		if result.CRLDistributionPoints.URLs[0] != "http://static.example.com/ca.crl" {
+			t.Errorf("expected static URL preserved, got %s", result.CRLDistributionPoints.URLs[0])
 		}
 	})
 

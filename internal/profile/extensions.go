@@ -1231,46 +1231,92 @@ func (e *ExtensionsConfig) DeepCopy() *ExtensionsConfig {
 	return result
 }
 
-// SubstituteVariables replaces template variables ({{ variable }}) with actual values.
+// SubstituteVariablesWithValidation replaces template variables ({{ variable }}) with actual values.
+// When varDefs is provided, validates that required variables are provided.
 // Returns an error if a required variable is referenced but not provided.
-func (e *ExtensionsConfig) SubstituteVariables(vars map[string][]string) (*ExtensionsConfig, error) {
+// Optional or undefined variables are silently omitted.
+// RFC 5280 compliance: if SAN has no entries after substitution, it is set to nil.
+func (e *ExtensionsConfig) SubstituteVariablesWithValidation(vars map[string][]string, varDefs map[string]*Variable) (*ExtensionsConfig, error) {
 	if e == nil {
 		return nil, nil
 	}
 
 	result := e.DeepCopy()
+	var err error
 
 	// Substitute variables in SubjectAltName
 	if result.SubjectAltName != nil {
 		// DNS
-		result.SubjectAltName.DNS = substituteStringSlice(result.SubjectAltName.DNS, vars)
+		result.SubjectAltName.DNS, err = substituteStringSliceWithValidation(result.SubjectAltName.DNS, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
 
 		// Email
-		result.SubjectAltName.Email = substituteStringSlice(result.SubjectAltName.Email, vars)
+		result.SubjectAltName.Email, err = substituteStringSliceWithValidation(result.SubjectAltName.Email, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
 
 		// IP
-		result.SubjectAltName.IP = substituteStringSlice(result.SubjectAltName.IP, vars)
+		result.SubjectAltName.IP, err = substituteStringSliceWithValidation(result.SubjectAltName.IP, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
 
 		// URI
-		result.SubjectAltName.URI = substituteStringSlice(result.SubjectAltName.URI, vars)
+		result.SubjectAltName.URI, err = substituteStringSliceWithValidation(result.SubjectAltName.URI, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
+
+		// Handle dns_include_cn: automatically add CN to DNS SANs if flag is true
+		if result.SubjectAltName.DNSIncludeCN {
+			if cn, ok := vars["cn"]; ok && len(cn) > 0 && cn[0] != "" {
+				cnValue := cn[0]
+				if !sliceContainsString(result.SubjectAltName.DNS, cnValue) {
+					result.SubjectAltName.DNS = append(result.SubjectAltName.DNS, cnValue)
+				}
+			}
+		}
+
+		// RFC 5280: SAN must have at least one entry if present
+		if len(result.SubjectAltName.DNS) == 0 &&
+			len(result.SubjectAltName.Email) == 0 &&
+			len(result.SubjectAltName.IP) == 0 &&
+			len(result.SubjectAltName.URI) == 0 {
+			result.SubjectAltName = nil
+		}
 	}
 
 	// Substitute variables in CRL Distribution Points
 	if result.CRLDistributionPoints != nil {
-		result.CRLDistributionPoints.URLs = substituteStringSlice(result.CRLDistributionPoints.URLs, vars)
+		result.CRLDistributionPoints.URLs, err = substituteStringSliceWithValidation(result.CRLDistributionPoints.URLs, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Substitute variables in Authority Info Access
 	if result.AuthorityInfoAccess != nil {
-		result.AuthorityInfoAccess.CAIssuers = substituteStringSlice(result.AuthorityInfoAccess.CAIssuers, vars)
-		result.AuthorityInfoAccess.OCSP = substituteStringSlice(result.AuthorityInfoAccess.OCSP, vars)
+		result.AuthorityInfoAccess.CAIssuers, err = substituteStringSliceWithValidation(result.AuthorityInfoAccess.CAIssuers, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
+		result.AuthorityInfoAccess.OCSP, err = substituteStringSliceWithValidation(result.AuthorityInfoAccess.OCSP, vars, varDefs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Substitute variables in Certificate Policies
 	if result.CertificatePolicies != nil {
 		for i, policy := range result.CertificatePolicies.Policies {
 			if policy.CPS != "" {
-				result.CertificatePolicies.Policies[i].CPS = substituteString(policy.CPS, vars)
+				result.CertificatePolicies.Policies[i].CPS, err = substituteStringWithValidation(policy.CPS, vars, varDefs)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -1278,21 +1324,99 @@ func (e *ExtensionsConfig) SubstituteVariables(vars map[string][]string) (*Exten
 	// Substitute variables in QCStatements
 	if result.QCStatements != nil && len(result.QCStatements.QcPDS) > 0 {
 		for i, pds := range result.QCStatements.QcPDS {
-			result.QCStatements.QcPDS[i].URL = substituteString(pds.URL, vars)
-			result.QCStatements.QcPDS[i].Language = substituteString(pds.Language, vars)
+			result.QCStatements.QcPDS[i].URL, err = substituteStringWithValidation(pds.URL, vars, varDefs)
+			if err != nil {
+				return nil, err
+			}
+			result.QCStatements.QcPDS[i].Language, err = substituteStringWithValidation(pds.Language, vars, varDefs)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	return result, nil
 }
 
+// SubstituteVariables replaces template variables ({{ variable }}) with actual values.
+// Deprecated: Use SubstituteVariablesWithValidation for proper required/optional handling.
+func (e *ExtensionsConfig) SubstituteVariables(vars map[string][]string) (*ExtensionsConfig, error) {
+	return e.SubstituteVariablesWithValidation(vars, nil)
+}
+
 // sanVarPattern matches {{ variable_name }} patterns for SAN substitution.
 var sanVarPattern = regexp.MustCompile(`^\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}$`)
 
-// substituteStringSlice replaces template variables in a string slice.
-// Variables have the form {{ variable_name }}. If a variable is not provided,
-// it is silently skipped (variables are optional by default).
-func substituteStringSlice(values []string, vars map[string][]string) []string {
+// FindTemplateVariables returns all template variable names referenced in extensions.
+// This scans SubjectAltName, CRLDistributionPoints, AuthorityInfoAccess,
+// CertificatePolicies, and QCStatements for {{ var }} patterns.
+func (e *ExtensionsConfig) FindTemplateVariables() []string {
+	if e == nil {
+		return nil
+	}
+
+	found := make(map[string]struct{})
+
+	// Scan SubjectAltName
+	if e.SubjectAltName != nil {
+		extractVarsFromSlice(e.SubjectAltName.DNS, found)
+		extractVarsFromSlice(e.SubjectAltName.Email, found)
+		extractVarsFromSlice(e.SubjectAltName.IP, found)
+		extractVarsFromSlice(e.SubjectAltName.URI, found)
+	}
+
+	// Scan CRL Distribution Points
+	if e.CRLDistributionPoints != nil {
+		extractVarsFromSlice(e.CRLDistributionPoints.URLs, found)
+	}
+
+	// Scan Authority Info Access
+	if e.AuthorityInfoAccess != nil {
+		extractVarsFromSlice(e.AuthorityInfoAccess.CAIssuers, found)
+		extractVarsFromSlice(e.AuthorityInfoAccess.OCSP, found)
+	}
+
+	// Scan Certificate Policies
+	if e.CertificatePolicies != nil {
+		for _, policy := range e.CertificatePolicies.Policies {
+			extractVarFromString(policy.CPS, found)
+		}
+	}
+
+	// Scan QCStatements
+	if e.QCStatements != nil {
+		for _, pds := range e.QCStatements.QcPDS {
+			extractVarFromString(pds.URL, found)
+			extractVarFromString(pds.Language, found)
+		}
+	}
+
+	// Convert map to slice
+	result := make([]string, 0, len(found))
+	for name := range found {
+		result = append(result, name)
+	}
+	return result
+}
+
+// extractVarsFromSlice extracts template variable names from a string slice.
+func extractVarsFromSlice(values []string, found map[string]struct{}) {
+	for _, v := range values {
+		extractVarFromString(v, found)
+	}
+}
+
+// extractVarFromString extracts a template variable name from a string if present.
+func extractVarFromString(s string, found map[string]struct{}) {
+	if matches := sanVarPattern.FindStringSubmatch(strings.TrimSpace(s)); len(matches) == 2 {
+		found[matches[1]] = struct{}{}
+	}
+}
+
+// substituteStringSliceWithValidation replaces template variables in a string slice.
+// If varDefs is provided, validates required variables and returns an error if missing.
+// Optional or undefined variables are silently omitted.
+func substituteStringSliceWithValidation(values []string, vars map[string][]string, varDefs map[string]*Variable) ([]string, error) {
 	var result []string
 
 	for _, v := range values {
@@ -1301,31 +1425,42 @@ func substituteStringSlice(values []string, vars map[string][]string) []string {
 			varName := matches[1]
 			if substitutes, ok := vars[varName]; ok && len(substitutes) > 0 {
 				result = append(result, substitutes...)
+			} else if varDefs != nil {
+				// Variable not provided - check if required
+				if varDef, defined := varDefs[varName]; defined && varDef.Required {
+					return nil, fmt.Errorf("missing required variable: %s", varName)
+				}
+				// Optional or undefined - omit entirely
 			}
-			// If not provided, skip (variable is optional)
+			// If varDefs is nil, silently skip (backward compat)
 		} else {
 			// Static value, keep as-is
 			result = append(result, v)
 		}
 	}
 
-	return result
+	return result, nil
 }
 
-// substituteString replaces a single template variable in a string.
-// If the string is a {{ variable }} pattern, returns the first value from vars.
-// Otherwise returns the original string unchanged.
-func substituteString(s string, vars map[string][]string) string {
+// substituteStringWithValidation replaces a single template variable in a string.
+// If varDefs is provided, validates required variables and returns an error if missing.
+func substituteStringWithValidation(s string, vars map[string][]string, varDefs map[string]*Variable) (string, error) {
 	if matches := sanVarPattern.FindStringSubmatch(strings.TrimSpace(s)); len(matches) == 2 {
 		varName := matches[1]
 		if substitutes, ok := vars[varName]; ok && len(substitutes) > 0 {
-			return substitutes[0]
+			return substitutes[0], nil
 		}
-		// If not provided, return empty string (variable not resolved)
-		return ""
+		// Variable not provided - check if required
+		if varDefs != nil {
+			if varDef, defined := varDefs[varName]; defined && varDef.Required {
+				return "", fmt.Errorf("missing required variable: %s", varName)
+			}
+		}
+		// Optional or undefined - return empty string
+		return "", nil
 	}
 	// Static value, keep as-is
-	return s
+	return s, nil
 }
 
 // copyBoolPtr creates a copy of a bool pointer.
@@ -1354,4 +1489,14 @@ func copyStringSlice(s []string) []string {
 	result := make([]string, len(s))
 	copy(result, s)
 	return result
+}
+
+// sliceContainsString checks if a string slice contains a specific string.
+func sliceContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
