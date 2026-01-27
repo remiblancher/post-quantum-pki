@@ -47,33 +47,52 @@ func LoadVariables(varFile string, varFlags []string) (VariableValues, error) {
 }
 
 // BuildSubject builds a pkix.Name from variables (cn, o, ou, c, etc.).
+// Deprecated: Use BuildSubjectFromProfile to include profile defaults.
 func BuildSubject(vars VariableValues) (pkix.Name, error) {
+	return BuildSubjectFromProfile(nil, vars)
+}
+
+// BuildSubjectFromProfile builds a pkix.Name by merging profile defaults with runtime variables.
+// Profile subject values are used as defaults, runtime variables (--var) override them.
+func BuildSubjectFromProfile(prof *Profile, vars VariableValues) (pkix.Name, error) {
 	result := pkix.Name{}
 
-	if cn, ok := vars.GetString("cn"); ok {
+	// Helper to get value: first try vars, then profile subject
+	getValue := func(varNames ...string) string {
+		// Try runtime variables first (they override profile)
+		for _, name := range varNames {
+			if v, ok := vars.GetString(name); ok {
+				return v
+			}
+		}
+		// Fall back to profile subject defaults
+		if prof != nil && prof.Subject != nil && prof.Subject.Fixed != nil {
+			for _, name := range varNames {
+				if v, ok := prof.Subject.Fixed[name]; ok && v != "" {
+					return v
+				}
+			}
+		}
+		return ""
+	}
+
+	// Build subject from merged values
+	if cn := getValue("cn", "commonName"); cn != "" {
 		result.CommonName = cn
 	}
-	if o, ok := vars.GetString("o"); ok {
-		result.Organization = []string{o}
-	} else if o, ok := vars.GetString("organization"); ok {
+	if o := getValue("o", "organization"); o != "" {
 		result.Organization = []string{o}
 	}
-	if ou, ok := vars.GetString("ou"); ok {
+	if ou := getValue("ou", "organizationalUnit"); ou != "" {
 		result.OrganizationalUnit = []string{ou}
 	}
-	if c, ok := vars.GetString("c"); ok {
-		result.Country = []string{c}
-	} else if c, ok := vars.GetString("country"); ok {
+	if c := getValue("c", "country"); c != "" {
 		result.Country = []string{c}
 	}
-	if st, ok := vars.GetString("st"); ok {
-		result.Province = []string{st}
-	} else if st, ok := vars.GetString("state"); ok {
+	if st := getValue("st", "state", "province"); st != "" {
 		result.Province = []string{st}
 	}
-	if l, ok := vars.GetString("l"); ok {
-		result.Locality = []string{l}
-	} else if l, ok := vars.GetString("locality"); ok {
+	if l := getValue("l", "locality"); l != "" {
 		result.Locality = []string{l}
 	}
 

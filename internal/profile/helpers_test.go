@@ -197,6 +197,136 @@ func TestBuildSubject(t *testing.T) {
 	})
 }
 
+func TestBuildSubjectFromProfile(t *testing.T) {
+	t.Run("profile defaults used when vars missing", func(t *testing.T) {
+		prof := &Profile{
+			Subject: &SubjectConfig{
+				Fixed: map[string]string{
+					"c": "FR",
+					"o": "Demo Organization",
+				},
+			},
+		}
+		vars := VariableValues{"cn": "Test CA"}
+
+		subject, err := BuildSubjectFromProfile(prof, vars)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if subject.CommonName != "Test CA" {
+			t.Errorf("expected CN=Test CA, got %s", subject.CommonName)
+		}
+		if len(subject.Organization) != 1 || subject.Organization[0] != "Demo Organization" {
+			t.Errorf("expected O=Demo Organization, got %v", subject.Organization)
+		}
+		if len(subject.Country) != 1 || subject.Country[0] != "FR" {
+			t.Errorf("expected C=FR, got %v", subject.Country)
+		}
+	})
+
+	t.Run("vars override profile defaults", func(t *testing.T) {
+		prof := &Profile{
+			Subject: &SubjectConfig{
+				Fixed: map[string]string{
+					"c": "FR",
+					"o": "Default Org",
+				},
+			},
+		}
+		vars := VariableValues{
+			"cn": "Test CA",
+			"o":  "Override Org",
+		}
+
+		subject, err := BuildSubjectFromProfile(prof, vars)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Var should override profile default
+		if len(subject.Organization) != 1 || subject.Organization[0] != "Override Org" {
+			t.Errorf("expected O=Override Org (override), got %v", subject.Organization)
+		}
+		// Profile default still used for C
+		if len(subject.Country) != 1 || subject.Country[0] != "FR" {
+			t.Errorf("expected C=FR (from profile), got %v", subject.Country)
+		}
+	})
+
+	t.Run("nil profile works like BuildSubject", func(t *testing.T) {
+		vars := VariableValues{
+			"cn": "example.com",
+			"o":  "Example Org",
+		}
+
+		subject, err := BuildSubjectFromProfile(nil, vars)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if subject.CommonName != "example.com" {
+			t.Errorf("expected CN=example.com, got %s", subject.CommonName)
+		}
+		if len(subject.Organization) != 1 || subject.Organization[0] != "Example Org" {
+			t.Errorf("expected O=Example Org, got %v", subject.Organization)
+		}
+	})
+
+	t.Run("profile with nil subject works", func(t *testing.T) {
+		prof := &Profile{Subject: nil}
+		vars := VariableValues{"cn": "Test CA"}
+
+		subject, err := BuildSubjectFromProfile(prof, vars)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if subject.CommonName != "Test CA" {
+			t.Errorf("expected CN=Test CA, got %s", subject.CommonName)
+		}
+	})
+
+	t.Run("all profile subject fields", func(t *testing.T) {
+		prof := &Profile{
+			Subject: &SubjectConfig{
+				Fixed: map[string]string{
+					"c":  "FR",
+					"o":  "Demo Org",
+					"ou": "IT Dept",
+					"st": "Île-de-France",
+					"l":  "Paris",
+				},
+			},
+		}
+		vars := VariableValues{"cn": "Full Subject CA"}
+
+		subject, err := BuildSubjectFromProfile(prof, vars)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if subject.CommonName != "Full Subject CA" {
+			t.Errorf("expected CN=Full Subject CA, got %s", subject.CommonName)
+		}
+		if len(subject.Organization) != 1 || subject.Organization[0] != "Demo Org" {
+			t.Errorf("expected O=Demo Org, got %v", subject.Organization)
+		}
+		if len(subject.OrganizationalUnit) != 1 || subject.OrganizationalUnit[0] != "IT Dept" {
+			t.Errorf("expected OU=IT Dept, got %v", subject.OrganizationalUnit)
+		}
+		if len(subject.Country) != 1 || subject.Country[0] != "FR" {
+			t.Errorf("expected C=FR, got %v", subject.Country)
+		}
+		if len(subject.Province) != 1 || subject.Province[0] != "Île-de-France" {
+			t.Errorf("expected ST=Île-de-France, got %v", subject.Province)
+		}
+		if len(subject.Locality) != 1 || subject.Locality[0] != "Paris" {
+			t.Errorf("expected L=Paris, got %v", subject.Locality)
+		}
+	})
+}
+
 func TestExtractTemplateVariables_SAN(t *testing.T) {
 	t.Run("all SAN types", func(t *testing.T) {
 		vars := VariableValues{
