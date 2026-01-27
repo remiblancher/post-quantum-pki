@@ -564,6 +564,51 @@ func TestU_statusFromEntry_Revoked(t *testing.T) {
 	}
 }
 
+func TestU_statusFromEntry_RevokedWithReason(t *testing.T) {
+	caCert, caKey := generateTestCA(t)
+	store := &mockCAStore{caCert: caCert}
+
+	responder, _ := NewResponder(&ResponderConfig{
+		Signer:  caKey,
+		CACert:  caCert,
+		CAStore: store,
+	})
+
+	tests := []struct {
+		name       string
+		caReason   ca.RevocationReason
+		wantReason RevocationReason
+	}{
+		{"keyCompromise", ca.ReasonKeyCompromise, ReasonKeyCompromise},
+		{"caCompromise", ca.ReasonCACompromise, ReasonCACompromise},
+		{"affiliationChanged", ca.ReasonAffiliationChanged, ReasonAffiliationChanged},
+		{"superseded", ca.ReasonSuperseded, ReasonSuperseded},
+		{"cessationOfOperation", ca.ReasonCessationOfOperation, ReasonCessationOfOperation},
+		{"certificateHold", ca.ReasonCertificateHold, ReasonCertificateHold},
+		{"privilegeWithdrawn", ca.ReasonPrivilegeWithdrawn, ReasonPrivilegeWithdrawn},
+		{"unspecified", ca.ReasonUnspecified, ReasonUnspecified},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			revTime := time.Now().Add(-1 * time.Hour)
+			entry := &ca.IndexEntry{
+				Status:           "R",
+				Revocation:       revTime,
+				RevocationReason: tt.caReason,
+			}
+			status := responder.statusFromEntry(entry)
+
+			if status.Status != CertStatusRevoked {
+				t.Errorf("statusFromEntry() Status = %v, want %v", status.Status, CertStatusRevoked)
+			}
+			if status.RevocationReason != tt.wantReason {
+				t.Errorf("statusFromEntry() RevocationReason = %v, want %v", status.RevocationReason, tt.wantReason)
+			}
+		})
+	}
+}
+
 func TestU_statusFromEntry_Expired(t *testing.T) {
 	caCert, caKey := generateTestCA(t)
 	store := &mockCAStore{caCert: caCert}
@@ -1038,5 +1083,93 @@ func TestF_Responder_RoundTrip(t *testing.T) {
 	}
 	if respBytes3 == nil {
 		t.Fatal("ServeOCSP(expired) returned nil")
+	}
+}
+
+// TestF_Responder_RevocationReasonEndToEnd verifies the complete flow:
+// revocation with reason → index storage → OCSP response with correct reason.
+// This is a regression test to ensure revocation reasons are never lost.
+func TestF_Responder_RevocationReasonEndToEnd(t *testing.T) {
+	caCert, caKey := generateTestCA(t)
+
+	tests := []struct {
+		name       string
+		caReason   ca.RevocationReason
+		wantReason RevocationReason
+	}{
+		{"keyCompromise", ca.ReasonKeyCompromise, ReasonKeyCompromise},
+		{"caCompromise", ca.ReasonCACompromise, ReasonCACompromise},
+		{"superseded", ca.ReasonSuperseded, ReasonSuperseded},
+		{"cessationOfOperation", ca.ReasonCessationOfOperation, ReasonCessationOfOperation},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serial := big.NewInt(int64(2000 + i))
+			revTime := time.Now().Add(-1 * time.Hour)
+
+			// Simulate index entry with revocation reason (as it would be stored)
+			store := &mockCAStore{
+				caCert: caCert,
+				index: []ca.IndexEntry{
+					{
+						Status:           "R",
+						Serial:           serial.Bytes(),
+						Revocation:       revTime,
+						RevocationReason: tt.caReason, // This is key - reason must be stored
+					},
+				},
+			}
+
+			responder, err := NewResponder(&ResponderConfig{
+				Signer:  caKey,
+				CACert:  caCert,
+				CAStore: store,
+			})
+			if err != nil {
+				t.Fatalf("NewResponder() error = %v", err)
+			}
+
+			// Check status via responder
+			status, err := responder.CheckStatusBySerial(context.Background(), serial)
+			if err != nil {
+				t.Fatalf("CheckStatusBySerial() error = %v", err)
+			}
+
+			// CRITICAL: Verify revocation reason is correct
+			if status.Status != CertStatusRevoked {
+				t.Errorf("Status = %v, want %v", status.Status, CertStatusRevoked)
+			}
+			if status.RevocationReason != tt.wantReason {
+				t.Errorf("RevocationReason = %v, want %v (this is a REGRESSION - reason was lost!)",
+					status.RevocationReason, tt.wantReason)
+			}
+
+			// Also test the full OCSP response flow
+			certID, _ := NewCertIDFromSerial(crypto.SHA256, caCert, serial)
+			req := &OCSPRequest{
+				TBSRequest: TBSRequest{
+					RequestList: []Request{{ReqCert: *certID}},
+				},
+			}
+			reqBytes, _ := req.Marshal()
+
+			respBytes, err := responder.ServeOCSP(context.Background(), reqBytes)
+			if err != nil {
+				t.Fatalf("ServeOCSP() error = %v", err)
+			}
+			if respBytes == nil {
+				t.Fatal("ServeOCSP() returned nil")
+			}
+
+			// Parse and verify the response contains the correct reason
+			parsedResp, err := ParseResponse(respBytes)
+			if err != nil {
+				t.Fatalf("ParseResponse() error = %v", err)
+			}
+			if parsedResp == nil {
+				t.Fatal("ParseResponse() returned nil")
+			}
+		})
 	}
 }

@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-01-27
+
+### Added
+- **Certificate chain file support** in `cms verify --ca` flag
+  - Automatically filters CA certificates from chain files (e.g., LTV bundles)
+  - Non-CA certificates (signers) are now correctly excluded from trust roots
+  - Backward compatible with single CA certificate files
+- **Template variable validation** in certificate profiles
+  - Validates that all `{{ var }}` placeholders have corresponding values
+  - Clear error messages for missing template variables
+- **`dns_include_cn` option** for SAN extension in profiles
+  - Automatically includes Common Name in DNS SANs when enabled
+
+### Fixed
+- **OCSP revocation reason** now correctly stored and returned in responses
+  - Previously always showed "unspecified" regardless of actual reason
+  - Now correctly returns keyCompromise, caCompromise, etc.
+- **Profile subject defaults** now properly applied in `BuildSubject`
+- Removed unused deprecated functions from profile package
+
+### Changed
+- Applied `gofmt -s` formatting to test files
+
+### Testing
+- End-to-end regression test for OCSP revocation reasons
+- Unit tests for `parseCACertsFromPEM` helper function
+
 ## [0.13.0] - 2026-01-23
 
 ### Added

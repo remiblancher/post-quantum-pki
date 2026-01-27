@@ -263,7 +263,7 @@ func runCAInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	subject, err := profile.BuildSubject(varValues)
+	subject, err := profile.BuildSubjectFromProfile(prof, varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
@@ -326,7 +326,12 @@ func runCAInitMultiProfile(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	subject, err := profile.BuildSubject(varValues)
+	// Use first profile for subject defaults
+	var firstProfile *profile.Profile
+	if len(profiles) > 0 {
+		firstProfile = profiles[0]
+	}
+	subject, err := profile.BuildSubjectFromProfile(firstProfile, varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
@@ -389,7 +394,7 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	subject, err := profile.BuildSubject(varValues)
+	subject, err := profile.BuildSubjectFromProfile(prof, varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}
@@ -487,7 +492,7 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	subject, err := profile.BuildSubject(varValues)
+	subject, err := profile.BuildSubjectFromProfile(prof, varValues)
 	if err != nil {
 		return fmt.Errorf("failed to build subject: %w", err)
 	}

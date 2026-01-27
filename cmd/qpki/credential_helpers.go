@@ -207,7 +207,12 @@ func prepareEnrollVariablesAndProfiles(caDir string, profileNames []string, varF
 		return nil, pkix.Name{}, err
 	}
 
-	subject, err := profile.BuildSubject(varValues)
+	// Use first profile for subject defaults (if any)
+	var firstProfile *profile.Profile
+	if len(profiles) > 0 {
+		firstProfile = profiles[0]
+	}
+	subject, err := profile.BuildSubjectFromProfile(firstProfile, varValues)
 	if err != nil {
 		return nil, pkix.Name{}, fmt.Errorf("invalid subject: %w", err)
 	}
