@@ -208,8 +208,9 @@ func TestU_LoadSigner_Revoked(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for revoked credential")
 	}
-	if !errors.Is(err, nil) && err.Error() == "" {
-		// Just check that error message contains "revoked"
+	// Verify error message mentions revocation
+	if !strings.Contains(err.Error(), "revoked") {
+		t.Errorf("expected error to mention 'revoked', got: %v", err)
 	}
 }
 
@@ -289,7 +290,7 @@ func TestU_LoadSigner_AfterRotateAndActivate(t *testing.T) {
 	store.AddKeys(credID, []pkicrypto.Signer{signerV1})
 
 	// Verify v1 is loaded
-	loadedCert, loadedSigner, err := LoadSigner(context.Background(), store, credID, nil)
+	loadedCert, _, err := LoadSigner(context.Background(), store, credID, nil)
 	if err != nil {
 		t.Fatalf("LoadSigner v1 failed: %v", err)
 	}
