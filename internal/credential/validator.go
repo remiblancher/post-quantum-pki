@@ -47,6 +47,11 @@ func ValidateForEmailProtection(cert *x509.Certificate) error {
 	return ValidateForUsage(cert, x509.ExtKeyUsageEmailProtection)
 }
 
+// ValidateForOCSP validates that a certificate can be used for OCSP signing.
+func ValidateForOCSP(cert *x509.Certificate) error {
+	return ValidateForUsage(cert, x509.ExtKeyUsageOCSPSigning)
+}
+
 // ekuToString returns a human-readable name for an ExtKeyUsage.
 func ekuToString(usage x509.ExtKeyUsage) string {
 	switch usage {
