@@ -1749,7 +1749,7 @@ func TestU_PrintMessage(t *testing.T) {
 	}
 
 	// Test PrintMessage function
-	PrintMessage(&discardWriter{}, cwt)
+	_ = PrintMessage(&discardWriter{}, cwt)
 }
 
 func TestU_AlgorithmName_Extended(t *testing.T) {
@@ -2746,7 +2746,7 @@ func TestU_Info_Print_Full(t *testing.T) {
 	claims.NotBefore = time.Now()
 	claims.IssuedAt = time.Now()
 	claims.CWTID = []byte("test-cwt-id")
-	claims.SetCustom(-1000, "custom-value")
+	_ = claims.SetCustom(-1000, "custom-value")
 
 	config := &CWTConfig{
 		MessageConfig: MessageConfig{

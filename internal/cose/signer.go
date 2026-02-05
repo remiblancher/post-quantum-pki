@@ -194,7 +194,7 @@ func parseASN1ECDSASig(sig []byte) (r, s bigIntBytes, err error) {
 		return nil, nil, fmt.Errorf("invalid R length: %w", err)
 	}
 	if pos+rLen > len(sig) {
-		return nil, nil, fmt.Errorf("R length exceeds signature")
+		return nil, nil, fmt.Errorf("r length exceeds signature")
 	}
 	rBytes := sig[pos : pos+rLen]
 	pos += rLen
@@ -209,7 +209,7 @@ func parseASN1ECDSASig(sig []byte) (r, s bigIntBytes, err error) {
 		return nil, nil, fmt.Errorf("invalid S length: %w", err)
 	}
 	if pos+sLen > len(sig) {
-		return nil, nil, fmt.Errorf("S length exceeds signature")
+		return nil, nil, fmt.Errorf("s length exceeds signature")
 	}
 	sBytes := sig[pos : pos+sLen]
 
