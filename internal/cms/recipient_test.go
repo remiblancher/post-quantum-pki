@@ -476,7 +476,7 @@ func TestU_convertIssuer_Invalid(t *testing.T) {
 	result := convertIssuer(rawValue)
 
 	// Should return nil/empty for invalid data
-	if result != nil && len(result) > 0 {
+	if len(result) > 0 {
 		t.Error("Expected nil or empty result for invalid issuer")
 	}
 }
