@@ -767,6 +767,55 @@ func TestU_ValidateForUsage_AnyEKU(t *testing.T) {
 	if err := ValidateForCodeSigning(cert); err != nil {
 		t.Errorf("ExtKeyUsageAny should allow code signing: %v", err)
 	}
+	if err := ValidateForOCSP(cert); err != nil {
+		t.Errorf("ExtKeyUsageAny should allow OCSP signing: %v", err)
+	}
+	if err := ValidateForEmailProtection(cert); err != nil {
+		t.Errorf("ExtKeyUsageAny should allow email protection: %v", err)
+	}
+}
+
+func TestU_ValidateForUsage_OCSP_OK(t *testing.T) {
+	// Create certificate with OCSP signing EKU
+	cert := generateCertWithEKU(t, x509.ExtKeyUsageOCSPSigning)
+
+	err := ValidateForOCSP(cert)
+	if err != nil {
+		t.Errorf("expected no error for cert with OCSP signing EKU, got: %v", err)
+	}
+}
+
+func TestU_ValidateForUsage_OCSP_Missing(t *testing.T) {
+	// Create certificate without OCSP signing EKU (only serverAuth)
+	cert := generateCertWithEKU(t, x509.ExtKeyUsageServerAuth)
+
+	err := ValidateForOCSP(cert)
+	if err == nil {
+		t.Error("expected error for cert without OCSP signing EKU")
+	}
+	if !strings.Contains(err.Error(), "ocspSigning") {
+		t.Errorf("error should mention ocspSigning EKU, got: %v", err)
+	}
+}
+
+func TestU_ValidateForUsage_EmailProtection_OK(t *testing.T) {
+	// Create certificate with email protection EKU
+	cert := generateCertWithEKU(t, x509.ExtKeyUsageEmailProtection)
+
+	err := ValidateForEmailProtection(cert)
+	if err != nil {
+		t.Errorf("expected no error for cert with email protection EKU, got: %v", err)
+	}
+}
+
+func TestU_ValidateForUsage_EmailProtection_Missing(t *testing.T) {
+	// Create certificate without email protection EKU
+	cert := generateCertWithEKU(t, x509.ExtKeyUsageServerAuth)
+
+	err := ValidateForEmailProtection(cert)
+	if err == nil {
+		t.Error("expected error for cert without email protection EKU")
+	}
 }
 
 func TestU_ValidateForUsage_NoEKU(t *testing.T) {
@@ -1537,6 +1586,7 @@ func TestU_ValidateForUsage_MultipleEKUs(t *testing.T) {
 			x509.ExtKeyUsageClientAuth,
 			x509.ExtKeyUsageTimeStamping,
 			x509.ExtKeyUsageCodeSigning,
+			x509.ExtKeyUsageOCSPSigning,
 		},
 		BasicConstraintsValid: true,
 	}
@@ -1550,6 +1600,9 @@ func TestU_ValidateForUsage_MultipleEKUs(t *testing.T) {
 	}
 	if err := ValidateForCodeSigning(cert); err != nil {
 		t.Errorf("should allow code signing: %v", err)
+	}
+	if err := ValidateForOCSP(cert); err != nil {
+		t.Errorf("should allow OCSP signing: %v", err)
 	}
 	if err := ValidateForUsage(cert, x509.ExtKeyUsageServerAuth); err != nil {
 		t.Errorf("should allow server auth: %v", err)
