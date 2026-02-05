@@ -106,10 +106,9 @@ func TestU_ExtractRecipientMatchers_MLKEM(t *testing.T) {
 
 	plaintext := []byte("test data for ML-KEM encryption")
 
-	// Encrypt with ML-KEM
+	// Encrypt with ML-KEM (public key is extracted from certificate)
 	ciphertext, err := Encrypt(context.Background(), plaintext, &EncryptOptions{
 		Recipients:        []*x509.Certificate{cert},
-		KEMPrivateKeys:    map[*x509.Certificate]interface{}{cert: kemKP.PrivateKey},
 		ContentEncryption: AES256GCM,
 	})
 	if err != nil {
@@ -255,7 +254,7 @@ func TestU_ExtractRecipientMatchers_NotEnvelopedData(t *testing.T) {
 	kp := generateECDSAKeyPair(t, elliptic.P256())
 	cert := generateTestCertificate(t, kp)
 
-	signedData, err := Sign(context.Background(), []byte("test"), &SignOptions{
+	signedData, err := Sign(context.Background(), []byte("test"), &SignerConfig{
 		Signer:      kp.PrivateKey,
 		Certificate: cert,
 	})
@@ -665,10 +664,9 @@ func TestF_ExtractAndMatch_MLKEM(t *testing.T) {
 
 	plaintext := []byte("test data")
 
-	// Encrypt
+	// Encrypt (public key is extracted from certificate)
 	ciphertext, err := Encrypt(context.Background(), plaintext, &EncryptOptions{
 		Recipients:        []*x509.Certificate{cert},
-		KEMPrivateKeys:    map[*x509.Certificate]interface{}{cert: kemKP.PrivateKey},
 		ContentEncryption: AES256GCM,
 	})
 	if err != nil {
