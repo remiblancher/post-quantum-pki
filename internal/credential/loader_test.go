@@ -274,7 +274,7 @@ func TestU_LoadSigner_AfterRotateAndActivate(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	// Generate v1 signer and cert
@@ -305,20 +305,20 @@ func TestU_LoadSigner_AfterRotateAndActivate(t *testing.T) {
 	certV2 := generateCertForSigner(t, signerV2)
 
 	// Add v2 to credential versions
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusPending),
-		Profiles:   []string{"ec/signing"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusPending),
+		Profiles:  []string{"ec/signing"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 
 	// Step 3: Activate v2
 	// In real FileStore, this updates the Active field and the stored certs/keys
 	cred.Active = "v2"
-	ver2.Status = string(StatusActive)
+	ver2.Status = string(VersionStatusActive)
 	cred.Versions["v2"] = ver2
 
 	// Update the stored certs/keys to v2 (simulates what FileStore.Save does on activation)
@@ -361,7 +361,7 @@ func TestU_LoadSigner_RotateClassicalToPQC(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	// Generate classical v1
@@ -395,13 +395,13 @@ func TestU_LoadSigner_RotateClassicalToPQC(t *testing.T) {
 	certV2 := generateCertForSigner(t, ecdsaForCert)
 
 	// Update versions
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"ml-dsa/signing"},
-		Algorithms: []string{"ml-dsa"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"ml-dsa/signing"},
+		Algos:     []string{"ml-dsa"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -434,7 +434,7 @@ func TestU_LoadSigner_RotateToHybrid(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	signerV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -458,13 +458,13 @@ func TestU_LoadSigner_RotateToHybrid(t *testing.T) {
 	pqcV2, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgMLDSA65)
 	certV2 := generateCertForSigner(t, classicalV2)
 
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"hybrid/signing"},
-		Algorithms: []string{"ec", "ml-dsa"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"hybrid/signing"},
+		Algos:     []string{"ec", "ml-dsa"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -502,7 +502,7 @@ func TestU_LoadSigner_RotateP256ToP384(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	signerV1, err := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -531,13 +531,13 @@ func TestU_LoadSigner_RotateP256ToP384(t *testing.T) {
 	}
 	certV2 := generateCertForSigner(t, signerV2)
 
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"ec/signing"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"ec/signing"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -566,7 +566,7 @@ func TestU_LoadSigner_RotateHybridToClassical(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	classicalV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -590,13 +590,13 @@ func TestU_LoadSigner_RotateHybridToClassical(t *testing.T) {
 	signerV2, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
 	certV2 := generateCertForSigner(t, signerV2)
 
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"ec/signing"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"ec/signing"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -628,7 +628,7 @@ func TestU_LoadSigner_RotatePQCToClassical(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	signerV1, err := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgMLDSA65)
@@ -656,13 +656,13 @@ func TestU_LoadSigner_RotatePQCToClassical(t *testing.T) {
 	signerV2, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
 	certV2 := generateCertForSigner(t, signerV2)
 
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"ec/signing"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"ec/signing"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -694,20 +694,20 @@ func TestU_LoadSigner_PendingVersionNotUsed(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(StatusActive)
+	ver1.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver1
 
 	signerV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
 	certV1 := generateCertForSigner(t, signerV1)
 
 	// Add v2 as PENDING (not activated)
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusPending), // Not active!
-		Profiles:   []string{"ec/signing"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusPending), // Not active!
+		Profiles:  []string{"ec/signing"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 	// Active is still v1
@@ -1171,7 +1171,7 @@ func TestU_FindDecryptionKeyByRecipient_IssuerAndSerial(t *testing.T) {
 	ver := cred.Versions["v1"]
 	ver.NotBefore = time.Now().Add(-time.Hour)
 	ver.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver.Status = string(StatusActive)
+	ver.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1222,7 +1222,7 @@ func TestU_FindDecryptionKeyByRecipient_SKI(t *testing.T) {
 	ver := cred.Versions["v1"]
 	ver.NotBefore = time.Now().Add(-time.Hour)
 	ver.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver.Status = string(StatusActive)
+	ver.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1265,8 +1265,8 @@ func TestU_FindDecryptionKeyByRecipient_OldVersion(t *testing.T) {
 	cred.CreateInitialVersion([]string{"ec/encryption"}, []string{"ec"})
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour * 24 * 30) // 30 days ago
-	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 335)   // expires in 335 days
-	ver1.Status = string(StatusArchived)                   // v1 is now archived
+	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 335)  // expires in 335 days
+	ver1.Status = string(VersionStatusArchived)           // v1 is now archived
 	cred.Versions["v1"] = ver1
 
 	// v1 signer and cert
@@ -1274,13 +1274,13 @@ func TestU_FindDecryptionKeyByRecipient_OldVersion(t *testing.T) {
 	certV1 := generateEncryptionCertForSigner(t, signerV1)
 
 	// Add v2 as the active version
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"ec/encryption"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"ec/encryption"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -1340,7 +1340,7 @@ func TestU_FindDecryptionKeyByRecipient_NotFound(t *testing.T) {
 	ver := cred.Versions["v1"]
 	ver.NotBefore = time.Now().Add(-time.Hour)
 	ver.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver.Status = string(StatusActive)
+	ver.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1401,20 +1401,20 @@ func TestU_FindAllDecryptionKeys(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour * 24 * 30)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 335)
-	ver1.Status = string(StatusArchived)
+	ver1.Status = string(VersionStatusArchived)
 	cred.Versions["v1"] = ver1
 
 	signerV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
 	certV1 := generateEncryptionCertForSigner(t, signerV1)
 
 	// Set up v2 as active
-	ver2 := VersionInfo{
-		Created:    time.Now(),
-		NotBefore:  time.Now(),
-		NotAfter:   time.Now().Add(time.Hour * 24 * 365),
-		Status:     string(StatusActive),
-		Profiles:   []string{"ec/encryption"},
-		Algorithms: []string{"ec"},
+	ver2 := CredVersion{
+		Created:   time.Now(),
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+		Status:    string(VersionStatusActive),
+		Profiles:  []string{"ec/encryption"},
+		Algos:     []string{"ec"},
 	}
 	cred.Versions["v2"] = ver2
 	cred.Active = "v2"
@@ -1690,7 +1690,7 @@ func TestU_FindDecryptionKeyByRecipient_LoadKeysError(t *testing.T) {
 	cred := NewCredential(credID, Subject{CommonName: "Test"})
 	cred.CreateInitialVersion([]string{"ec/encryption"}, []string{"ec"})
 	ver := cred.Versions["v1"]
-	ver.Status = string(StatusActive)
+	ver.Status = string(VersionStatusActive)
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1783,7 +1783,7 @@ func TestU_FindAllDecryptionKeys_EmptyVersions(t *testing.T) {
 
 	cred := NewCredential(credID, Subject{CommonName: "Test"})
 	// Don't create any versions
-	cred.Versions = make(map[string]VersionInfo)
+	cred.Versions = make(map[string]CredVersion)
 	store.AddCredential(cred)
 
 	entries, err := FindAllDecryptionKeys(context.Background(), store, credID, nil)
