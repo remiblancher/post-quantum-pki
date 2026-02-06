@@ -97,6 +97,9 @@ func init() {
 	// CMS SignedData (RFC 5652)
 	rootCmd.AddCommand(cmsCmd)
 
+	// COSE/CWT (RFC 9052, RFC 8392)
+	rootCmd.AddCommand(coseCmd)
+
 	// OCSP (RFC 6960)
 	rootCmd.AddCommand(ocspCmd)
 
