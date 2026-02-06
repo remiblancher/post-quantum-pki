@@ -59,6 +59,10 @@ const (
 	EventOCSPVerify  EventType = "OCSP_VERIFY"
 	EventOCSPRequest EventType = "OCSP_REQUEST"
 	EventOCSPServe   EventType = "OCSP_SERVE"
+
+	// COSE/CWT events
+	EventCOSESign   EventType = "COSE_SIGN"
+	EventCOSEVerify EventType = "COSE_VERIFY"
 )
 
 // Result represents the outcome of an audited operation.
