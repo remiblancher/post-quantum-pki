@@ -11,7 +11,16 @@ This guide covers Certificate Authority operations: initialization, rotation, an
 
 A **Certificate Authority (CA)** is the trust anchor that signs certificates. QPKI supports root CAs (self-signed) and subordinate CAs (signed by a parent).
 
-### 1.1 CA Structure
+### 1.1 CA Types
+
+| Type | Description |
+|------|-------------|
+| Root CA | Self-signed, trust anchor |
+| Subordinate CA | Signed by parent, issues end-entity certs |
+| Multi-profile CA | Multiple algorithms (crypto-agility) |
+| Hybrid CA | Classical + PQC (Catalyst or Composite) |
+
+### 1.2 CA Structure
 
 ```
 ca/
@@ -33,7 +42,7 @@ ca/
             └── ca.ecdsa-p256.pem
 ```
 
-### 1.2 Versioned CA
+### 1.3 Versioned CA
 
 After rotation, CAs have multiple versions with status tracking:
 
@@ -61,18 +70,9 @@ ca/
 | `active` | Currently in use for signing |
 | `archived` | Superseded by newer version |
 
-### 1.3 CA Types
-
-| Type | Description |
-|------|-------------|
-| Root CA | Self-signed, trust anchor |
-| Subordinate CA | Signed by parent, issues end-entity certs |
-| Multi-profile CA | Multiple algorithms (crypto-agility) |
-| Hybrid CA | Classical + PQC (Catalyst or Composite) |
-
 ---
 
-## 2. CLI Reference
+## 2. CLI Commands
 
 ### ca init
 
