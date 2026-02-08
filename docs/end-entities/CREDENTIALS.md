@@ -1,9 +1,9 @@
 ---
-title: "Credentials Guide"
-description: "This guide covers credential management - creating, rotating, and revoking certificate bundles with coupled lifecycle management."
+title: "Credentials"
+description: "Credential management - creating, rotating, and revoking certificate bundles with coupled lifecycle management."
 ---
 
-# Credentials Guide
+# Credentials
 
 This guide covers credential management - creating, rotating, and revoking certificate bundles with coupled lifecycle management.
 
@@ -109,7 +109,7 @@ credentials/<credential-id>/
 
 ---
 
-## 2. CLI Reference
+## 2. CLI Commands
 
 ### credential enroll
 
@@ -551,7 +551,7 @@ qpki cms decrypt --credential bob --in secret.p7m --out secret.txt
 
 - [CA](../build-pki/CA.md) - CA initialization and management
 - [Keys](../build-pki/KEYS.md) - Key generation and CSR operations
-- [CLI Reference](../reference/CLI-REFERENCE.md) - Complete command reference
+- [CLI Reference](../reference/CLI.md) - Complete command reference
 - [Profiles](../build-pki/PROFILES.md) - Certificate profile templates
 - [Crypto-Agility](../migration/CRYPTO-AGILITY.md) - Algorithm migration guide
 - [Troubleshooting](../reference/TROUBLESHOOTING.md) - Common errors and solutions
