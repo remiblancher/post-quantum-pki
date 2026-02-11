@@ -522,3 +522,67 @@ func TestF_CA_GenerateCRLForAlgorithm_MultipleCerts(t *testing.T) {
 		t.Errorf("CRL should have 3 revoked certs, got %d", len(crl.RevokedCertificateEntries))
 	}
 }
+
+// =============================================================================
+// SLH-DSA CRL Tests (FIPS 205)
+// =============================================================================
+
+// TestF_CA_GenerateCRL_SLHDSA tests CRL generation with SLH-DSA CA.
+func TestF_CA_GenerateCRL_SLHDSA(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping SLH-DSA CRL test in short mode (slow signing)")
+	}
+
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	// Initialize SLH-DSA CA (use fast variant for testing)
+	cfg := PQCCAConfig{
+		CommonName:    "Test SLH-DSA CA",
+		Algorithm:     crypto.AlgSLHDSA128f,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := InitializePQCCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializePQCCA(SLH-DSA) error = %v", err)
+	}
+
+	// Issue a certificate using SLH-DSA key
+	slhKey, err := crypto.GenerateKeyPair(crypto.AlgSLHDSA128f)
+	if err != nil {
+		t.Fatalf("GenerateKeyPair(SLH-DSA) error = %v", err)
+	}
+
+	cert, err := issuePQCCert(ca, "slh-server.example.com", slhKey.PublicKey)
+	if err != nil {
+		t.Fatalf("issuePQCCert() error = %v", err)
+	}
+
+	// Revoke the certificate
+	if err := ca.Revoke(cert.serial, ReasonKeyCompromise); err != nil {
+		t.Fatalf("Revoke() error = %v", err)
+	}
+
+	// Generate CRL
+	nextUpdate := time.Now().AddDate(0, 0, 7)
+	crlDER, err := ca.GenerateCRL(nextUpdate)
+	if err != nil {
+		t.Fatalf("GenerateCRL() error = %v", err)
+	}
+
+	if len(crlDER) == 0 {
+		t.Error("SLH-DSA CRL should not be empty")
+	}
+
+	// Parse and verify CRL structure
+	crl, err := x509.ParseRevocationList(crlDER)
+	if err != nil {
+		t.Fatalf("ParseRevocationList() error = %v", err)
+	}
+
+	if len(crl.RevokedCertificateEntries) != 1 {
+		t.Errorf("SLH-DSA CRL should have 1 revoked cert, got %d", len(crl.RevokedCertificateEntries))
+	}
+}

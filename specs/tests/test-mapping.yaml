@@ -147,6 +147,12 @@ mappings:
     requirement: [RFC-5280, FIPS-204]
     description: "Generate CRL with ML-DSA signature"
 
+  - tc_id: TC-F-CRL-003
+    test: TestF_CA_GenerateCRL_SLHDSA
+    file: internal/ca/crl_multi_test.go
+    requirement: [RFC-5280, FIPS-205]
+    description: "Generate CRL with SLH-DSA signature"
+
   # ---------------------------------------------------------------------------
   # OCSP - Online Certificate Status Protocol
   # ---------------------------------------------------------------------------
@@ -161,6 +167,12 @@ mappings:
     file: internal/ocsp/ocsp_test.go
     requirement: [RFC-6960, FIPS-204]
     description: "OCSP response with ML-DSA signature"
+
+  - tc_id: TC-F-OCSP-003
+    test: TestU_ResponseBuilder_SLHDSA
+    file: internal/ocsp/response_test.go
+    requirement: [RFC-6960, FIPS-205]
+    description: "OCSP response with SLH-DSA signature"
 
   # ---------------------------------------------------------------------------
   # TSA - Time Stamping Authority

@@ -127,6 +127,7 @@ Functional tests validate internal workflows and APIs.
 |----|------|---------|-------------|
 | TC-F-CRL-001 | ECDSA CRL generation | `TestF_CRL_Generate_ECDSA` | RFC 5280 |
 | TC-F-CRL-002 | ML-DSA CRL generation | `TestF_CRL_Generate_MLDSA` | RFC 5280, FIPS 204 |
+| TC-F-CRL-003 | SLH-DSA CRL generation | `TestF_CA_GenerateCRL_SLHDSA` | RFC 5280, FIPS 205 |
 
 ### TC-F-OCSP - OCSP Operations
 
@@ -134,6 +135,7 @@ Functional tests validate internal workflows and APIs.
 |----|------|---------|-------------|
 | TC-F-OCSP-001 | ECDSA OCSP response | `TestF_OCSP_Response_ECDSA` | RFC 6960 |
 | TC-F-OCSP-002 | ML-DSA OCSP response | `TestF_OCSP_Response_MLDSA` | RFC 6960, FIPS 204 |
+| TC-F-OCSP-003 | SLH-DSA OCSP response | `TestU_ResponseBuilder_SLHDSA` | RFC 6960, FIPS 205 |
 
 ### TC-F-TSA - TSA Operations
 
