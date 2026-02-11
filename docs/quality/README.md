@@ -44,7 +44,6 @@ specs/compliance/standards-matrix.yaml  ──→  docs/quality/compliance/FIPS.
                                         ──→  docs/quality/compliance/RFC.md
 
 specs/tests/test-catalog.yaml           ──→  docs/quality/testing/CATALOG.md
-specs/tests/test-mapping.yaml                (TC-ID → Go test mapping)
 
 specs/tests/cli-coverage.yaml           ──→  docs/quality/testing/CLI-COVERAGE.md
 specs/tests/feature-coverage.yaml       ──→  docs/quality/testing/FEATURES.md

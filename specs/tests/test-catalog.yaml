@@ -20,7 +20,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: core-pki
     test_cases:
-      - id: TC-KEY-EC-001
+      - id: TC-U-KEY-001
         name: "ECDSA P-256 key generation"
         type: unit
         priority: P1
@@ -29,7 +29,7 @@ test_suites:
         function: "TestU_GenerateKey_ECDSA_P256"
         expected_result: "Valid ECDSA P-256 key pair generated"
 
-      - id: TC-KEY-EC-002
+      - id: TC-U-KEY-002
         name: "ECDSA P-384 key generation"
         type: unit
         priority: P1
@@ -38,7 +38,7 @@ test_suites:
         function: "TestU_GenerateKey_ECDSA_P384"
         expected_result: "Valid ECDSA P-384 key pair generated"
 
-      - id: TC-KEY-ML-001
+      - id: TC-U-KEY-003
         name: "ML-DSA-44 key generation"
         type: unit
         priority: P1
@@ -47,7 +47,7 @@ test_suites:
         function: "TestU_GenerateKey_MLDSA44"
         expected_result: "Valid ML-DSA-44 key pair generated"
 
-      - id: TC-KEY-ML-002
+      - id: TC-U-KEY-004
         name: "ML-DSA-65 key generation"
         type: unit
         priority: P1
@@ -56,7 +56,7 @@ test_suites:
         function: "TestU_GenerateKey_MLDSA65"
         expected_result: "Valid ML-DSA-65 key pair generated"
 
-      - id: TC-KEY-ML-003
+      - id: TC-U-KEY-005
         name: "ML-DSA-87 key generation"
         type: unit
         priority: P1
@@ -65,7 +65,7 @@ test_suites:
         function: "TestU_GenerateKey_MLDSA87"
         expected_result: "Valid ML-DSA-87 key pair generated"
 
-      - id: TC-KEY-SLH-001
+      - id: TC-U-KEY-006
         name: "SLH-DSA-128f key generation"
         type: unit
         priority: P2
@@ -74,7 +74,7 @@ test_suites:
         function: "TestU_GenerateKey_SLHDSA128f"
         expected_result: "Valid SLH-DSA-128f key pair generated"
 
-      - id: TC-KEY-KEM-001
+      - id: TC-U-KEY-007
         name: "ML-KEM-768 key generation"
         type: unit
         priority: P1
@@ -92,7 +92,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: core-pki
     test_cases:
-      - id: TC-CA-EC-001
+      - id: TC-F-CA-001
         name: "ECDSA P-256 CA initialization"
         type: functional
         priority: P1
@@ -102,7 +102,7 @@ test_suites:
         function: "TestF_CA_Initialize_ECDSA_P256"
         expected_result: "CA initialized with valid root certificate"
 
-      - id: TC-CA-ML-001
+      - id: TC-F-CA-002
         name: "ML-DSA-65 CA initialization"
         type: functional
         priority: P1
@@ -112,7 +112,7 @@ test_suites:
         function: "TestF_CA_Initialize_MLDSA65"
         expected_result: "PQC CA initialized with valid root certificate"
 
-      - id: TC-CA-CAT-001
+      - id: TC-F-CA-003
         name: "Catalyst hybrid CA initialization"
         type: functional
         priority: P1
@@ -122,7 +122,7 @@ test_suites:
         function: "TestF_CA_Initialize_Catalyst"
         expected_result: "Dual-key CA with classical and PQC algorithms"
 
-      - id: TC-CA-COMP-001
+      - id: TC-F-CA-004
         name: "Composite hybrid CA initialization"
         type: functional
         priority: P1
@@ -151,7 +151,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: core-pki
     test_cases:
-      - id: TC-CERT-EC-001
+      - id: TC-F-CERT-001
         name: "ECDSA certificate issuance from CSR"
         type: functional
         priority: P1
@@ -161,7 +161,7 @@ test_suites:
         function: "TestF_CA_Issue_ECDSA"
         expected_result: "Certificate issued and chain validated"
 
-      - id: TC-CERT-ML-001
+      - id: TC-F-CERT-002
         name: "ML-DSA-65 certificate issuance"
         type: functional
         priority: P1
@@ -171,7 +171,7 @@ test_suites:
         function: "TestF_CA_Issue_MLDSA65"
         expected_result: "PQC certificate issued and chain validated"
 
-      - id: TC-CERT-KEM-001
+      - id: TC-F-CERT-003
         name: "ML-KEM certificate with attestation"
         type: functional
         priority: P1
@@ -220,7 +220,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: core-pki
     test_cases:
-      - id: TC-CRL-EC-001
+      - id: TC-F-CRL-001
         name: "ECDSA CRL generation"
         type: functional
         priority: P1
@@ -230,7 +230,7 @@ test_suites:
         function: "TestF_CA_CRL_Generate_ECDSA"
         expected_result: "Valid CRL with revoked certificate serial"
 
-      - id: TC-CRL-ML-001
+      - id: TC-F-CRL-002
         name: "ML-DSA CRL generation"
         type: functional
         priority: P1
@@ -673,7 +673,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: protocols
     test_cases:
-      - id: TC-OCSP-EC-001
+      - id: TC-F-OCSP-001
         name: "ECDSA OCSP response signing"
         type: functional
         priority: P1
@@ -682,7 +682,7 @@ test_suites:
         function: "TestF_OCSP_Sign_ECDSA"
         expected_result: "Valid OCSP response with good status"
 
-      - id: TC-OCSP-ML-001
+      - id: TC-F-OCSP-002
         name: "ML-DSA OCSP response signing"
         type: functional
         priority: P1
@@ -709,7 +709,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: protocols
     test_cases:
-      - id: TC-TSA-EC-001
+      - id: TC-F-TSA-001
         name: "ECDSA timestamp signing"
         type: functional
         priority: P1
@@ -718,7 +718,7 @@ test_suites:
         function: "TestF_TSA_Sign_ECDSA"
         expected_result: "Valid timestamp token"
 
-      - id: TC-TSA-ML-001
+      - id: TC-F-TSA-002
         name: "ML-DSA timestamp signing"
         type: functional
         priority: P1
@@ -745,7 +745,7 @@ test_suites:
     iso_quality_characteristic: "Functional Correctness"
     category: protocols
     test_cases:
-      - id: TC-CMS-SIGN-EC-001
+      - id: TC-F-CMS-001
         name: "ECDSA CMS SignedData"
         type: functional
         priority: P1
@@ -754,7 +754,7 @@ test_suites:
         function: "TestF_CMS_Sign_ECDSA"
         expected_result: "Valid CMS SignedData structure"
 
-      - id: TC-CMS-SIGN-ML-001
+      - id: TC-F-CMS-002
         name: "ML-DSA CMS SignedData"
         type: functional
         priority: P1
@@ -763,7 +763,7 @@ test_suites:
         function: "TestF_CMS_Sign_MLDSA"
         expected_result: "PQC CMS SignedData per RFC 9882"
 
-      - id: TC-CMS-ENC-KEM-001
+      - id: TC-F-CMS-003
         name: "ML-KEM CMS EnvelopedData"
         type: functional
         priority: P1
@@ -802,7 +802,7 @@ test_suites:
   # ==========================================================================
   # TC-XOSL: OpenSSL Cross-Validation Tests
   # ==========================================================================
-  - id: TC-XOSL
+  - id: TC-C-OSL
     name: "OpenSSL Cross-Validation"
     objective: "Verify QPKI artifacts with OpenSSL 3.6+"
     iso_quality_characteristic: "Interoperability"
@@ -810,28 +810,28 @@ test_suites:
     validator: "OpenSSL"
     validator_version: "3.6+"
     test_cases:
-      - id: TC-XOSL-CERT-EC
+      - id: TC-C-OSL-001
         name: "OpenSSL verifies ECDSA certificate"
         type: integration
         priority: P1
         file: "test/openssl/lib/verify_certs.sh"
         expected_result: "openssl verify returns OK"
 
-      - id: TC-XOSL-CERT-ML
+      - id: TC-C-OSL-002
         name: "OpenSSL verifies ML-DSA certificate"
         type: integration
         priority: P1
         file: "test/openssl/lib/verify_certs.sh"
         expected_result: "openssl verify returns OK for ML-DSA cert"
 
-      - id: TC-XOSL-CMS-ML
+      - id: TC-C-OSL-003
         name: "OpenSSL verifies ML-DSA CMS signature"
         type: integration
         priority: P1
         file: "test/openssl/lib/verify_cms.sh"
         expected_result: "openssl cms -verify returns OK"
 
-      - id: TC-XOSL-CMSENC-KEM
+      - id: TC-C-OSL-004
         name: "OpenSSL decrypts ML-KEM CMS"
         type: integration
         priority: P1
@@ -841,7 +841,7 @@ test_suites:
   # ==========================================================================
   # TC-XBC: BouncyCastle Cross-Validation Tests
   # ==========================================================================
-  - id: TC-XBC
+  - id: TC-C-BC
     name: "BouncyCastle Cross-Validation"
     objective: "Verify QPKI artifacts with BouncyCastle 1.83+"
     iso_quality_characteristic: "Interoperability"
@@ -849,28 +849,28 @@ test_suites:
     validator: "BouncyCastle"
     validator_version: "1.83+"
     test_cases:
-      - id: TC-XBC-CERT-EC
+      - id: TC-C-BC-001
         name: "BouncyCastle verifies ECDSA certificate"
         type: integration
         priority: P1
         file: "test/bouncycastle/src/test/java/pki/crosstest/ClassicalVerifyTest.java"
         expected_result: "Certificate chain validates"
 
-      - id: TC-XBC-CERT-ML
+      - id: TC-C-BC-002
         name: "BouncyCastle verifies ML-DSA certificate"
         type: integration
         priority: P1
         file: "test/bouncycastle/src/test/java/pki/crosstest/PQCVerifyTest.java"
         expected_result: "PQC certificate chain validates"
 
-      - id: TC-XBC-CERT-CAT
+      - id: TC-C-BC-003
         name: "BouncyCastle verifies Catalyst certificate"
         type: integration
         priority: P1
         file: "test/bouncycastle/src/test/java/pki/crosstest/CatalystVerifyTest.java"
         expected_result: "Both classical and PQC signatures validate"
 
-      - id: TC-XBC-CERT-COMP
+      - id: TC-C-BC-004
         name: "BouncyCastle verifies Composite certificate"
         type: integration
         priority: P2
@@ -881,13 +881,13 @@ test_suites:
   # ==========================================================================
   # TC-FUZZ: Fuzzing Tests
   # ==========================================================================
-  - id: TC-FUZZ
+  - id: TC-Z-FUZZ
     name: "Fuzzing Tests"
     objective: "Ensure parsers handle malformed input without panicking"
     iso_quality_characteristic: "Security"
     category: security
     test_cases:
-      - id: TC-FUZZ-CMS-001
+      - id: TC-Z-CMS-001
         name: "CMS SignedData parser fuzzing"
         type: fuzz
         priority: P1
@@ -896,7 +896,7 @@ test_suites:
         corpus: "testdata/fuzz/cms"
         expected_result: "No panics on malformed input"
 
-      - id: TC-FUZZ-OCSP-001
+      - id: TC-Z-OCSP-001
         name: "OCSP request parser fuzzing"
         type: fuzz
         priority: P1
@@ -904,7 +904,7 @@ test_suites:
         function: "FuzzU_ParseRequest"
         expected_result: "No panics on malformed input"
 
-      - id: TC-FUZZ-PROFILE-001
+      - id: TC-Z-PROFILE-001
         name: "Profile YAML parser fuzzing"
         type: fuzz
         priority: P1
@@ -912,7 +912,7 @@ test_suites:
         function: "FuzzLoadProfileFromBytes"
         expected_result: "No panics on malformed YAML"
 
-      - id: TC-FUZZ-CSR-001
+      - id: TC-Z-CSR-001
         name: "PQC CSR parser fuzzing"
         type: fuzz
         priority: P1
@@ -926,19 +926,19 @@ test_suites:
 categories:
   core-pki:
     description: "Core PKI operations: keys, CA, certificates, CRL, extensions"
-    suites: [TC-KEY, TC-CA, TC-CERT, TC-CRL, TC-EXT, TC-CRED, TC-PROFILE, TC-LIST, TC-REVOKE, TC-INFO, TC-KEY-CLI, TC-VERIFY]
+    suites: [TC-U-KEY, TC-F-CA, TC-F-CERT, TC-F-CRL, TC-U-EXT, TC-F-CRED, TC-F-PROFILE, TC-F-LIST, TC-F-REVOKE, TC-F-INFO, TC-F-KEY, TC-F-VERIFY]
 
   protocols:
     description: "RFC protocol implementations: OCSP, TSA, CMS"
-    suites: [TC-OCSP, TC-TSA, TC-CMS]
+    suites: [TC-F-OCSP, TC-F-TSA, TC-F-CMS]
 
   interop:
     description: "Cross-validation with external implementations"
-    suites: [TC-XOSL, TC-XBC]
+    suites: [TC-C-OSL, TC-C-BC]
 
   security:
     description: "Security testing: fuzzing, static analysis"
-    suites: [TC-FUZZ]
+    suites: [TC-Z-FUZZ]
 
 # ============================================================================
 # Priority Definitions
