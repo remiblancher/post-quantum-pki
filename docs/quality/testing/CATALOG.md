@@ -259,4 +259,3 @@ Fuzzing tests ensure parsers handle malformed input without panicking.
 - [Test Naming](NAMING.md) - Naming conventions
 - [CLI Coverage](CLI-COVERAGE.md) - CLI command coverage
 - [Feature Coverage](FEATURES.md) - Feature coverage
-- [specs/tests/test-mapping.yaml](../../../specs/tests/test-mapping.yaml) - TC-ID mapping
