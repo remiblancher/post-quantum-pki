@@ -111,14 +111,19 @@ post-quantum-pki/
 │   └── ca_test.go              # TestF_* (functional)
 │
 └── test/
-    ├── acceptance/              # TestA_* (black box CLI)
-    │   ├── ca_test.go
-    │   ├── cert_test.go
-    │   └── cms_test.go
+    ├── acceptance/              # TestA_* (black box CLI, Go)
+    │   └── *_test.go            # //go:build acceptance
     │
-    └── crossval/                # TestC_* (interop)
-        ├── openssl_test.go
-        └── bouncycastle_test.go
+    ├── crossval/                # Cross-validation tests
+    │   ├── bouncycastle/        # Java interop tests (Maven)
+    │   └── openssl/             # Shell interop tests
+    │
+    ├── fixtures/                # All test data
+    │   └── profiles/            # Test profile YAML files
+    │
+    └── scripts/                 # Test utility scripts
+        ├── run_tests.sh
+        └── generate_*.sh
 ```
 
 ## Build Tags

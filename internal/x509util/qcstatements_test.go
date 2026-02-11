@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestQCStatementsBuilder_QcCompliance(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_QcCompliance(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 	builder.AddQcCompliance()
 
@@ -32,7 +32,7 @@ func TestQCStatementsBuilder_QcCompliance(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_QcType(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_QcType(t *testing.T) {
 	tests := []struct {
 		name     string
 		qcType   QcType
@@ -81,7 +81,7 @@ func TestQCStatementsBuilder_QcType(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_QcSSCD(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_QcSSCD(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 	builder.AddQcSSCD()
 
@@ -99,7 +99,7 @@ func TestQCStatementsBuilder_QcSSCD(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_QcRetentionPeriod(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_QcRetentionPeriod(t *testing.T) {
 	tests := []struct {
 		name    string
 		years   int
@@ -146,7 +146,7 @@ func TestQCStatementsBuilder_QcRetentionPeriod(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_QcPDS(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_QcPDS(t *testing.T) {
 	tests := []struct {
 		name      string
 		locations []PDSLocation
@@ -230,7 +230,7 @@ func TestQCStatementsBuilder_QcPDS(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_CompleteEIDAS(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_CompleteEIDAS(t *testing.T) {
 	// Build a complete eIDAS QCStatements extension
 	builder := NewQCStatementsBuilder()
 	builder.AddQcCompliance()
@@ -280,7 +280,7 @@ func TestQCStatementsBuilder_CompleteEIDAS(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_Critical(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_Critical(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 	builder.AddQcCompliance()
 
@@ -294,7 +294,7 @@ func TestQCStatementsBuilder_Critical(t *testing.T) {
 	}
 }
 
-func TestQCStatementsBuilder_EmptyBuild(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_EmptyBuild(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 
 	_, err := builder.Build(false)
@@ -303,7 +303,7 @@ func TestQCStatementsBuilder_EmptyBuild(t *testing.T) {
 	}
 }
 
-func TestDecodeQCStatements_InvalidExtension(t *testing.T) {
+func TestU_X509Util_DecodeQCStatements_InvalidExtension(t *testing.T) {
 	// Test with wrong OID
 	ext := pkix.Extension{
 		Id:    asn1.ObjectIdentifier{1, 2, 3, 4},
@@ -316,7 +316,7 @@ func TestDecodeQCStatements_InvalidExtension(t *testing.T) {
 	}
 }
 
-func TestDecodeQCStatements_InvalidASN1(t *testing.T) {
+func TestU_X509Util_DecodeQCStatements_InvalidASN1(t *testing.T) {
 	ext := pkix.Extension{
 		Id:    OIDQCStatements,
 		Value: []byte{0xFF, 0xFF}, // Invalid ASN.1
@@ -362,7 +362,7 @@ func TestFindQCStatements_NotFound(t *testing.T) {
 	}
 }
 
-func TestHasQCStatements(t *testing.T) {
+func TestU_X509Util_HasQCStatements(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 	builder.AddQcCompliance()
 	qcExt, _ := builder.Build(false)
@@ -378,7 +378,7 @@ func TestHasQCStatements(t *testing.T) {
 	}
 }
 
-func TestQcTypeOIDs(t *testing.T) {
+func TestU_X509Util_QcTypeOIDs(t *testing.T) {
 	// Verify OIDs are correctly defined
 	if OIDQcTypeESign.String() != "0.4.0.1862.1.6.1" {
 		t.Errorf("OIDQcTypeESign = %s, want 0.4.0.1862.1.6.1", OIDQcTypeESign.String())
@@ -391,7 +391,7 @@ func TestQcTypeOIDs(t *testing.T) {
 	}
 }
 
-func TestQCStatementsOIDs(t *testing.T) {
+func TestU_X509Util_QCStatementsOIDs(t *testing.T) {
 	// Verify main OIDs are correctly defined
 	if OIDQCStatements.String() != "1.3.6.1.5.5.7.1.3" {
 		t.Errorf("OIDQCStatements = %s, want 1.3.6.1.5.5.7.1.3", OIDQCStatements.String())
@@ -413,7 +413,7 @@ func TestQCStatementsOIDs(t *testing.T) {
 	}
 }
 
-func TestOIDesi4QtstStatement1(t *testing.T) {
+func TestU_X509Util_OIDesi4QtstStatement1(t *testing.T) {
 	// Verify esi4-qtstStatement-1 OID for qualified timestamps (ETSI EN 319 422)
 	if OIDesi4QtstStatement1.String() != "0.4.0.19422.1.1" {
 		t.Errorf("OIDesi4QtstStatement1 = %s, want 0.4.0.19422.1.1", OIDesi4QtstStatement1.String())
@@ -421,7 +421,7 @@ func TestOIDesi4QtstStatement1(t *testing.T) {
 }
 
 // TestQCStatements_RoundTrip verifies that Build → Decode produces consistent results.
-func TestQCStatements_RoundTrip(t *testing.T) {
+func TestU_X509Util_QCStatements_RoundTrip(t *testing.T) {
 	tests := []struct {
 		name   string
 		build  func(*QCStatementsBuilder) error
@@ -539,7 +539,7 @@ func TestQCStatements_RoundTrip(t *testing.T) {
 }
 
 // TestDecodeQCStatements_UnknownOID verifies unknown statement OIDs are silently skipped.
-func TestDecodeQCStatements_UnknownOID(t *testing.T) {
+func TestU_X509Util_DecodeQCStatements_UnknownOID(t *testing.T) {
 	// Build extension with QcCompliance + unknown OID manually
 	unknownOID := asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 7}
 	statements := []qcStatement{
@@ -568,7 +568,7 @@ func TestDecodeQCStatements_UnknownOID(t *testing.T) {
 }
 
 // TestDecodeQCStatements_TrailingData verifies trailing data is rejected.
-func TestDecodeQCStatements_TrailingData(t *testing.T) {
+func TestU_X509Util_DecodeQCStatements_TrailingData(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 	builder.AddQcCompliance()
 	ext, _ := builder.Build(false)
@@ -583,7 +583,7 @@ func TestDecodeQCStatements_TrailingData(t *testing.T) {
 }
 
 // TestHasQCCompliance_Scenarios tests various scenarios for HasQCCompliance.
-func TestHasQCCompliance_Scenarios(t *testing.T) {
+func TestU_X509Util_HasQCCompliance_Scenarios(t *testing.T) {
 	tests := []struct {
 		name       string
 		extensions []pkix.Extension
@@ -656,7 +656,7 @@ func TestHasQCCompliance_Scenarios(t *testing.T) {
 }
 
 // TestQCStatementsBuilder_Chaining verifies method chaining works correctly.
-func TestQCStatementsBuilder_Chaining(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_Chaining(t *testing.T) {
 	builder := NewQCStatementsBuilder()
 
 	// Chain methods that return *QCStatementsBuilder
@@ -682,7 +682,7 @@ func TestQCStatementsBuilder_Chaining(t *testing.T) {
 }
 
 // TestQCStatementsBuilder_RetentionPeriodBoundary tests boundary values for retention period.
-func TestQCStatementsBuilder_RetentionPeriodBoundary(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_RetentionPeriodBoundary(t *testing.T) {
 	tests := []struct {
 		name    string
 		years   int
@@ -729,7 +729,7 @@ func TestQCStatementsBuilder_RetentionPeriodBoundary(t *testing.T) {
 }
 
 // TestQCStatementsBuilder_PDSLanguageCodes tests various language code formats.
-func TestQCStatementsBuilder_PDSLanguageCodes(t *testing.T) {
+func TestU_X509Util_QCStatementsBuilder_PDSLanguageCodes(t *testing.T) {
 	tests := []struct {
 		name     string
 		language string

@@ -21,7 +21,7 @@ import (
 // Key Rotation Mode Tests
 // =============================================================================
 
-func TestKeyRotationMode_Constants(t *testing.T) {
+func TestU_Credential_KeyRotationMode_Constants(t *testing.T) {
 	// Verify constants have expected values
 	if KeyRotateNew != 0 {
 		t.Errorf("KeyRotateNew = %d, want 0", KeyRotateNew)

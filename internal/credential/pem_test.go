@@ -209,7 +209,7 @@ func TestU_EncodePrivateKeysPEM_MLDSA(t *testing.T) {
 // DecodePrivateKeysPEM Tests
 // =============================================================================
 
-func TestDecodePrivateKeysPEM_Empty(t *testing.T) {
+func TestU_Credential_DecodePrivateKeysPEM_Empty(t *testing.T) {
 	// Empty data should return empty slice
 	signers, err := DecodePrivateKeysPEM([]byte{}, nil)
 	if err != nil {
@@ -220,7 +220,7 @@ func TestDecodePrivateKeysPEM_Empty(t *testing.T) {
 	}
 }
 
-func TestDecodePrivateKeysPEM_InvalidPEM(t *testing.T) {
+func TestU_Credential_DecodePrivateKeysPEM_InvalidPEM(t *testing.T) {
 	// Non-PEM data should return empty slice
 	signers, err := DecodePrivateKeysPEM([]byte("not a pem file"), nil)
 	if err != nil {

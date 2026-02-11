@@ -699,7 +699,7 @@ func TestF_RFC9814_SHA2vsSHAKE_Comparison(t *testing.T) {
 // =============================================================================
 
 // TestI_RFC9814_SignerFromPkiCrypto tests SLH-DSA keys from pkicrypto package.
-func TestI_RFC9814_SignerFromPkiCrypto(t *testing.T) {
+func TestU_CMS_RFC9814_SignerFromPkiCrypto(t *testing.T) {
 	tests := []struct {
 		name        string
 		alg         pkicrypto.AlgorithmID

@@ -16,7 +16,7 @@ import (
 // MultiProfileRotateRequest Tests
 // =============================================================================
 
-func TestMultiProfileRotateRequest_Fields(t *testing.T) {
+func TestU_CA_MultiProfileRotateRequest_Fields(t *testing.T) {
 	profiles := []*profile.Profile{
 		{Name: "profile1", Algorithm: pkicrypto.AlgECDSAP256},
 	}
@@ -50,7 +50,7 @@ func TestMultiProfileRotateRequest_Fields(t *testing.T) {
 // MultiProfileRotatePlan Tests
 // =============================================================================
 
-func TestMultiProfileRotatePlan_Fields(t *testing.T) {
+func TestU_CA_MultiProfileRotatePlan_Fields(t *testing.T) {
 	plan := &MultiProfileRotatePlan{
 		CurrentVersion: "v1",
 		NewVersion:     "v2",
@@ -87,7 +87,7 @@ func TestMultiProfileRotatePlan_Fields(t *testing.T) {
 // ProfileRotatePlan Tests
 // =============================================================================
 
-func TestProfileRotatePlan_Fields(t *testing.T) {
+func TestU_CA_ProfileRotatePlan_Fields(t *testing.T) {
 	plan := ProfileRotatePlan{
 		ProfileName:     "test-profile",
 		Algorithm:       "ml-dsa-65",
@@ -117,7 +117,7 @@ func TestProfileRotatePlan_Fields(t *testing.T) {
 // MultiProfileRotateResult Tests
 // =============================================================================
 
-func TestMultiProfileRotateResult_Fields(t *testing.T) {
+func TestU_CA_MultiProfileRotateResult_Fields(t *testing.T) {
 	plan := &MultiProfileRotatePlan{
 		NewVersion: "v2",
 	}
@@ -141,7 +141,7 @@ func TestMultiProfileRotateResult_Fields(t *testing.T) {
 // RotateCAMultiProfile Tests
 // =============================================================================
 
-func TestRotateCAMultiProfile_NoProfiles_Error(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_NoProfiles_Error(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	req := MultiProfileRotateRequest{
@@ -155,7 +155,7 @@ func TestRotateCAMultiProfile_NoProfiles_Error(t *testing.T) {
 	}
 }
 
-func TestRotateCAMultiProfile_EmptyProfiles_Error(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_EmptyProfiles_Error(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	req := MultiProfileRotateRequest{
@@ -169,7 +169,7 @@ func TestRotateCAMultiProfile_EmptyProfiles_Error(t *testing.T) {
 	}
 }
 
-func TestRotateCAMultiProfile_CANotFound_Error(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_CANotFound_Error(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	req := MultiProfileRotateRequest{
@@ -221,7 +221,7 @@ func setupVersionedCA(t *testing.T) string {
 	return tmpDir
 }
 
-func TestRotateCAMultiProfile_DryRun_SingleProfile(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_DryRun_SingleProfile(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 
 	// Create profiles
@@ -266,7 +266,7 @@ func TestRotateCAMultiProfile_DryRun_SingleProfile(t *testing.T) {
 	}
 }
 
-func TestRotateCAMultiProfile_DryRun_MultipleProfiles(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_DryRun_MultipleProfiles(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 
 	// Create multiple profiles
@@ -329,7 +329,7 @@ func TestRotateCAMultiProfile_DryRun_MultipleProfiles(t *testing.T) {
 	}
 }
 
-func TestRotateCAMultiProfile_DryRun_WithCrossSign(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_DryRun_WithCrossSign(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 
 	// Create profile with same algorithm family
@@ -368,7 +368,7 @@ func TestRotateCAMultiProfile_DryRun_WithCrossSign(t *testing.T) {
 // buildMultiProfileRotationSteps Tests
 // =============================================================================
 
-func TestBuildMultiProfileRotationSteps_SingleProfile(t *testing.T) {
+func TestU_CA_BuildMultiProfileRotationSteps_SingleProfile(t *testing.T) {
 	profiles := []ProfileRotatePlan{
 		{
 			ProfileName:     "ec-profile",
@@ -396,7 +396,7 @@ func TestBuildMultiProfileRotationSteps_SingleProfile(t *testing.T) {
 	}
 }
 
-func TestBuildMultiProfileRotationSteps_MultipleProfiles(t *testing.T) {
+func TestU_CA_BuildMultiProfileRotationSteps_MultipleProfiles(t *testing.T) {
 	profiles := []ProfileRotatePlan{
 		{
 			ProfileName:     "ec-profile",
@@ -430,7 +430,7 @@ func TestBuildMultiProfileRotationSteps_MultipleProfiles(t *testing.T) {
 	}
 }
 
-func TestBuildMultiProfileRotationSteps_AllCrossSign(t *testing.T) {
+func TestU_CA_BuildMultiProfileRotationSteps_AllCrossSign(t *testing.T) {
 	profiles := []ProfileRotatePlan{
 		{
 			ProfileName:     "ec-profile",
@@ -464,7 +464,7 @@ func TestBuildMultiProfileRotationSteps_AllCrossSign(t *testing.T) {
 // RotateCAMultiProfile Execute Tests (non-DryRun)
 // =============================================================================
 
-func TestRotateCAMultiProfile_Execute_SingleProfile(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_Execute_SingleProfile(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 
 	// Create profile
@@ -500,7 +500,7 @@ func TestRotateCAMultiProfile_Execute_SingleProfile(t *testing.T) {
 	}
 }
 
-func TestRotateCAMultiProfile_Execute_PQCProfile(t *testing.T) {
+func TestU_CA_RotateCAMultiProfile_Execute_PQCProfile(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 
 	// Create PQC profile
@@ -540,7 +540,7 @@ func TestRotateCAMultiProfile_Execute_PQCProfile(t *testing.T) {
 // initializeCatalystCA Tests
 // =============================================================================
 
-func TestInitializeCatalystCA(t *testing.T) {
+func TestU_CA_InitializeCatalystCA(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a Catalyst profile (classical + PQC)
@@ -587,7 +587,7 @@ func TestInitializeCatalystCA(t *testing.T) {
 	}
 }
 
-func TestInitializeCatalystCA_WithPassphrase(t *testing.T) {
+func TestU_CA_InitializeCatalystCA_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	prof := &profile.Profile{
@@ -631,7 +631,7 @@ func TestInitializeCatalystCA_WithPassphrase(t *testing.T) {
 // initializeCompositeCA (rotate_multi.go) Tests
 // =============================================================================
 
-func TestRotateMulti_InitializeCompositeCA(t *testing.T) {
+func TestU_CA_RotateMulti_InitializeCompositeCA(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a Composite profile using supported combination: ECDSA-P256 + ML-DSA-65
@@ -678,7 +678,7 @@ func TestRotateMulti_InitializeCompositeCA(t *testing.T) {
 	}
 }
 
-func TestRotateMulti_InitializeCompositeCA_WithPassphrase(t *testing.T) {
+func TestU_CA_RotateMulti_InitializeCompositeCA_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Use supported combination: ECDSA-P384 + ML-DSA-65 (MLDSA65-ECDSA-P384-SHA512)
@@ -719,7 +719,7 @@ func TestRotateMulti_InitializeCompositeCA_WithPassphrase(t *testing.T) {
 	}
 }
 
-func TestRotateMulti_InitializeCompositeCA_UnsupportedAlgorithm(t *testing.T) {
+func TestU_CA_RotateMulti_InitializeCompositeCA_UnsupportedAlgorithm(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Use an unsupported algorithm combination (Ed25519 is not supported for composite)
@@ -755,7 +755,7 @@ func TestRotateMulti_InitializeCompositeCA_UnsupportedAlgorithm(t *testing.T) {
 // loadCurrentCAsForCrossSigning Tests
 // =============================================================================
 
-func TestLoadCurrentCAsForCrossSigning_NoCrossSign(t *testing.T) {
+func TestU_CA_LoadCurrentCAsForCrossSigning_NoCrossSign(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -774,7 +774,7 @@ func TestLoadCurrentCAsForCrossSigning_NoCrossSign(t *testing.T) {
 	}
 }
 
-func TestLoadCurrentCAsForCrossSigning_NoCerts(t *testing.T) {
+func TestU_CA_LoadCurrentCAsForCrossSigning_NoCerts(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -789,7 +789,7 @@ func TestLoadCurrentCAsForCrossSigning_NoCerts(t *testing.T) {
 	}
 }
 
-func TestLoadCurrentCAsForCrossSigning_EmptyCerts(t *testing.T) {
+func TestU_CA_LoadCurrentCAsForCrossSigning_EmptyCerts(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -804,7 +804,7 @@ func TestLoadCurrentCAsForCrossSigning_EmptyCerts(t *testing.T) {
 	}
 }
 
-func TestLoadCurrentCAsForCrossSigning_WithCrossSign(t *testing.T) {
+func TestU_CA_LoadCurrentCAsForCrossSigning_WithCrossSign(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 	versionStore := NewVersionStore(tmpDir)
 
@@ -839,7 +839,7 @@ func TestLoadCurrentCAsForCrossSigning_WithCrossSign(t *testing.T) {
 // crossSignIfRequested Tests
 // =============================================================================
 
-func TestCrossSignIfRequested_NoCrossSign(t *testing.T) {
+func TestU_CA_CrossSignIfRequested_NoCrossSign(t *testing.T) {
 	currentCAs := map[string]*CA{
 		"ec": nil, // Won't be accessed
 	}
@@ -853,7 +853,7 @@ func TestCrossSignIfRequested_NoCrossSign(t *testing.T) {
 	}
 }
 
-func TestCrossSignIfRequested_NilCurrentCAs(t *testing.T) {
+func TestU_CA_CrossSignIfRequested_NilCurrentCAs(t *testing.T) {
 	cert, err := crossSignIfRequested(nil, nil, "ec", t.TempDir(), true)
 	if err != nil {
 		t.Fatalf("crossSignIfRequested() error = %v", err)
@@ -863,7 +863,7 @@ func TestCrossSignIfRequested_NilCurrentCAs(t *testing.T) {
 	}
 }
 
-func TestCrossSignIfRequested_AlgoNotFound(t *testing.T) {
+func TestU_CA_CrossSignIfRequested_AlgoNotFound(t *testing.T) {
 	currentCAs := map[string]*CA{
 		"rsa": nil, // Different algorithm family
 	}
@@ -877,7 +877,7 @@ func TestCrossSignIfRequested_AlgoNotFound(t *testing.T) {
 	}
 }
 
-func TestCrossSignIfRequested_WithCrossSign(t *testing.T) {
+func TestU_CA_CrossSignIfRequested_WithCrossSign(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -937,7 +937,7 @@ func TestCrossSignIfRequested_WithCrossSign(t *testing.T) {
 // finalizeRotation Tests
 // =============================================================================
 
-func TestFinalizeRotation_NoCrossSignedCerts(t *testing.T) {
+func TestU_CA_FinalizeRotation_NoCrossSignedCerts(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -955,7 +955,7 @@ func TestFinalizeRotation_NoCrossSignedCerts(t *testing.T) {
 	}
 }
 
-func TestFinalizeRotation_WithCrossSignedCerts(t *testing.T) {
+func TestU_CA_FinalizeRotation_WithCrossSignedCerts(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	versionStore := NewVersionStore(tmpDir)
@@ -993,7 +993,7 @@ func TestFinalizeRotation_WithCrossSignedCerts(t *testing.T) {
 // extractProfileNames Tests
 // =============================================================================
 
-func TestExtractProfileNames_Empty(t *testing.T) {
+func TestU_CA_ExtractProfileNames_Empty(t *testing.T) {
 	profiles := []*profile.Profile{}
 	names := extractProfileNames(profiles)
 	if len(names) != 0 {
@@ -1001,7 +1001,7 @@ func TestExtractProfileNames_Empty(t *testing.T) {
 	}
 }
 
-func TestExtractProfileNames_Single(t *testing.T) {
+func TestU_CA_ExtractProfileNames_Single(t *testing.T) {
 	profiles := []*profile.Profile{
 		{Name: "profile1"},
 	}
@@ -1011,7 +1011,7 @@ func TestExtractProfileNames_Single(t *testing.T) {
 	}
 }
 
-func TestExtractProfileNames_Multiple(t *testing.T) {
+func TestU_CA_ExtractProfileNames_Multiple(t *testing.T) {
 	profiles := []*profile.Profile{
 		{Name: "profile1"},
 		{Name: "profile2"},
@@ -1032,7 +1032,7 @@ func TestExtractProfileNames_Multiple(t *testing.T) {
 // getSubjectCN Tests
 // =============================================================================
 
-func TestGetSubjectCN_FromCertRef(t *testing.T) {
+func TestU_CA_GetSubjectCN_FromCertRef(t *testing.T) {
 	currentCerts := map[string]*CertRef{
 		"ec": {AlgorithmFamily: "ec", Subject: "CN=Test EC CA"},
 	}
@@ -1043,7 +1043,7 @@ func TestGetSubjectCN_FromCertRef(t *testing.T) {
 	}
 }
 
-func TestGetSubjectCN_NotFound(t *testing.T) {
+func TestU_CA_GetSubjectCN_NotFound(t *testing.T) {
 	currentCerts := map[string]*CertRef{
 		"rsa": {AlgorithmFamily: "rsa", Subject: "CN=Test RSA CA"},
 	}
@@ -1054,7 +1054,7 @@ func TestGetSubjectCN_NotFound(t *testing.T) {
 	}
 }
 
-func TestGetSubjectCN_EmptySubject(t *testing.T) {
+func TestU_CA_GetSubjectCN_EmptySubject(t *testing.T) {
 	currentCerts := map[string]*CertRef{
 		"ec": {AlgorithmFamily: "ec", Subject: ""},
 	}
@@ -1065,7 +1065,7 @@ func TestGetSubjectCN_EmptySubject(t *testing.T) {
 	}
 }
 
-func TestGetSubjectCN_NilMap(t *testing.T) {
+func TestU_CA_GetSubjectCN_NilMap(t *testing.T) {
 	cn := getSubjectCN(nil, "ec")
 	if cn != "CA ec" {
 		t.Errorf("getSubjectCN() = %s, want CA ec", cn)
@@ -1076,7 +1076,7 @@ func TestGetSubjectCN_NilMap(t *testing.T) {
 // createVersionDirectories Tests
 // =============================================================================
 
-func TestCreateVersionDirectories(t *testing.T) {
+func TestU_CA_CreateVersionDirectories(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -1101,7 +1101,7 @@ func TestCreateVersionDirectories(t *testing.T) {
 // initializeCAForProfile Tests
 // =============================================================================
 
-func TestInitializeCAForProfile_Classical(t *testing.T) {
+func TestU_CA_InitializeCAForProfile_Classical(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	prof := &profile.Profile{
@@ -1141,7 +1141,7 @@ func TestInitializeCAForProfile_Classical(t *testing.T) {
 	}
 }
 
-func TestInitializeCAForProfile_PQC(t *testing.T) {
+func TestU_CA_InitializeCAForProfile_PQC(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	prof := &profile.Profile{

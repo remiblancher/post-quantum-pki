@@ -353,7 +353,7 @@ func TestCA_EnrollMulti_NoSigner(t *testing.T) {
 // Helper Function Tests
 // =============================================================================
 
-func TestGenerateCredentialID(t *testing.T) {
+func TestU_Credential_GenerateCredentialID(t *testing.T) {
 	// Test with regular common name
 	id1 := GenerateCredentialID("Test User")
 	if id1 == "" {
@@ -379,7 +379,7 @@ func TestGenerateCredentialID(t *testing.T) {
 	}
 }
 
-func TestParseSerialHex(t *testing.T) {
+func TestU_Credential_ParseSerialHex(t *testing.T) {
 	tests := []struct {
 		input   string
 		wantOK  bool
@@ -407,7 +407,7 @@ func TestParseSerialHex(t *testing.T) {
 	}
 }
 
-func TestGetSignerForAlgorithm(t *testing.T) {
+func TestU_Credential_GetSignerForAlgorithm(t *testing.T) {
 	// Create a test signer
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	signer := &testSigner{key: key, alg: pkicrypto.AlgECDSAP256}

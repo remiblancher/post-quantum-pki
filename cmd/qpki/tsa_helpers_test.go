@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestLoadTSACAConfig(t *testing.T) {
+func TestF_TSA_LoadTSACAConfig(t *testing.T) {
 	// Create a temp directory for test certs
 	tmpDir := t.TempDir()
 

@@ -18,7 +18,7 @@ import (
 // validateHSMFlags Tests
 // =============================================================================
 
-func TestValidateHSMFlags(t *testing.T) {
+func TestF_CA_ValidateHSMFlags(t *testing.T) {
 	tests := []struct {
 		name        string
 		generateKey bool
@@ -84,7 +84,7 @@ func TestValidateHSMFlags(t *testing.T) {
 // validateHSMProfile Tests
 // =============================================================================
 
-func TestValidateHSMProfile(t *testing.T) {
+func TestF_CA_ValidateHSMProfile(t *testing.T) {
 	tests := []struct {
 		name    string
 		alg     crypto.AlgorithmID
@@ -160,7 +160,7 @@ func TestValidateHSMProfile(t *testing.T) {
 // encodeCertificates Tests
 // =============================================================================
 
-func TestEncodeCertificates(t *testing.T) {
+func TestF_CA_EncodeCertificates(t *testing.T) {
 	// Generate test certificates
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(t)
@@ -229,7 +229,7 @@ func TestEncodeCertificates(t *testing.T) {
 // extractProfileAlgorithmInfo Tests
 // =============================================================================
 
-func TestExtractProfileAlgorithmInfo(t *testing.T) {
+func TestF_CA_ExtractProfileAlgorithmInfo(t *testing.T) {
 	tests := []struct {
 		name          string
 		profile       *profile.Profile
@@ -355,7 +355,7 @@ func TestExtractProfileAlgorithmInfo(t *testing.T) {
 // buildCAConfigFromProfile Tests
 // =============================================================================
 
-func TestBuildCAConfigFromProfile(t *testing.T) {
+func TestF_CA_BuildCAConfigFromProfile(t *testing.T) {
 	tests := []struct {
 		name       string
 		profile    *profile.Profile
@@ -464,7 +464,7 @@ func testSubject() pkix.Name {
 // validateCAInitSoftwareFlags Tests
 // =============================================================================
 
-func TestValidateCAInitSoftwareFlags(t *testing.T) {
+func TestF_CA_ValidateCAInitSoftwareFlags(t *testing.T) {
 	tests := []struct {
 		name     string
 		varFile  string
@@ -523,7 +523,7 @@ func TestValidateCAInitSoftwareFlags(t *testing.T) {
 // validateSubordinateCAFlags Tests
 // =============================================================================
 
-func TestValidateSubordinateCAFlags(t *testing.T) {
+func TestF_CA_ValidateSubordinateCAFlags(t *testing.T) {
 	tests := []struct {
 		name     string
 		varFile  string
@@ -616,7 +616,7 @@ func TestFirstOrEmpty(t *testing.T) {
 // getSignatureAlgorithmName Tests
 // =============================================================================
 
-func TestGetSignatureAlgorithmName(t *testing.T) {
+func TestF_CA_GetSignatureAlgorithmName(t *testing.T) {
 	// Create a test certificate with a known algorithm
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(tc.t)
@@ -636,7 +636,7 @@ func TestGetSignatureAlgorithmName(t *testing.T) {
 // parseCertificatesPEM Tests
 // =============================================================================
 
-func TestParseCertificatesPEM(t *testing.T) {
+func TestF_CA_ParseCertificatesPEM(t *testing.T) {
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(tc.t)
 	cert := generateSelfSignedCert(tc.t, priv, pub)
@@ -709,7 +709,7 @@ func TestParseCertificatesPEM(t *testing.T) {
 // parseIPStrings Tests (from issue_helpers.go)
 // =============================================================================
 
-func TestParseIPStrings(t *testing.T) {
+func TestF_CA_ParseIPStrings(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   []string
@@ -756,7 +756,7 @@ func TestParseIPStrings(t *testing.T) {
 // list_helpers Tests
 // =============================================================================
 
-func TestGetEffectiveStatus(t *testing.T) {
+func TestF_CA_GetEffectiveStatus(t *testing.T) {
 	now := time.Now()
 	futureTime := now.Add(24 * time.Hour)
 	pastTime := now.Add(-24 * time.Hour)
@@ -877,7 +877,7 @@ func TestFilterCertEntries(t *testing.T) {
 // isCompatibleAlgorithm Tests
 // =============================================================================
 
-func TestIsCompatibleAlgorithm(t *testing.T) {
+func TestF_CA_IsCompatibleAlgorithm(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile crypto.AlgorithmID
@@ -1004,7 +1004,7 @@ func TestApplyValidityOverrides(t *testing.T) {
 // writeExportOutput Tests
 // =============================================================================
 
-func TestWriteExportOutput(t *testing.T) {
+func TestF_CA_WriteExportOutput(t *testing.T) {
 	tc := newTestContext(t)
 
 	tests := []struct {
@@ -1045,7 +1045,7 @@ func TestWriteExportOutput(t *testing.T) {
 // loadAndValidateProfileVariables Tests
 // =============================================================================
 
-func TestLoadAndValidateProfileVariables(t *testing.T) {
+func TestF_CA_LoadAndValidateProfileVariables(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile *profile.Profile
@@ -1089,7 +1089,7 @@ func TestLoadAndValidateProfileVariables(t *testing.T) {
 // printSubordinateCASuccess Tests
 // =============================================================================
 
-func TestPrintSubordinateCASuccess(t *testing.T) {
+func TestF_CA_PrintSubordinateCASuccess(t *testing.T) {
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(t)
 	cert := generateSelfSignedCert(t, priv, pub)
@@ -1103,7 +1103,7 @@ func TestPrintSubordinateCASuccess(t *testing.T) {
 // printMultiProfileSuccess Tests
 // =============================================================================
 
-func TestPrintMultiProfileSuccess(t *testing.T) {
+func TestF_CA_PrintMultiProfileSuccess(t *testing.T) {
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(t)
 	cert := generateSelfSignedCert(t, priv, pub)
@@ -1126,7 +1126,7 @@ func TestPrintMultiProfileSuccess(t *testing.T) {
 // saveCertToPath Tests
 // =============================================================================
 
-func TestSaveCertToPath(t *testing.T) {
+func TestF_CA_SaveCertToPath(t *testing.T) {
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(t)
 	cert := generateSelfSignedCert(t, priv, pub)
@@ -1165,7 +1165,7 @@ func TestSaveCertToPath(t *testing.T) {
 // loadCertFromPath Tests
 // =============================================================================
 
-func TestLoadCertFromPath(t *testing.T) {
+func TestF_CA_LoadCertFromPath(t *testing.T) {
 	tc := newTestContext(t)
 	priv, pub := generateECDSAKeyPair(t)
 	cert := generateSelfSignedCert(t, priv, pub)
@@ -1232,7 +1232,7 @@ func TestLoadCertFromPath(t *testing.T) {
 // getSignatureAlgorithmName Extended Tests
 // =============================================================================
 
-func TestGetSignatureAlgorithmName_PQC(t *testing.T) {
+func TestF_CA_GetSignatureAlgorithmName_PQC(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -1307,7 +1307,7 @@ func TestCopyHSMConfig(t *testing.T) {
 // validateCAHSMInitFlags Tests
 // =============================================================================
 
-func TestValidateCAHSMInitFlags(t *testing.T) {
+func TestF_CA_ValidateCAHSMInitFlags(t *testing.T) {
 	tests := []struct {
 		name        string
 		varFile     string
@@ -1394,7 +1394,7 @@ func TestValidateCAHSMInitFlags(t *testing.T) {
 // loadAndValidateHSMProfile Tests
 // =============================================================================
 
-func TestLoadAndValidateHSMProfile(t *testing.T) {
+func TestF_CA_LoadAndValidateHSMProfile(t *testing.T) {
 	tests := []struct {
 		name        string
 		profileName string
@@ -1449,7 +1449,7 @@ func TestLoadAndValidateHSMProfile(t *testing.T) {
 // loadAllVersionCerts Tests
 // =============================================================================
 
-func TestLoadAllVersionCerts(t *testing.T) {
+func TestF_CA_LoadAllVersionCerts(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -1518,7 +1518,7 @@ func TestLoadAllVersionCerts(t *testing.T) {
 // loadBundleCerts Tests
 // =============================================================================
 
-func TestLoadBundleCerts(t *testing.T) {
+func TestF_CA_LoadBundleCerts(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 
@@ -1668,7 +1668,7 @@ func TestCreateChainFile(t *testing.T) {
 // loadParentCA Tests
 // =============================================================================
 
-func TestLoadParentCA(t *testing.T) {
+func TestF_CA_LoadParentCA(t *testing.T) {
 	tc := newTestContext(t)
 	resetCAFlags()
 

@@ -211,7 +211,7 @@ func TestU_KeyGen_HybridAlgorithms(t *testing.T) {
 }
 
 // TestSoftwareSigner_SignVerify tests signing and verification for all algorithms.
-func TestSoftwareSigner_SignVerify(t *testing.T) {
+func TestU_Crypto_SoftwareSigner_SignVerify(t *testing.T) {
 	signatureAlgs := []AlgorithmID{
 		AlgECDSAP256,
 		AlgECDSAP384,
@@ -278,7 +278,7 @@ func isEdDSA(alg AlgorithmID) bool {
 }
 
 // TestSoftwareSigner_SaveLoad tests key serialization.
-func TestSoftwareSigner_SaveLoad(t *testing.T) {
+func TestU_Crypto_SoftwareSigner_SaveLoad(t *testing.T) {
 	tempDir := t.TempDir()
 
 	tests := []struct {
@@ -358,7 +358,7 @@ func TestSoftwareSigner_SaveLoad(t *testing.T) {
 }
 
 // TestLoadPrivateKey_EncryptedWithoutPassphrase tests that loading encrypted key without passphrase fails.
-func TestLoadPrivateKey_EncryptedWithoutPassphrase(t *testing.T) {
+func TestU_Crypto_LoadPrivateKey_EncryptedWithoutPassphrase(t *testing.T) {
 	tempDir := t.TempDir()
 
 	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
@@ -378,7 +378,7 @@ func TestLoadPrivateKey_EncryptedWithoutPassphrase(t *testing.T) {
 }
 
 // TestVerifierFromPublicKey tests the Verifier interface.
-func TestVerifierFromPublicKey(t *testing.T) {
+func TestU_Crypto_VerifierFromPublicKey(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
 		t.Fatalf("GenerateSoftwareSigner() error = %v", err)
@@ -436,7 +436,7 @@ func TestAllAlgorithms(t *testing.T) {
 
 // TestSLHDSA_AllVariants_Integration tests all 6 SLH-DSA variants.
 // Note: The 's' (small) variants are significantly slower than 'f' (fast) variants.
-func TestSLHDSA_AllVariants_Integration(t *testing.T) {
+func TestU_Crypto_SLHDSA_AllVariants_Integration(t *testing.T) {
 	variants := []struct {
 		alg    AlgorithmID
 		name   string
@@ -505,7 +505,7 @@ func TestSLHDSA_AllVariants_Integration(t *testing.T) {
 }
 
 // TestSLHDSA_PublicKeyBytes tests public key serialization for all SLH-DSA variants.
-func TestSLHDSA_PublicKeyBytes(t *testing.T) {
+func TestU_Crypto_SLHDSA_PublicKeyBytes(t *testing.T) {
 	// Test fast variants only for speed
 	variants := []AlgorithmID{
 		AlgSLHDSA128f,
@@ -653,7 +653,7 @@ func BenchmarkVerify_SLHDSA128f(b *testing.B) {
 // SignerOpts Tests
 // =============================================================================
 
-func TestSignerOptsConfig_HashFunc(t *testing.T) {
+func TestU_Crypto_SignerOptsConfig_HashFunc(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   *SignerOptsConfig
@@ -674,7 +674,7 @@ func TestSignerOptsConfig_HashFunc(t *testing.T) {
 	}
 }
 
-func TestDefaultSignerOpts(t *testing.T) {
+func TestU_Crypto_DefaultSignerOpts(t *testing.T) {
 	tests := []struct {
 		alg      AlgorithmID
 		wantHash crypto.Hash
@@ -709,7 +709,7 @@ func TestDefaultSignerOpts(t *testing.T) {
 	}
 }
 
-func TestRSAPKCSSignerOpts(t *testing.T) {
+func TestU_Crypto_RSAPKCSSignerOpts(t *testing.T) {
 	tests := []struct {
 		hash crypto.Hash
 	}{
@@ -734,7 +734,7 @@ func TestRSAPKCSSignerOpts(t *testing.T) {
 	}
 }
 
-func TestRSAPSSSignerOpts(t *testing.T) {
+func TestU_Crypto_RSAPSSSignerOpts(t *testing.T) {
 	tests := []struct {
 		hash       crypto.Hash
 		saltLength int
@@ -766,7 +766,7 @@ func TestRSAPSSSignerOpts(t *testing.T) {
 	}
 }
 
-func TestRSAPSSSignerOptsWithMGF(t *testing.T) {
+func TestU_Crypto_RSAPSSSignerOptsWithMGF(t *testing.T) {
 	hash := crypto.SHA256
 	mgfHash := crypto.SHA512
 	saltLength := 32

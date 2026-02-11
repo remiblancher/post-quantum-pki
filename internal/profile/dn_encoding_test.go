@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestIsPrintableString(t *testing.T) {
+func TestU_Profile_IsPrintableString(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -36,7 +36,7 @@ func TestIsPrintableString(t *testing.T) {
 	}
 }
 
-func TestIsIA5String(t *testing.T) {
+func TestU_Profile_IsIA5String(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -61,7 +61,7 @@ func TestIsIA5String(t *testing.T) {
 	}
 }
 
-func TestMarshalDNString_UTF8(t *testing.T) {
+func TestU_Profile_MarshalDNString_UTF8(t *testing.T) {
 	value := "Test Value"
 	raw, err := MarshalDNString(value, DNEncodingUTF8)
 	if err != nil {
@@ -76,7 +76,7 @@ func TestMarshalDNString_UTF8(t *testing.T) {
 	}
 }
 
-func TestMarshalDNString_Printable(t *testing.T) {
+func TestU_Profile_MarshalDNString_Printable(t *testing.T) {
 	value := "ACME Corp"
 	raw, err := MarshalDNString(value, DNEncodingPrintable)
 	if err != nil {
@@ -91,14 +91,14 @@ func TestMarshalDNString_Printable(t *testing.T) {
 	}
 }
 
-func TestMarshalDNString_PrintableInvalidChars(t *testing.T) {
+func TestU_Profile_MarshalDNString_PrintableInvalidChars(t *testing.T) {
 	_, err := MarshalDNString("test@example.com", DNEncodingPrintable)
 	if err == nil {
 		t.Error("expected error for invalid PrintableString characters")
 	}
 }
 
-func TestMarshalDNString_IA5(t *testing.T) {
+func TestU_Profile_MarshalDNString_IA5(t *testing.T) {
 	value := "test@example.com"
 	raw, err := MarshalDNString(value, DNEncodingIA5)
 	if err != nil {
@@ -110,14 +110,14 @@ func TestMarshalDNString_IA5(t *testing.T) {
 	}
 }
 
-func TestMarshalDNString_IA5InvalidChars(t *testing.T) {
+func TestU_Profile_MarshalDNString_IA5InvalidChars(t *testing.T) {
 	_, err := MarshalDNString("café@example.com", DNEncodingIA5)
 	if err == nil {
 		t.Error("expected error for non-ASCII characters in IA5String")
 	}
 }
 
-func TestValidateSubjectEncoding(t *testing.T) {
+func TestU_Profile_ValidateSubjectEncoding(t *testing.T) {
 	tests := []struct {
 		name    string
 		cfg     *SubjectConfig
@@ -189,7 +189,7 @@ func TestValidateSubjectEncoding(t *testing.T) {
 	}
 }
 
-func TestMarshalRDNSequence(t *testing.T) {
+func TestU_Profile_MarshalRDNSequence(t *testing.T) {
 	attrs := []DNAttribute{
 		{OID: oidCountry, Value: "FR", Encoding: DNEncodingPrintable},
 		{OID: oidOrganization, Value: "ACME Corp", Encoding: DNEncodingUTF8},
@@ -213,7 +213,7 @@ func TestMarshalRDNSequence(t *testing.T) {
 	}
 }
 
-func TestSubjectConfigToAttributes(t *testing.T) {
+func TestU_Profile_SubjectConfigToAttributes(t *testing.T) {
 	cfg := &SubjectConfig{
 		Attrs: map[string]*SubjectAttribute{
 			"cn": {Value: "server.example.com"},
@@ -246,7 +246,7 @@ func TestSubjectConfigToAttributes(t *testing.T) {
 	}
 }
 
-func TestBuildPkixName(t *testing.T) {
+func TestU_Profile_BuildPkixName(t *testing.T) {
 	cfg := &SubjectConfig{
 		Fixed: map[string]string{
 			"cn": "test.example.com",
@@ -268,7 +268,7 @@ func TestBuildPkixName(t *testing.T) {
 	}
 }
 
-func TestRfc5280RequiredEncoding(t *testing.T) {
+func TestU_Profile_Rfc5280RequiredEncoding(t *testing.T) {
 	tests := []struct {
 		attr     string
 		expected DNEncoding
@@ -292,7 +292,7 @@ func TestRfc5280RequiredEncoding(t *testing.T) {
 	}
 }
 
-func TestMarshalSubjectDN_ASN1Tags(t *testing.T) {
+func TestU_Profile_MarshalSubjectDN_ASN1Tags(t *testing.T) {
 	cfg := &SubjectConfig{
 		Attrs: map[string]*SubjectAttribute{
 			"o":  {Value: "ACME Corp", Encoding: DNEncodingPrintable},

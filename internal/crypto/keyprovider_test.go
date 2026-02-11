@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-func TestSoftwareKeyProviderGenerate(t *testing.T) {
+func TestU_Crypto_SoftwareKeyProviderGenerate(t *testing.T) {
 	tests := []struct {
 		name       string
 		algorithm  AlgorithmID
@@ -76,7 +76,7 @@ func TestSoftwareKeyProviderGenerate(t *testing.T) {
 	}
 }
 
-func TestSoftwareKeyProviderLoad(t *testing.T) {
+func TestU_Crypto_SoftwareKeyProviderLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	keyPath := filepath.Join(tmpDir, "test.key")
 	passphrase := "test-passphrase"
@@ -132,7 +132,7 @@ func TestSoftwareKeyProviderLoad(t *testing.T) {
 	})
 }
 
-func TestNewKeyProvider(t *testing.T) {
+func TestU_Crypto_NewKeyProvider(t *testing.T) {
 	tests := []struct {
 		name     string
 		cfg      KeyStorageConfig
@@ -183,7 +183,7 @@ func TestNewKeyProvider(t *testing.T) {
 	}
 }
 
-func TestKeyStorageConfigValidation(t *testing.T) {
+func TestU_Crypto_KeyStorageConfigValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
@@ -221,7 +221,7 @@ func TestKeyStorageConfigValidation(t *testing.T) {
 	}
 }
 
-func TestSoftwareKeyProviderSignVerify(t *testing.T) {
+func TestU_Crypto_SoftwareKeyProviderSignVerify(t *testing.T) {
 	tmpDir := t.TempDir()
 	keyPath := filepath.Join(tmpDir, "sign-test.key")
 
@@ -254,7 +254,7 @@ func TestSoftwareKeyProviderSignVerify(t *testing.T) {
 	}
 }
 
-func TestSoftwareKeyProviderPQCAlgorithms(t *testing.T) {
+func TestU_Crypto_SoftwareKeyProviderPQCAlgorithms(t *testing.T) {
 	pqcAlgorithms := []AlgorithmID{
 		AlgMLDSA44,
 		AlgMLDSA65,

@@ -16,7 +16,7 @@ import (
 // RotateCARequest Tests
 // =============================================================================
 
-func TestRotateCARequest_Fields(t *testing.T) {
+func TestU_CA_RotateCARequest_Fields(t *testing.T) {
 	req := RotateCARequest{
 		CADir:      "/test/ca",
 		Profile:    "test-profile",
@@ -46,7 +46,7 @@ func TestRotateCARequest_Fields(t *testing.T) {
 // RotateCAPlan Tests
 // =============================================================================
 
-func TestRotateCAPlan_Fields(t *testing.T) {
+func TestU_CA_RotateCAPlan_Fields(t *testing.T) {
 	plan := &RotateCAPlan{
 		CurrentVersion:  "v1",
 		NewVersion:      "v2",
@@ -92,7 +92,7 @@ func TestRotateCAPlan_Fields(t *testing.T) {
 // RotateCAResult Tests
 // =============================================================================
 
-func TestRotateCAResult_Fields(t *testing.T) {
+func TestU_CA_RotateCAResult_Fields(t *testing.T) {
 	plan := &RotateCAPlan{
 		NewVersion: "v2",
 	}
@@ -122,7 +122,7 @@ func TestRotateCAResult_Fields(t *testing.T) {
 // RotateCA Tests
 // =============================================================================
 
-func TestRotateCA_CANotFound(t *testing.T) {
+func TestU_CA_RotateCA_CANotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	req := RotateCARequest{
@@ -136,7 +136,7 @@ func TestRotateCA_CANotFound(t *testing.T) {
 	}
 }
 
-func TestRotateCA_DryRun(t *testing.T) {
+func TestU_CA_RotateCA_DryRun(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -199,7 +199,7 @@ func TestRotateCA_DryRun(t *testing.T) {
 	}
 }
 
-func TestRotateCA_ProfileNotFound(t *testing.T) {
+func TestU_CA_RotateCA_ProfileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -228,7 +228,7 @@ func TestRotateCA_ProfileNotFound(t *testing.T) {
 	}
 }
 
-func TestRotateCA_HybridProfileShowsBothAlgorithms(t *testing.T) {
+func TestU_CA_RotateCA_HybridProfileShowsBothAlgorithms(t *testing.T) {
 	tests := []struct {
 		name           string
 		mode           profile.Mode
@@ -318,7 +318,7 @@ func TestRotateCA_HybridProfileShowsBothAlgorithms(t *testing.T) {
 // buildRotationSteps Tests
 // =============================================================================
 
-func TestBuildRotationSteps(t *testing.T) {
+func TestU_CA_BuildRotationSteps(t *testing.T) {
 	tests := []struct {
 		name          string
 		versionID     string
@@ -345,7 +345,7 @@ func TestBuildRotationSteps(t *testing.T) {
 // firstOrEmpty Tests
 // =============================================================================
 
-func TestFirstOrEmpty(t *testing.T) {
+func TestU_CA_FirstOrEmpty(t *testing.T) {
 	tests := []struct {
 		name  string
 		input []string
@@ -371,7 +371,7 @@ func TestFirstOrEmpty(t *testing.T) {
 // determineCurrentProfile Tests
 // =============================================================================
 
-func TestDetermineCurrentProfile_NoMetadata(t *testing.T) {
+func TestU_CA_DetermineCurrentProfile_NoMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -390,7 +390,7 @@ func TestDetermineCurrentProfile_NoMetadata(t *testing.T) {
 // parseJSON Tests
 // =============================================================================
 
-func TestParseJSON(t *testing.T) {
+func TestU_CA_ParseJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    []byte
@@ -416,7 +416,7 @@ func TestParseJSON(t *testing.T) {
 // initializeInStore Tests
 // =============================================================================
 
-func TestInitializeInStore_Classical(t *testing.T) {
+func TestU_CA_InitializeInStore_Classical(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -451,7 +451,7 @@ func TestInitializeInStore_Classical(t *testing.T) {
 	}
 }
 
-func TestInitializeInStore_RSA(t *testing.T) {
+func TestU_CA_InitializeInStore_RSA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -484,7 +484,7 @@ func TestInitializeInStore_RSA(t *testing.T) {
 	}
 }
 
-func TestInitializeInStore_Ed25519(t *testing.T) {
+func TestU_CA_InitializeInStore_Ed25519(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -517,7 +517,7 @@ func TestInitializeInStore_Ed25519(t *testing.T) {
 	}
 }
 
-func TestInitializeInStore_WithPassphrase(t *testing.T) {
+func TestU_CA_InitializeInStore_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -546,7 +546,7 @@ func TestInitializeInStore_WithPassphrase(t *testing.T) {
 // initializePQCInStore Tests
 // =============================================================================
 
-func TestInitializePQCInStore_MLDSA65(t *testing.T) {
+func TestU_CA_InitializePQCInStore_MLDSA65(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -579,7 +579,7 @@ func TestInitializePQCInStore_MLDSA65(t *testing.T) {
 	}
 }
 
-func TestInitializePQCInStore_MLDSA87(t *testing.T) {
+func TestU_CA_InitializePQCInStore_MLDSA87(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -607,7 +607,7 @@ func TestInitializePQCInStore_MLDSA87(t *testing.T) {
 // initializeHybridInStore Tests
 // =============================================================================
 
-func TestInitializeHybridInStore(t *testing.T) {
+func TestU_CA_InitializeHybridInStore(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -643,7 +643,7 @@ func TestInitializeHybridInStore(t *testing.T) {
 	}
 }
 
-func TestInitializeHybridInStore_WithPassphrase(t *testing.T) {
+func TestU_CA_InitializeHybridInStore_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 	if err := store.Init(context.Background()); err != nil {
@@ -673,7 +673,7 @@ func TestInitializeHybridInStore_WithPassphrase(t *testing.T) {
 // crossSign Tests
 // =============================================================================
 
-func TestCrossSign_Classical(t *testing.T) {
+func TestU_CA_CrossSign_Classical(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -731,7 +731,7 @@ func TestCrossSign_Classical(t *testing.T) {
 // RotateCA Execution Tests (non dry-run)
 // =============================================================================
 
-func TestRotateCA_Execute_Classical(t *testing.T) {
+func TestU_CA_RotateCA_Execute_Classical(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -789,7 +789,7 @@ func TestRotateCA_Execute_Classical(t *testing.T) {
 	}
 }
 
-func TestRotateCA_Execute_WithCrossSign(t *testing.T) {
+func TestU_CA_RotateCA_Execute_WithCrossSign(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -849,7 +849,7 @@ func TestRotateCA_Execute_WithCrossSign(t *testing.T) {
 	}
 }
 
-func TestRotateCA_Execute_PQC(t *testing.T) {
+func TestU_CA_RotateCA_Execute_PQC(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -902,7 +902,7 @@ func TestRotateCA_Execute_PQC(t *testing.T) {
 	}
 }
 
-func TestRotateCA_Execute_Catalyst(t *testing.T) {
+func TestU_CA_RotateCA_Execute_Catalyst(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -952,7 +952,7 @@ func TestRotateCA_Execute_Catalyst(t *testing.T) {
 	}
 }
 
-func TestRotateCA_Execute_Composite(t *testing.T) {
+func TestU_CA_RotateCA_Execute_Composite(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1006,7 +1006,7 @@ func TestRotateCA_Execute_Composite(t *testing.T) {
 // determineCrossSignPath Tests
 // =============================================================================
 
-func TestDetermineCrossSignPath_NonVersioned(t *testing.T) {
+func TestU_CA_DetermineCrossSignPath_NonVersioned(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -1016,7 +1016,7 @@ func TestDetermineCrossSignPath_NonVersioned(t *testing.T) {
 	}
 }
 
-func TestDetermineCrossSignPath_Versioned(t *testing.T) {
+func TestU_CA_DetermineCrossSignPath_Versioned(t *testing.T) {
 	tmpDir := t.TempDir()
 	versionStore := NewVersionStore(tmpDir)
 
@@ -1044,7 +1044,7 @@ func TestDetermineCrossSignPath_Versioned(t *testing.T) {
 // addCertRefsToVersion Tests
 // =============================================================================
 
-func TestAddCertRefsToVersion_SimpleProfile(t *testing.T) {
+func TestU_CA_AddCertRefsToVersion_SimpleProfile(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1078,7 +1078,7 @@ func TestAddCertRefsToVersion_SimpleProfile(t *testing.T) {
 	}
 }
 
-func TestAddCertRefsToVersion_CatalystProfile(t *testing.T) {
+func TestU_CA_AddCertRefsToVersion_CatalystProfile(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 

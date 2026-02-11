@@ -925,7 +925,7 @@ func TestU_VersionStore_ActivateAtomic_MultipleAlgos(t *testing.T) {
 // Integration Tests
 // =============================================================================
 
-func TestI_VersionStore_FullWorkflow(t *testing.T) {
+func TestU_Credential_VersionStore_FullWorkflow(t *testing.T) {
 	tmpDir := t.TempDir()
 	credPath := filepath.Join(tmpDir, "test-cred")
 	vs := NewVersionStore(credPath)

@@ -44,7 +44,7 @@ func createMockTestCert(t *testing.T, serial int64, cn string) *x509.Certificate
 	return cert
 }
 
-func TestMockStore_Init(t *testing.T) {
+func TestU_CA_MockStore_Init(t *testing.T) {
 	store := NewMockStore()
 
 	if store.Exists() {
@@ -69,7 +69,7 @@ func TestMockStore_Init(t *testing.T) {
 	}
 }
 
-func TestMockStore_InitWithError(t *testing.T) {
+func TestU_CA_MockStore_InitWithError(t *testing.T) {
 	store := NewMockStore()
 	store.InitErr = errors.New("init failed")
 
@@ -83,7 +83,7 @@ func TestMockStore_InitWithError(t *testing.T) {
 	}
 }
 
-func TestMockStore_InitWithCancelledContext(t *testing.T) {
+func TestU_CA_MockStore_InitWithCancelledContext(t *testing.T) {
 	store := NewMockStore()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -95,7 +95,7 @@ func TestMockStore_InitWithCancelledContext(t *testing.T) {
 	}
 }
 
-func TestMockStore_SaveAndLoadCACert(t *testing.T) {
+func TestU_CA_MockStore_SaveAndLoadCACert(t *testing.T) {
 	store := NewMockStore()
 	cert := createMockTestCert(t, 1, "Test CA")
 
@@ -114,7 +114,7 @@ func TestMockStore_SaveAndLoadCACert(t *testing.T) {
 	}
 }
 
-func TestMockStore_LoadCACertNotFound(t *testing.T) {
+func TestU_CA_MockStore_LoadCACertNotFound(t *testing.T) {
 	store := NewMockStore()
 
 	_, err := store.LoadCACert(context.Background())
@@ -123,7 +123,7 @@ func TestMockStore_LoadCACertNotFound(t *testing.T) {
 	}
 }
 
-func TestMockStore_SaveAndLoadCert(t *testing.T) {
+func TestU_CA_MockStore_SaveAndLoadCert(t *testing.T) {
 	store := NewMockStore()
 	cert := createMockTestCert(t, 42, "Test Cert")
 
@@ -156,7 +156,7 @@ func TestMockStore_SaveAndLoadCert(t *testing.T) {
 	}
 }
 
-func TestMockStore_LoadCertNotFound(t *testing.T) {
+func TestU_CA_MockStore_LoadCertNotFound(t *testing.T) {
 	store := NewMockStore()
 
 	_, err := store.LoadCert(context.Background(), []byte{0x99})
@@ -165,7 +165,7 @@ func TestMockStore_LoadCertNotFound(t *testing.T) {
 	}
 }
 
-func TestMockStore_NextSerial(t *testing.T) {
+func TestU_CA_MockStore_NextSerial(t *testing.T) {
 	store := NewMockStore()
 	store.Serial = []byte{0x10}
 
@@ -188,7 +188,7 @@ func TestMockStore_NextSerial(t *testing.T) {
 	}
 }
 
-func TestMockStore_MarkRevoked(t *testing.T) {
+func TestU_CA_MockStore_MarkRevoked(t *testing.T) {
 	store := NewMockStore()
 	cert := createMockTestCert(t, 100, "To Revoke")
 
@@ -212,7 +212,7 @@ func TestMockStore_MarkRevoked(t *testing.T) {
 	}
 }
 
-func TestMockStore_MarkRevokedNotFound(t *testing.T) {
+func TestU_CA_MockStore_MarkRevokedNotFound(t *testing.T) {
 	store := NewMockStore()
 
 	err := store.MarkRevoked(context.Background(), []byte{0x99}, ReasonUnspecified)
@@ -221,7 +221,7 @@ func TestMockStore_MarkRevokedNotFound(t *testing.T) {
 	}
 }
 
-func TestMockStore_CRL(t *testing.T) {
+func TestU_CA_MockStore_CRL(t *testing.T) {
 	store := NewMockStore()
 	crlData := []byte("mock CRL data")
 
@@ -245,7 +245,7 @@ func TestMockStore_CRL(t *testing.T) {
 	}
 }
 
-func TestMockStore_NextCRLNumber(t *testing.T) {
+func TestU_CA_MockStore_NextCRLNumber(t *testing.T) {
 	store := NewMockStore()
 	store.CRLNumber = []byte{0x05}
 
@@ -268,7 +268,7 @@ func TestMockStore_NextCRLNumber(t *testing.T) {
 	}
 }
 
-func TestMockStore_Paths(t *testing.T) {
+func TestU_CA_MockStore_Paths(t *testing.T) {
 	store := NewMockStore()
 	store.BasePath_ = "/test/ca"
 
@@ -289,7 +289,7 @@ func TestMockStore_Paths(t *testing.T) {
 	}
 }
 
-func TestMockStore_CallTracking(t *testing.T) {
+func TestU_CA_MockStore_CallTracking(t *testing.T) {
 	store := NewMockStore()
 
 	_ = store.Init(context.Background())
@@ -315,7 +315,7 @@ func TestMockStore_CallTracking(t *testing.T) {
 	}
 }
 
-func TestMockStore_Reset(t *testing.T) {
+func TestU_CA_MockStore_Reset(t *testing.T) {
 	store := NewMockStore()
 	cert := createMockTestCert(t, 1, "Test")
 
@@ -344,7 +344,7 @@ func TestMockStore_Reset(t *testing.T) {
 	}
 }
 
-func TestMockStore_ErrorInjection(t *testing.T) {
+func TestU_CA_MockStore_ErrorInjection(t *testing.T) {
 	store := NewMockStore()
 	testErr := errors.New("injected error")
 
@@ -405,7 +405,7 @@ func TestMockStore_ErrorInjection(t *testing.T) {
 	}
 }
 
-func TestMockStore_ContextCancellation(t *testing.T) {
+func TestU_CA_MockStore_ContextCancellation(t *testing.T) {
 	store := NewMockStore()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
