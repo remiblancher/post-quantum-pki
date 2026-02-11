@@ -14,7 +14,7 @@ import (
 // getKeyUsageNames Tests
 // =============================================================================
 
-func TestGetKeyUsageNames(t *testing.T) {
+func TestF_CertInfo_GetKeyUsageNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		keyUsage x509.KeyUsage
@@ -79,7 +79,7 @@ func TestGetKeyUsageNames(t *testing.T) {
 // getExtKeyUsageNames Tests
 // =============================================================================
 
-func TestGetExtKeyUsageNames(t *testing.T) {
+func TestF_CertInfo_GetExtKeyUsageNames(t *testing.T) {
 	tests := []struct {
 		name string
 		ekus []x509.ExtKeyUsage
@@ -237,7 +237,7 @@ func TestFormatSANs(t *testing.T) {
 // getCertStatus Tests
 // =============================================================================
 
-func TestGetCertStatus(t *testing.T) {
+func TestF_CertInfo_GetCertStatus(t *testing.T) {
 	serial := []byte{0x01, 0x02, 0x03}
 	serialHex := "010203"
 	otherSerial := []byte{0x04, 0x05, 0x06}

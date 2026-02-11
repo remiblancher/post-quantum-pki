@@ -23,7 +23,7 @@ import (
 // =============================================================================
 
 // TestIntegration_CAInitAndStore tests the CA initialization and store interaction.
-func TestIntegration_CAInitAndStore(t *testing.T) {
+func TestU_CA_Integration_CAInitAndStore(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -116,7 +116,7 @@ func TestIntegration_CAInitAndStore(t *testing.T) {
 }
 
 // TestIntegration_CAStoreAndCredentialStore tests the interaction between CA and credential stores.
-func TestIntegration_CAStoreAndCredentialStore(t *testing.T) {
+func TestU_CA_Integration_CAStoreAndCredentialStore(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -201,7 +201,7 @@ func TestIntegration_CAStoreAndCredentialStore(t *testing.T) {
 }
 
 // TestIntegration_CredentialWithMockCAStore tests using MockStore for CA operations.
-func TestIntegration_CredentialWithMockCAStore(t *testing.T) {
+func TestU_CA_Integration_CredentialWithMockCAStore(t *testing.T) {
 	mockCAStore := ca.NewMockStore()
 
 	// Test basic workflow with mock CA store
@@ -242,7 +242,7 @@ func TestIntegration_CredentialWithMockCAStore(t *testing.T) {
 }
 
 // TestIntegration_ContextCancellation tests that context cancellation works.
-func TestIntegration_ContextCancellation(t *testing.T) {
+func TestU_CA_Integration_ContextCancellation(t *testing.T) {
 	mockCAStore := ca.NewMockStore()
 
 	_ = mockCAStore.Init(context.Background())
@@ -270,7 +270,7 @@ func TestIntegration_ContextCancellation(t *testing.T) {
 }
 
 // TestIntegration_ContextTimeout tests timeout handling.
-func TestIntegration_ContextTimeout(t *testing.T) {
+func TestU_CA_Integration_ContextTimeout(t *testing.T) {
 	mockCAStore := ca.NewMockStore()
 
 	// Create a context that times out immediately
@@ -288,7 +288,7 @@ func TestIntegration_ContextTimeout(t *testing.T) {
 }
 
 // TestIntegration_ErrorPropagation tests that errors are properly propagated.
-func TestIntegration_ErrorPropagation(t *testing.T) {
+func TestU_CA_Integration_ErrorPropagation(t *testing.T) {
 	mockCAStore := ca.NewMockStore()
 
 	_ = mockCAStore.Init(context.Background())
@@ -316,7 +316,7 @@ func TestIntegration_ErrorPropagation(t *testing.T) {
 }
 
 // TestIntegration_MockStoreOperations tests the CA mock store with multiple certificates.
-func TestIntegration_MockStoreOperations(t *testing.T) {
+func TestU_CA_Integration_MockStoreOperations(t *testing.T) {
 	mockCAStore := ca.NewMockStore()
 
 	ctx := context.Background()

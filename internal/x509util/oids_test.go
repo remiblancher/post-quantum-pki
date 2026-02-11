@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func TestOIDEqual(t *testing.T) {
+func TestU_X509Util_OIDEqual(t *testing.T) {
 	tests := []struct {
 		name string
 		a    asn1.ObjectIdentifier
@@ -60,7 +60,7 @@ func TestOIDEqual(t *testing.T) {
 	}
 }
 
-func TestIsCompositeOID(t *testing.T) {
+func TestU_X509Util_IsCompositeOID(t *testing.T) {
 	tests := []struct {
 		name string
 		oid  asn1.ObjectIdentifier
@@ -107,7 +107,7 @@ func TestIsCompositeOID(t *testing.T) {
 	}
 }
 
-func TestOIDToString(t *testing.T) {
+func TestU_X509Util_OIDToString(t *testing.T) {
 	tests := []struct {
 		name string
 		oid  asn1.ObjectIdentifier
@@ -186,7 +186,7 @@ func TestAlgorithmName(t *testing.T) {
 	}
 }
 
-func TestIsPQCOID(t *testing.T) {
+func TestU_X509Util_IsPQCOID(t *testing.T) {
 	tests := []struct {
 		name string
 		oid  asn1.ObjectIdentifier

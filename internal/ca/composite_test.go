@@ -21,7 +21,7 @@ import (
 	"github.com/remiblancher/post-quantum-pki/internal/x509util"
 )
 
-func TestMLDSASignVerify(t *testing.T) {
+func TestU_CA_MLDSASignVerify(t *testing.T) {
 	// Generate ML-DSA-87 key pair
 	pub, priv, err := mldsa87.GenerateKey(rand.Reader)
 	if err != nil {
@@ -74,7 +74,7 @@ func TestMLDSASignVerify(t *testing.T) {
 	}
 }
 
-func TestCompositeSignatureRoundTrip(t *testing.T) {
+func TestU_CA_CompositeSignatureRoundTrip(t *testing.T) {
 	// Generate classical key
 	classicalSigner, err := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP384)
 	if err != nil {
@@ -148,7 +148,7 @@ func TestCompositeSignatureRoundTrip(t *testing.T) {
 	}
 }
 
-func TestCertificateRawValuePreservation(t *testing.T) {
+func TestU_CA_CertificateRawValuePreservation(t *testing.T) {
 	// Create some test TBS bytes
 	tbsBytes := []byte("test TBS bytes that should be preserved exactly")
 
@@ -191,7 +191,7 @@ func TestCertificateRawValuePreservation(t *testing.T) {
 // Tests for composite_verify.go and composite.go functions at 0%
 // =============================================================================
 
-func TestGetCompositeAlgorithmByOID(t *testing.T) {
+func TestU_CA_GetCompositeAlgorithmByOID(t *testing.T) {
 	tests := []struct {
 		name     string
 		oid      asn1.ObjectIdentifier
@@ -231,7 +231,7 @@ func TestGetCompositeAlgorithmByOID(t *testing.T) {
 	}
 }
 
-func TestIsCompositeOID(t *testing.T) {
+func TestU_CA_IsCompositeOID(t *testing.T) {
 	tests := []struct {
 		name     string
 		oid      asn1.ObjectIdentifier
@@ -255,7 +255,7 @@ func TestIsCompositeOID(t *testing.T) {
 	}
 }
 
-func TestParseMLDSAPublicKey_MLDSA65(t *testing.T) {
+func TestU_CA_ParseMLDSAPublicKey_MLDSA65(t *testing.T) {
 	// Generate ML-DSA-65 key pair
 	pub, _, err := mldsa65.GenerateKey(rand.Reader)
 	if err != nil {
@@ -278,7 +278,7 @@ func TestParseMLDSAPublicKey_MLDSA65(t *testing.T) {
 	}
 }
 
-func TestParseMLDSAPublicKey_MLDSA87(t *testing.T) {
+func TestU_CA_ParseMLDSAPublicKey_MLDSA87(t *testing.T) {
 	// Generate ML-DSA-87 key pair
 	pub, _, err := mldsa87.GenerateKey(rand.Reader)
 	if err != nil {
@@ -301,14 +301,14 @@ func TestParseMLDSAPublicKey_MLDSA87(t *testing.T) {
 	}
 }
 
-func TestParseMLDSAPublicKey_UnsupportedAlgorithm(t *testing.T) {
+func TestU_CA_ParseMLDSAPublicKey_UnsupportedAlgorithm(t *testing.T) {
 	_, err := parseMLDSAPublicKey(pkicrypto.AlgECDSAP256, []byte("fake key"))
 	if err == nil {
 		t.Error("parseMLDSAPublicKey() should fail for unsupported algorithm")
 	}
 }
 
-func TestParseMLDSAPublicKey_InvalidData(t *testing.T) {
+func TestU_CA_ParseMLDSAPublicKey_InvalidData(t *testing.T) {
 	// Invalid data for ML-DSA-65
 	_, err := parseMLDSAPublicKey(pkicrypto.AlgMLDSA65, []byte("invalid"))
 	if err == nil {
@@ -322,7 +322,7 @@ func TestParseMLDSAPublicKey_InvalidData(t *testing.T) {
 	}
 }
 
-func TestParseClassicalPublicKeyFromBytes_P256(t *testing.T) {
+func TestU_CA_ParseClassicalPublicKeyFromBytes_P256(t *testing.T) {
 	// Generate ECDSA P-256 key
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -351,7 +351,7 @@ func TestParseClassicalPublicKeyFromBytes_P256(t *testing.T) {
 	}
 }
 
-func TestParseClassicalPublicKeyFromBytes_P384(t *testing.T) {
+func TestU_CA_ParseClassicalPublicKeyFromBytes_P384(t *testing.T) {
 	// Generate ECDSA P-384 key
 	privKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
@@ -380,14 +380,14 @@ func TestParseClassicalPublicKeyFromBytes_P384(t *testing.T) {
 	}
 }
 
-func TestParseClassicalPublicKeyFromBytes_UnsupportedAlgorithm(t *testing.T) {
+func TestU_CA_ParseClassicalPublicKeyFromBytes_UnsupportedAlgorithm(t *testing.T) {
 	_, err := parseClassicalPublicKeyFromBytes(pkicrypto.AlgMLDSA65, []byte("fake key"))
 	if err == nil {
 		t.Error("parseClassicalPublicKeyFromBytes() should fail for unsupported algorithm")
 	}
 }
 
-func TestVerifyMLDSA_MLDSA65(t *testing.T) {
+func TestU_CA_VerifyMLDSA_MLDSA65(t *testing.T) {
 	// Generate key pair
 	pub, priv, err := mldsa65.GenerateKey(rand.Reader)
 	if err != nil {
@@ -414,7 +414,7 @@ func TestVerifyMLDSA_MLDSA65(t *testing.T) {
 	}
 }
 
-func TestVerifyMLDSA_MLDSA87(t *testing.T) {
+func TestU_CA_VerifyMLDSA_MLDSA87(t *testing.T) {
 	// Generate key pair
 	pub, priv, err := mldsa87.GenerateKey(rand.Reader)
 	if err != nil {
@@ -443,7 +443,7 @@ func TestVerifyMLDSA_MLDSA87(t *testing.T) {
 	}
 }
 
-func TestVerifyMLDSA_WrongKeyType(t *testing.T) {
+func TestU_CA_VerifyMLDSA_WrongKeyType(t *testing.T) {
 	// Test with wrong key type
 	ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
@@ -458,7 +458,7 @@ func TestVerifyMLDSA_WrongKeyType(t *testing.T) {
 	}
 }
 
-func TestVerifyMLDSA_UnsupportedAlgorithm(t *testing.T) {
+func TestU_CA_VerifyMLDSA_UnsupportedAlgorithm(t *testing.T) {
 	pub, _, _ := mldsa87.GenerateKey(rand.Reader)
 
 	valid := verifyMLDSA(pkicrypto.AlgECDSAP256, pub, []byte("message"), []byte("sig"))
@@ -467,7 +467,7 @@ func TestVerifyMLDSA_UnsupportedAlgorithm(t *testing.T) {
 	}
 }
 
-func TestVerifyECDSA_Valid(t *testing.T) {
+func TestU_CA_VerifyECDSA_Valid(t *testing.T) {
 	// Generate key pair
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -492,7 +492,7 @@ func TestVerifyECDSA_Valid(t *testing.T) {
 	}
 }
 
-func TestVerifyECDSA_Invalid(t *testing.T) {
+func TestU_CA_VerifyECDSA_Invalid(t *testing.T) {
 	// Generate key pair
 	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
@@ -514,7 +514,7 @@ func TestVerifyECDSA_Invalid(t *testing.T) {
 	}
 }
 
-func TestVerifyECDSA_WrongKeyType(t *testing.T) {
+func TestU_CA_VerifyECDSA_WrongKeyType(t *testing.T) {
 	// Test with wrong key type (ML-DSA public key)
 	pub, _, _ := mldsa87.GenerateKey(rand.Reader)
 
@@ -524,7 +524,7 @@ func TestVerifyECDSA_WrongKeyType(t *testing.T) {
 	}
 }
 
-func TestMustMarshal(t *testing.T) {
+func TestU_CA_MustMarshal(t *testing.T) {
 	// Test with valid input
 	oid := asn1.ObjectIdentifier{1, 2, 3, 4}
 	data := mustMarshal(oid)
@@ -533,7 +533,7 @@ func TestMustMarshal(t *testing.T) {
 	}
 }
 
-func TestGetCompositeAlgorithm_AllCombinations(t *testing.T) {
+func TestU_CA_GetCompositeAlgorithm_AllCombinations(t *testing.T) {
 	tests := []struct {
 		classical pkicrypto.AlgorithmID
 		pqc       pkicrypto.AlgorithmID
@@ -563,7 +563,7 @@ func TestGetCompositeAlgorithm_AllCombinations(t *testing.T) {
 }
 
 // Test verifyMLDSA with ML-DSA-65 key passed to ML-DSA-87 algorithm check
-func TestVerifyMLDSA_MismatchedKeyAlgorithm(t *testing.T) {
+func TestU_CA_VerifyMLDSA_MismatchedKeyAlgorithm(t *testing.T) {
 	// Generate ML-DSA-65 key
 	pub65, _, _ := mldsa65.GenerateKey(rand.Reader)
 	// Generate ML-DSA-87 key
@@ -582,7 +582,7 @@ func TestVerifyMLDSA_MismatchedKeyAlgorithm(t *testing.T) {
 	}
 }
 
-func TestCompositeAlgorithm_HashFunc(t *testing.T) {
+func TestU_CA_CompositeAlgorithm_HashFunc(t *testing.T) {
 	// Verify that all composite algorithms have SHA-512 hash function
 	for _, alg := range CompositeAlgorithms {
 		if alg.HashFunc != crypto.SHA512 {
@@ -595,7 +595,7 @@ func TestCompositeAlgorithm_HashFunc(t *testing.T) {
 // Tests for EncodeCompositePublicKey
 // =============================================================================
 
-func TestEncodeCompositePublicKey(t *testing.T) {
+func TestU_CA_EncodeCompositePublicKey(t *testing.T) {
 	// Generate ECDSA P-521 key (ML-DSA-87 requires P-521 per IANA OIDs)
 	classicalPriv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
@@ -629,7 +629,7 @@ func TestEncodeCompositePublicKey(t *testing.T) {
 	}
 }
 
-func TestEncodeCompositePublicKey_MLDSA65_P256(t *testing.T) {
+func TestU_CA_EncodeCompositePublicKey_MLDSA65_P256(t *testing.T) {
 	// Generate ECDSA P-256 key
 	classicalPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -658,7 +658,7 @@ func TestEncodeCompositePublicKey_MLDSA65_P256(t *testing.T) {
 	}
 }
 
-func TestEncodeCompositePublicKey_InvalidCombination(t *testing.T) {
+func TestU_CA_EncodeCompositePublicKey_InvalidCombination(t *testing.T) {
 	// Generate keys for invalid combination (P-256 + ML-DSA-87)
 	classicalPriv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pqcPub, _, _ := mldsa87.GenerateKey(rand.Reader)
@@ -677,7 +677,7 @@ func TestEncodeCompositePublicKey_InvalidCombination(t *testing.T) {
 // Tests for InitializeCompositeCA
 // =============================================================================
 
-func TestInitializeCompositeCA(t *testing.T) {
+func TestU_CA_InitializeCompositeCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -718,7 +718,7 @@ func TestInitializeCompositeCA(t *testing.T) {
 	}
 }
 
-func TestInitializeCompositeCA_AlreadyExists(t *testing.T) {
+func TestU_CA_InitializeCompositeCA_AlreadyExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -743,7 +743,7 @@ func TestInitializeCompositeCA_AlreadyExists(t *testing.T) {
 	}
 }
 
-func TestInitializeCompositeCA_InvalidCombination(t *testing.T) {
+func TestU_CA_InitializeCompositeCA_InvalidCombination(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -761,7 +761,7 @@ func TestInitializeCompositeCA_InvalidCombination(t *testing.T) {
 	}
 }
 
-func TestInitializeCompositeCA_MLDSA65_P256(t *testing.T) {
+func TestU_CA_InitializeCompositeCA_MLDSA65_P256(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -787,7 +787,7 @@ func TestInitializeCompositeCA_MLDSA65_P256(t *testing.T) {
 // Tests for IsCompositeCertificate
 // =============================================================================
 
-func TestIsCompositeCertificate_Composite(t *testing.T) {
+func TestU_CA_IsCompositeCertificate_Composite(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -810,7 +810,7 @@ func TestIsCompositeCertificate_Composite(t *testing.T) {
 	}
 }
 
-func TestIsCompositeCertificate_Regular(t *testing.T) {
+func TestU_CA_IsCompositeCertificate_Regular(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -836,7 +836,7 @@ func TestIsCompositeCertificate_Regular(t *testing.T) {
 // Tests for LoadCompositeSigner
 // =============================================================================
 
-func TestLoadCompositeSigner(t *testing.T) {
+func TestU_CA_LoadCompositeSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -874,7 +874,7 @@ func TestLoadCompositeSigner(t *testing.T) {
 	}
 }
 
-func TestLoadCompositeSigner_WrongPassphrase(t *testing.T) {
+func TestU_CA_LoadCompositeSigner_WrongPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -909,7 +909,7 @@ func TestLoadCompositeSigner_WrongPassphrase(t *testing.T) {
 // Tests for IssueComposite
 // =============================================================================
 
-func TestIssueComposite_NoSigner(t *testing.T) {
+func TestU_CA_IssueComposite_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -951,7 +951,7 @@ func TestIssueComposite_NoSigner(t *testing.T) {
 	}
 }
 
-func TestCompositeCAConfig_Fields(t *testing.T) {
+func TestU_CA_CompositeCAConfig_Fields(t *testing.T) {
 	cfg := CompositeCAConfig{
 		CommonName:         "Test CA",
 		Organization:       "Test Org",
@@ -977,7 +977,7 @@ func TestCompositeCAConfig_Fields(t *testing.T) {
 	}
 }
 
-func TestCompositeRequest_Fields(t *testing.T) {
+func TestU_CA_CompositeRequest_Fields(t *testing.T) {
 	classicalPriv, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	pqcPub, _, _ := mldsa87.GenerateKey(rand.Reader)
 
@@ -1000,7 +1000,7 @@ func TestCompositeRequest_Fields(t *testing.T) {
 // Tests for IsHybridCA
 // =============================================================================
 
-func TestIsHybridCA_WithHybridSigner(t *testing.T) {
+func TestU_CA_IsHybridCA_WithHybridSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1025,7 +1025,7 @@ func TestIsHybridCA_WithHybridSigner(t *testing.T) {
 	}
 }
 
-func TestIsHybridCA_WithRegularSigner(t *testing.T) {
+func TestU_CA_IsHybridCA_WithRegularSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1047,7 +1047,7 @@ func TestIsHybridCA_WithRegularSigner(t *testing.T) {
 	}
 }
 
-func TestIsHybridCA_NoSigner(t *testing.T) {
+func TestU_CA_IsHybridCA_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1080,7 +1080,7 @@ func TestIsHybridCA_NoSigner(t *testing.T) {
 // Tests for InitializeHybridCA
 // =============================================================================
 
-func TestInitializeHybridCA(t *testing.T) {
+func TestU_CA_InitializeHybridCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1117,7 +1117,7 @@ func TestInitializeHybridCA(t *testing.T) {
 	}
 }
 
-func TestInitializeHybridCA_AlreadyExists(t *testing.T) {
+func TestU_CA_InitializeHybridCA_AlreadyExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1142,7 +1142,7 @@ func TestInitializeHybridCA_AlreadyExists(t *testing.T) {
 	}
 }
 
-func TestInitializeHybridCA_WithPassphrase(t *testing.T) {
+func TestU_CA_InitializeHybridCA_WithPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1174,7 +1174,7 @@ func TestInitializeHybridCA_WithPassphrase(t *testing.T) {
 // Tests for LoadHybridSigner
 // =============================================================================
 
-func TestLoadHybridSigner(t *testing.T) {
+func TestU_CA_LoadHybridSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1217,7 +1217,7 @@ func TestLoadHybridSigner(t *testing.T) {
 	}
 }
 
-func TestLoadHybridSigner_WrongPassphrase(t *testing.T) {
+func TestU_CA_LoadHybridSigner_WrongPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1248,7 +1248,7 @@ func TestLoadHybridSigner_WrongPassphrase(t *testing.T) {
 	}
 }
 
-func TestLoadHybridSigner_MissingPQCKey(t *testing.T) {
+func TestU_CA_LoadHybridSigner_MissingPQCKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1282,7 +1282,7 @@ func TestLoadHybridSigner_MissingPQCKey(t *testing.T) {
 // Tests for HybridCAConfig
 // =============================================================================
 
-func TestHybridCAConfig_Fields(t *testing.T) {
+func TestU_CA_HybridCAConfig_Fields(t *testing.T) {
 	cfg := HybridCAConfig{
 		CommonName:         "Test Hybrid CA",
 		Organization:       "Test Org",
@@ -1321,7 +1321,7 @@ func TestHybridCAConfig_Fields(t *testing.T) {
 // Tests for IssueLinked
 // =============================================================================
 
-func TestIssueLinked_NoSigner(t *testing.T) {
+func TestU_CA_IssueLinked_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1361,7 +1361,7 @@ func TestIssueLinked_NoSigner(t *testing.T) {
 	}
 }
 
-func TestIssueLinked_NoRelatedCert(t *testing.T) {
+func TestU_CA_IssueLinked_NoRelatedCert(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1392,7 +1392,7 @@ func TestIssueLinked_NoRelatedCert(t *testing.T) {
 	}
 }
 
-func TestIssueLinked_Success(t *testing.T) {
+func TestU_CA_IssueLinked_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1478,7 +1478,7 @@ func TestIssueLinked_Success(t *testing.T) {
 	}
 }
 
-func TestIssueLinked_WithNilTemplate(t *testing.T) {
+func TestU_CA_IssueLinked_WithNilTemplate(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1522,7 +1522,7 @@ func TestIssueLinked_WithNilTemplate(t *testing.T) {
 	}
 }
 
-func TestIssueLinked_DefaultValidity(t *testing.T) {
+func TestU_CA_IssueLinked_DefaultValidity(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1568,7 +1568,7 @@ func TestIssueLinked_DefaultValidity(t *testing.T) {
 	}
 }
 
-func TestLinkedCertRequest_Fields(t *testing.T) {
+func TestU_CA_LinkedCertRequest_Fields(t *testing.T) {
 	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	relatedCert, _ := generateSelfSignedCert(t, privKey)
 
@@ -1589,7 +1589,7 @@ func TestLinkedCertRequest_Fields(t *testing.T) {
 // Tests for CompositeVerifyResult
 // =============================================================================
 
-func TestCompositeVerifyResult_Fields(t *testing.T) {
+func TestU_CA_CompositeVerifyResult_Fields(t *testing.T) {
 	result := &CompositeVerifyResult{
 		Valid:          true,
 		MLDSAValid:     true,
@@ -1611,7 +1611,7 @@ func TestCompositeVerifyResult_Fields(t *testing.T) {
 	}
 }
 
-func TestCompositeVerifyResult_PartialValid(t *testing.T) {
+func TestU_CA_CompositeVerifyResult_PartialValid(t *testing.T) {
 	result := &CompositeVerifyResult{
 		Valid:          false,
 		MLDSAValid:     true,
@@ -1660,7 +1660,7 @@ func generateSelfSignedCert(t *testing.T, privKey *ecdsa.PrivateKey) (*x509.Cert
 // Tests for VerifyCompositeCertificate
 // =============================================================================
 
-func TestVerifyCompositeCertificate_NotComposite(t *testing.T) {
+func TestU_CA_VerifyCompositeCertificate_NotComposite(t *testing.T) {
 	// Create a regular (non-composite) certificate
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -1679,7 +1679,7 @@ func TestVerifyCompositeCertificate_NotComposite(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeCertificate_IssuerNotComposite(t *testing.T) {
+func TestU_CA_VerifyCompositeCertificate_IssuerNotComposite(t *testing.T) {
 	// Create a composite CA
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -1715,7 +1715,7 @@ func TestVerifyCompositeCertificate_IssuerNotComposite(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeCertificate_ValidSelfSigned(t *testing.T) {
+func TestU_CA_VerifyCompositeCertificate_ValidSelfSigned(t *testing.T) {
 	// Create a composite CA (self-signed)
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -1756,7 +1756,7 @@ func TestVerifyCompositeCertificate_ValidSelfSigned(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeCertificate_MLDSA65_P256(t *testing.T) {
+func TestU_CA_VerifyCompositeCertificate_MLDSA65_P256(t *testing.T) {
 	// Create a composite CA with ML-DSA-65 + P256
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -1800,7 +1800,7 @@ func TestVerifyCompositeCertificate_MLDSA65_P256(t *testing.T) {
 // Tests for IssueComposite with full verification
 // =============================================================================
 
-func TestIssueComposite_AndVerify(t *testing.T) {
+func TestU_CA_IssueComposite_AndVerify(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -1870,7 +1870,7 @@ func TestIssueComposite_AndVerify(t *testing.T) {
 // Tests for BuildDomainSeparator
 // =============================================================================
 
-func TestBuildDomainSeparator(t *testing.T) {
+func TestU_CA_BuildDomainSeparator(t *testing.T) {
 	tests := []struct {
 		name    string
 		oid     asn1.ObjectIdentifier
@@ -1898,7 +1898,7 @@ func TestBuildDomainSeparator(t *testing.T) {
 // Tests for CreateCompositeSignature
 // =============================================================================
 
-func TestCreateCompositeSignature_InvalidAlgorithm(t *testing.T) {
+func TestU_CA_CreateCompositeSignature_InvalidAlgorithm(t *testing.T) {
 	classicalSigner, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
 	pqcSigner, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgMLDSA65)
 
@@ -1923,7 +1923,7 @@ func TestCreateCompositeSignature_InvalidAlgorithm(t *testing.T) {
 // Tests for VerifyCompositeSignature (arbitrary data)
 // =============================================================================
 
-func TestVerifyCompositeSignature_Valid(t *testing.T) {
+func TestU_CA_VerifyCompositeSignature_Valid(t *testing.T) {
 	// Create a composite CA
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -1974,7 +1974,7 @@ func TestVerifyCompositeSignature_Valid(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeSignature_MLDSA65_P256(t *testing.T) {
+func TestU_CA_VerifyCompositeSignature_MLDSA65_P256(t *testing.T) {
 	// Create a composite CA with ML-DSA-65 + P256
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -2025,7 +2025,7 @@ func TestVerifyCompositeSignature_MLDSA65_P256(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeSignature_InvalidOID(t *testing.T) {
+func TestU_CA_VerifyCompositeSignature_InvalidOID(t *testing.T) {
 	// Create a composite CA
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -2051,7 +2051,7 @@ func TestVerifyCompositeSignature_InvalidOID(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeSignature_TamperedData(t *testing.T) {
+func TestU_CA_VerifyCompositeSignature_TamperedData(t *testing.T) {
 	// Create a composite CA
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -2103,7 +2103,7 @@ func TestVerifyCompositeSignature_TamperedData(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeSignature_InvalidSignature(t *testing.T) {
+func TestU_CA_VerifyCompositeSignature_InvalidSignature(t *testing.T) {
 	// Create a composite CA
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -2137,7 +2137,7 @@ func TestVerifyCompositeSignature_InvalidSignature(t *testing.T) {
 	}
 }
 
-func TestVerifyCompositeSignature_NonCompositeSignerCert(t *testing.T) {
+func TestU_CA_VerifyCompositeSignature_NonCompositeSignerCert(t *testing.T) {
 	// Create a regular (non-composite) CA
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)

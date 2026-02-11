@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func TestNewSigningContext_ECDSA(t *testing.T) {
+func TestU_Crypto_NewSigningContext_ECDSA(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
 		t.Fatalf("Failed to generate signer: %v", err)
@@ -42,7 +42,7 @@ func TestNewSigningContext_ECDSA(t *testing.T) {
 	}
 }
 
-func TestNewSigningContext_Ed25519(t *testing.T) {
+func TestU_Crypto_NewSigningContext_Ed25519(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgEd25519)
 	if err != nil {
 		t.Fatalf("Failed to generate signer: %v", err)
@@ -58,7 +58,7 @@ func TestNewSigningContext_Ed25519(t *testing.T) {
 	}
 }
 
-func TestNewSigningContext_MLDSA(t *testing.T) {
+func TestU_Crypto_NewSigningContext_MLDSA(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgMLDSA44)
 	if err != nil {
 		t.Fatalf("Failed to generate signer: %v", err)
@@ -78,14 +78,14 @@ func TestNewSigningContext_MLDSA(t *testing.T) {
 	}
 }
 
-func TestNewSigningContext_Nil(t *testing.T) {
+func TestU_Crypto_NewSigningContext_Nil(t *testing.T) {
 	ctx := NewSigningContext(nil)
 	if ctx != nil {
 		t.Error("Expected nil context for nil signer")
 	}
 }
 
-func TestSigningContext_SignAndVerify_ECDSA(t *testing.T) {
+func TestU_Crypto_SigningContext_SignAndVerify_ECDSA(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
 		t.Fatalf("Failed to generate signer: %v", err)
@@ -111,7 +111,7 @@ func TestSigningContext_SignAndVerify_ECDSA(t *testing.T) {
 	}
 }
 
-func TestSigningContext_SignAndVerify_MLDSA(t *testing.T) {
+func TestU_Crypto_SigningContext_SignAndVerify_MLDSA(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgMLDSA44)
 	if err != nil {
 		t.Fatalf("Failed to generate signer: %v", err)
@@ -136,7 +136,7 @@ func TestSigningContext_SignAndVerify_MLDSA(t *testing.T) {
 	}
 }
 
-func TestSigningContext_InvalidSignature(t *testing.T) {
+func TestU_Crypto_SigningContext_InvalidSignature(t *testing.T) {
 	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
 		t.Fatalf("Failed to generate signer: %v", err)
@@ -153,7 +153,7 @@ func TestSigningContext_InvalidSignature(t *testing.T) {
 	}
 }
 
-func TestNewVerificationContext(t *testing.T) {
+func TestU_Crypto_NewVerificationContext(t *testing.T) {
 	// Generate a key pair
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -185,7 +185,7 @@ func TestNewVerificationContext(t *testing.T) {
 	}
 }
 
-func TestVerificationContext_Verify(t *testing.T) {
+func TestU_Crypto_VerificationContext_Verify(t *testing.T) {
 	// Generate a signer
 	signer, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
@@ -293,7 +293,7 @@ func TestAlgorithmFromPublicKey_Unknown(t *testing.T) {
 	}
 }
 
-func TestHybridSigningContext(t *testing.T) {
+func TestU_Crypto_HybridSigningContext(t *testing.T) {
 	// Generate hybrid signer
 	classical, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
@@ -354,7 +354,7 @@ func TestHybridSigningContext(t *testing.T) {
 	}
 }
 
-func TestHybridSigningContext_DefaultSign(t *testing.T) {
+func TestU_Crypto_HybridSigningContext_DefaultSign(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	hybrid, _ := NewHybridSigner(classical, pqc)
@@ -377,7 +377,7 @@ func TestHybridSigningContext_DefaultSign(t *testing.T) {
 	}
 }
 
-func TestPublicKey(t *testing.T) {
+func TestU_Crypto_PublicKey(t *testing.T) {
 	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	ctx := NewSigningContext(signer)
 
@@ -395,7 +395,7 @@ func TestPublicKey(t *testing.T) {
 // KEM Context Tests
 // =============================================================================
 
-func TestNewKEMContext(t *testing.T) {
+func TestU_Crypto_NewKEMContext(t *testing.T) {
 	tests := []AlgorithmID{
 		AlgMLKEM512,
 		AlgMLKEM768,
@@ -433,7 +433,7 @@ func TestNewKEMContext(t *testing.T) {
 	}
 }
 
-func TestNewKEMContext_Nil(t *testing.T) {
+func TestU_Crypto_NewKEMContext_Nil(t *testing.T) {
 	ctx, err := NewKEMContext(nil)
 	if err == nil {
 		t.Error("Expected error for nil key pair")
@@ -443,7 +443,7 @@ func TestNewKEMContext_Nil(t *testing.T) {
 	}
 }
 
-func TestNewKEMContext_NonKEMAlgorithm(t *testing.T) {
+func TestU_Crypto_NewKEMContext_NonKEMAlgorithm(t *testing.T) {
 	// Create a key pair with a non-KEM algorithm
 	kp := &KEMKeyPair{
 		Algorithm: AlgECDSAP256, // Not a KEM algorithm
@@ -458,7 +458,7 @@ func TestNewKEMContext_NonKEMAlgorithm(t *testing.T) {
 	}
 }
 
-func TestKEMContext_EncapsulateDecapsulate(t *testing.T) {
+func TestU_Crypto_KEMContext_EncapsulateDecapsulate(t *testing.T) {
 	tests := []AlgorithmID{
 		AlgMLKEM512,
 		AlgMLKEM768,
@@ -512,7 +512,7 @@ func TestKEMContext_EncapsulateDecapsulate(t *testing.T) {
 	}
 }
 
-func TestNewKEMContextForEncapsulation(t *testing.T) {
+func TestU_Crypto_NewKEMContextForEncapsulation(t *testing.T) {
 	kp, err := GenerateKEMKeyPair(AlgMLKEM768)
 	if err != nil {
 		t.Fatalf("Failed to generate KEM key pair: %v", err)
@@ -549,7 +549,7 @@ func TestNewKEMContextForEncapsulation(t *testing.T) {
 	}
 }
 
-func TestKEMContext_SignAndVerifyFail(t *testing.T) {
+func TestU_Crypto_KEMContext_SignAndVerifyFail(t *testing.T) {
 	kp, err := GenerateKEMKeyPair(AlgMLKEM512)
 	if err != nil {
 		t.Fatalf("Failed to generate KEM key pair: %v", err)
@@ -577,7 +577,7 @@ func TestKEMContext_SignAndVerifyFail(t *testing.T) {
 // NewContextFromCertificate Tests
 // =============================================================================
 
-func TestNewContextFromCertificate_ECDSA(t *testing.T) {
+func TestU_Crypto_NewContextFromCertificate_ECDSA(t *testing.T) {
 	// Generate ECDSA key
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -622,7 +622,7 @@ func TestNewContextFromCertificate_ECDSA(t *testing.T) {
 	}
 }
 
-func TestNewContextFromCertificate_Ed25519(t *testing.T) {
+func TestU_Crypto_NewContextFromCertificate_Ed25519(t *testing.T) {
 	// Generate Ed25519 key
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -660,7 +660,7 @@ func TestNewContextFromCertificate_Ed25519(t *testing.T) {
 	}
 }
 
-func TestNewContextFromCertificate_RSA(t *testing.T) {
+func TestU_Crypto_NewContextFromCertificate_RSA(t *testing.T) {
 	// Generate RSA key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -698,7 +698,7 @@ func TestNewContextFromCertificate_RSA(t *testing.T) {
 	}
 }
 
-func TestNewContextFromCertificate_Nil(t *testing.T) {
+func TestU_Crypto_NewContextFromCertificate_Nil(t *testing.T) {
 	ctx, err := NewContextFromCertificate(nil)
 	if err == nil {
 		t.Error("Expected error for nil certificate")
@@ -761,7 +761,7 @@ func TestAlgorithmFromPublicKey_MLKEM(t *testing.T) {
 // Hybrid Context Methods Tests
 // =============================================================================
 
-func TestHybridSigningContext_Algorithm(t *testing.T) {
+func TestU_Crypto_HybridSigningContext_Algorithm(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	hybrid, _ := NewHybridSigner(classical, pqc)
@@ -776,7 +776,7 @@ func TestHybridSigningContext_Algorithm(t *testing.T) {
 	}
 }
 
-func TestHybridSigningContext_SupportsOperation(t *testing.T) {
+func TestU_Crypto_HybridSigningContext_SupportsOperation(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	hybrid, _ := NewHybridSigner(classical, pqc)
@@ -800,7 +800,7 @@ func TestHybridSigningContext_SupportsOperation(t *testing.T) {
 	}
 }
 
-func TestHybridSigningContext_Verify(t *testing.T) {
+func TestU_Crypto_HybridSigningContext_Verify(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	hybrid, _ := NewHybridSigner(classical, pqc)
@@ -827,7 +827,7 @@ func TestHybridSigningContext_Verify(t *testing.T) {
 	}
 }
 
-func TestHybridSigningContext_PublicKey(t *testing.T) {
+func TestU_Crypto_HybridSigningContext_PublicKey(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	hybrid, _ := NewHybridSigner(classical, pqc)
@@ -845,7 +845,7 @@ func TestHybridSigningContext_PublicKey(t *testing.T) {
 	}
 }
 
-func TestHybridSigningContext_VerifyBoth_InvalidClassical(t *testing.T) {
+func TestU_Crypto_HybridSigningContext_VerifyBoth_InvalidClassical(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	hybrid, _ := NewHybridSigner(classical, pqc)
@@ -877,7 +877,7 @@ func TestHybridSigningContext_VerifyBoth_InvalidClassical(t *testing.T) {
 // KEMSigner Tests
 // =============================================================================
 
-func TestNewKEMSigner(t *testing.T) {
+func TestU_Crypto_NewKEMSigner(t *testing.T) {
 	tests := []AlgorithmID{
 		AlgMLKEM512,
 		AlgMLKEM768,
@@ -911,7 +911,7 @@ func TestNewKEMSigner(t *testing.T) {
 	}
 }
 
-func TestNewKEMSigner_Nil(t *testing.T) {
+func TestU_Crypto_NewKEMSigner_Nil(t *testing.T) {
 	signer, err := NewKEMSigner(nil)
 	if err == nil {
 		t.Error("Expected error for nil key pair")
@@ -921,7 +921,7 @@ func TestNewKEMSigner_Nil(t *testing.T) {
 	}
 }
 
-func TestGenerateKEMSigner(t *testing.T) {
+func TestU_Crypto_GenerateKEMSigner(t *testing.T) {
 	tests := []AlgorithmID{
 		AlgMLKEM512,
 		AlgMLKEM768,
@@ -942,7 +942,7 @@ func TestGenerateKEMSigner(t *testing.T) {
 	}
 }
 
-func TestKEMSigner_SignFails(t *testing.T) {
+func TestU_Crypto_KEMSigner_SignFails(t *testing.T) {
 	signer, err := GenerateKEMSigner(AlgMLKEM768)
 	if err != nil {
 		t.Fatalf("GenerateKEMSigner failed: %v", err)
@@ -955,7 +955,7 @@ func TestKEMSigner_SignFails(t *testing.T) {
 	}
 }
 
-func TestVerificationContext_PublicKey(t *testing.T) {
+func TestU_Crypto_VerificationContext_PublicKey(t *testing.T) {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
@@ -977,7 +977,7 @@ func TestVerificationContext_PublicKey(t *testing.T) {
 // NewKEMContextForEncapsulation Error Tests
 // =============================================================================
 
-func TestNewKEMContextForEncapsulation_NilPublicKey(t *testing.T) {
+func TestU_Crypto_NewKEMContextForEncapsulation_NilPublicKey(t *testing.T) {
 	// Context is created with nil public key
 	ctx, err := NewKEMContextForEncapsulation(AlgMLKEM768, nil)
 	if err != nil {
@@ -996,7 +996,7 @@ func TestNewKEMContextForEncapsulation_NilPublicKey(t *testing.T) {
 	}
 }
 
-func TestNewKEMContextForEncapsulation_NonKEMAlgorithm(t *testing.T) {
+func TestU_Crypto_NewKEMContextForEncapsulation_NonKEMAlgorithm(t *testing.T) {
 	// Generate ECDSA key
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
@@ -1055,7 +1055,7 @@ func TestAlgorithmFromPublicKey_SLHDSA_AllVariants(t *testing.T) {
 // Verification Context Verify Error Tests
 // =============================================================================
 
-func TestVerificationContext_Verify_InvalidSignature(t *testing.T) {
+func TestU_Crypto_VerificationContext_Verify_InvalidSignature(t *testing.T) {
 	// Generate signer
 	signer, _ := GenerateSoftwareSigner(AlgECDSAP256)
 
@@ -1069,7 +1069,7 @@ func TestVerificationContext_Verify_InvalidSignature(t *testing.T) {
 	}
 }
 
-func TestSigningContext_Verify_InvalidSignature(t *testing.T) {
+func TestU_Crypto_SigningContext_Verify_InvalidSignature(t *testing.T) {
 	signer, _ := GenerateSoftwareSigner(AlgMLDSA65)
 	ctx := NewSigningContext(signer)
 

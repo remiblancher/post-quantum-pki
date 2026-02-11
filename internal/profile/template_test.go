@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestValidityTemplate(t *testing.T) {
+func TestU_Profile_ValidityTemplate(t *testing.T) {
 	t.Run("load profile with validity template", func(t *testing.T) {
 		yaml := `
 name: test-validity-template
@@ -312,7 +312,7 @@ func TestCDPAIATemplate(t *testing.T) {
 	})
 }
 
-func TestExtractTemplateVariables(t *testing.T) {
+func TestU_Profile_ExtractTemplateVariables(t *testing.T) {
 	t.Run("extract SAN and CDP/AIA variables", func(t *testing.T) {
 		vars := VariableValues{
 			"dns_names":    []string{"a.com", "b.com"},
@@ -368,7 +368,7 @@ func TestExtractTemplateVariables(t *testing.T) {
 	})
 }
 
-func TestProfileToYAMLWithValidityTemplate(t *testing.T) {
+func TestU_Profile_ProfileToYAMLWithValidityTemplate(t *testing.T) {
 	t.Run("preserve validity template in YAML output", func(t *testing.T) {
 		yaml := `
 name: test-yaml-output
@@ -420,7 +420,7 @@ func TestContainsTemplate(t *testing.T) {
 	}
 }
 
-func TestResolveProfileExtensions(t *testing.T) {
+func TestU_Profile_ResolveProfileExtensions(t *testing.T) {
 	t.Run("nil profile returns nil", func(t *testing.T) {
 		result, err := ResolveProfileExtensions(nil, VariableValues{})
 		if err != nil {
@@ -505,7 +505,7 @@ func TestResolveProfileExtensions(t *testing.T) {
 	})
 }
 
-func TestInvalidValidityFormat(t *testing.T) {
+func TestU_Profile_InvalidValidityFormat(t *testing.T) {
 	yaml := `
 name: test-invalid-validity
 algorithm: ecdsa-p256
@@ -530,7 +530,7 @@ extensions:
 	}
 }
 
-func TestMultipleCPSPolicies(t *testing.T) {
+func TestU_Profile_MultipleCPSPolicies(t *testing.T) {
 	ext := &ExtensionsConfig{
 		CertificatePolicies: &CertificatePoliciesConfig{
 			Policies: []PolicyConfig{

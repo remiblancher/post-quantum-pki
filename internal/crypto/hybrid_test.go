@@ -18,7 +18,7 @@ import (
 // HybridSigner Tests
 // =============================================================================
 
-func TestNewHybridSigner_Valid(t *testing.T) {
+func TestU_Crypto_NewHybridSigner_Valid(t *testing.T) {
 	classical, err := GenerateSoftwareSigner(AlgECDSAP256)
 	if err != nil {
 		t.Fatalf("failed to generate classical signer: %v", err)
@@ -47,7 +47,7 @@ func TestNewHybridSigner_Valid(t *testing.T) {
 	}
 }
 
-func TestNewHybridSigner_NilClassical(t *testing.T) {
+func TestU_Crypto_NewHybridSigner_NilClassical(t *testing.T) {
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 
 	_, err := NewHybridSigner(nil, pqc)
@@ -56,7 +56,7 @@ func TestNewHybridSigner_NilClassical(t *testing.T) {
 	}
 }
 
-func TestNewHybridSigner_NilPQC(t *testing.T) {
+func TestU_Crypto_NewHybridSigner_NilPQC(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 
 	_, err := NewHybridSigner(classical, nil)
@@ -65,7 +65,7 @@ func TestNewHybridSigner_NilPQC(t *testing.T) {
 	}
 }
 
-func TestNewHybridSigner_ClassicalIsPQC(t *testing.T) {
+func TestU_Crypto_NewHybridSigner_ClassicalIsPQC(t *testing.T) {
 	// Both signers are PQC - should fail
 	classical, _ := GenerateSoftwareSigner(AlgMLDSA44)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
@@ -76,7 +76,7 @@ func TestNewHybridSigner_ClassicalIsPQC(t *testing.T) {
 	}
 }
 
-func TestNewHybridSigner_PQCIsClassical(t *testing.T) {
+func TestU_Crypto_NewHybridSigner_PQCIsClassical(t *testing.T) {
 	// Both signers are classical - should fail
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgECDSAP384)
@@ -87,7 +87,7 @@ func TestNewHybridSigner_PQCIsClassical(t *testing.T) {
 	}
 }
 
-func TestGenerateHybridSigner(t *testing.T) {
+func TestU_Crypto_GenerateHybridSigner(t *testing.T) {
 	tests := []struct {
 		name        string
 		classicalAg AlgorithmID
@@ -116,21 +116,21 @@ func TestGenerateHybridSigner(t *testing.T) {
 	}
 }
 
-func TestGenerateHybridSigner_InvalidClassical(t *testing.T) {
+func TestU_Crypto_GenerateHybridSigner_InvalidClassical(t *testing.T) {
 	_, err := GenerateHybridSigner("invalid-algo", AlgMLDSA65)
 	if err == nil {
 		t.Error("expected error for invalid classical algorithm")
 	}
 }
 
-func TestGenerateHybridSigner_InvalidPQC(t *testing.T) {
+func TestU_Crypto_GenerateHybridSigner_InvalidPQC(t *testing.T) {
 	_, err := GenerateHybridSigner(AlgECDSAP256, "invalid-algo")
 	if err == nil {
 		t.Error("expected error for invalid PQC algorithm")
 	}
 }
 
-func TestHybridSigner_Algorithm(t *testing.T) {
+func TestU_Crypto_HybridSigner_Algorithm(t *testing.T) {
 	hybrid, err := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 	if err != nil {
 		t.Fatalf("GenerateHybridSigner failed: %v", err)
@@ -148,7 +148,7 @@ func TestHybridSigner_Algorithm(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_Public(t *testing.T) {
+func TestU_Crypto_HybridSigner_Public(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 
@@ -164,7 +164,7 @@ func TestHybridSigner_Public(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_Sign(t *testing.T) {
+func TestU_Crypto_HybridSigner_Sign(t *testing.T) {
 	hybrid, err := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 	if err != nil {
 		t.Fatalf("GenerateHybridSigner failed: %v", err)
@@ -189,7 +189,7 @@ func TestHybridSigner_Sign(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SignHybrid(t *testing.T) {
+func TestU_Crypto_HybridSigner_SignHybrid(t *testing.T) {
 	hybrid, err := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 	if err != nil {
 		t.Fatalf("GenerateHybridSigner failed: %v", err)
@@ -222,7 +222,7 @@ func TestHybridSigner_SignHybrid(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_VerifyHybrid(t *testing.T) {
+func TestU_Crypto_HybridSigner_VerifyHybrid(t *testing.T) {
 	hybrid, err := GenerateHybridSigner(AlgECDSAP384, AlgMLDSA65)
 	if err != nil {
 		t.Fatalf("GenerateHybridSigner failed: %v", err)
@@ -264,7 +264,7 @@ func TestHybridSigner_VerifyHybrid(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_ClassicalAlgorithm(t *testing.T) {
+func TestU_Crypto_HybridSigner_ClassicalAlgorithm(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP384, AlgMLDSA65)
 
 	if hybrid.ClassicalAlgorithm() != AlgECDSAP384 {
@@ -272,7 +272,7 @@ func TestHybridSigner_ClassicalAlgorithm(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_PQCAlgorithm(t *testing.T) {
+func TestU_Crypto_HybridSigner_PQCAlgorithm(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA87)
 
 	if hybrid.PQCAlgorithm() != AlgMLDSA87 {
@@ -280,7 +280,7 @@ func TestHybridSigner_PQCAlgorithm(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_ClassicalPublicKey(t *testing.T) {
+func TestU_Crypto_HybridSigner_ClassicalPublicKey(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 
@@ -291,7 +291,7 @@ func TestHybridSigner_ClassicalPublicKey(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_PQCPublicKey(t *testing.T) {
+func TestU_Crypto_HybridSigner_PQCPublicKey(t *testing.T) {
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 
@@ -302,7 +302,7 @@ func TestHybridSigner_PQCPublicKey(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_PQCPublicKeyBytes(t *testing.T) {
+func TestU_Crypto_HybridSigner_PQCPublicKeyBytes(t *testing.T) {
 	hybrid, err := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 	if err != nil {
 		t.Fatalf("GenerateHybridSigner failed: %v", err)
@@ -322,7 +322,7 @@ func TestHybridSigner_PQCPublicKeyBytes(t *testing.T) {
 // Key Persistence Tests
 // =============================================================================
 
-func TestHybridSigner_SaveLoadKeys(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadKeys(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, err := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
@@ -361,7 +361,7 @@ func TestHybridSigner_SaveLoadKeys(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadKeysEncrypted(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadKeysEncrypted(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
@@ -391,7 +391,7 @@ func TestHybridSigner_SaveLoadKeysEncrypted(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadBundle(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundle(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, err := GenerateHybridSigner(AlgECDSAP384, AlgMLDSA65)
@@ -437,7 +437,7 @@ func TestHybridSigner_SaveLoadBundle(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadBundleEncrypted(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundleEncrypted(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA44)
@@ -466,7 +466,7 @@ func TestHybridSigner_SaveLoadBundleEncrypted(t *testing.T) {
 	}
 }
 
-func TestLoadHybridSignerBundle_InvalidFile(t *testing.T) {
+func TestU_Crypto_LoadHybridSignerBundle_InvalidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	bundlePath := filepath.Join(tmpDir, "invalid.pem")
 
@@ -481,7 +481,7 @@ func TestLoadHybridSignerBundle_InvalidFile(t *testing.T) {
 	}
 }
 
-func TestLoadHybridSignerBundle_OnlyOneKey(t *testing.T) {
+func TestU_Crypto_LoadHybridSignerBundle_OnlyOneKey(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a file with only one key
@@ -499,7 +499,7 @@ func TestLoadHybridSignerBundle_OnlyOneKey(t *testing.T) {
 // HybridKeyPair Tests
 // =============================================================================
 
-func TestHybridKeyPair_ToHybridSigner(t *testing.T) {
+func TestU_Crypto_HybridKeyPair_ToHybridSigner(t *testing.T) {
 	hkp, err := GenerateHybridKeyPair(AlgHybridP256MLDSA44)
 	if err != nil {
 		t.Fatalf("GenerateHybridKeyPair failed: %v", err)
@@ -529,14 +529,14 @@ func TestHybridKeyPair_ToHybridSigner(t *testing.T) {
 // Interface Compliance Tests
 // =============================================================================
 
-func TestHybridSigner_ImplementsSigner(t *testing.T) {
+func TestU_Crypto_HybridSigner_ImplementsSigner(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 
 	// Verify it implements Signer interface
 	var _ Signer = hybrid
 }
 
-func TestHybridSigner_ImplementsHybridSigner(t *testing.T) {
+func TestU_Crypto_HybridSigner_ImplementsHybridSigner(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 
 	// Verify it implements HybridSigner interface
@@ -547,7 +547,7 @@ func TestHybridSigner_ImplementsHybridSigner(t *testing.T) {
 // Edge Cases
 // =============================================================================
 
-func TestHybridSigner_EmptyMessage(t *testing.T) {
+func TestU_Crypto_HybridSigner_EmptyMessage(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 
 	emptyMessage := []byte{}
@@ -561,7 +561,7 @@ func TestHybridSigner_EmptyMessage(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_LargeMessage(t *testing.T) {
+func TestU_Crypto_HybridSigner_LargeMessage(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 
 	// 1MB message
@@ -613,7 +613,7 @@ func BenchmarkGenerateHybridSigner(b *testing.B) {
 // Additional Coverage Tests
 // =============================================================================
 
-func TestHybridSigner_SaveLoadBundle_RSA(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundle_RSA(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, err := GenerateHybridSigner(AlgRSA2048, AlgMLDSA65)
@@ -639,7 +639,7 @@ func TestHybridSigner_SaveLoadBundle_RSA(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadBundle_Ed25519(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundle_Ed25519(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, err := GenerateHybridSigner(AlgEd25519, AlgMLDSA65)
@@ -663,7 +663,7 @@ func TestHybridSigner_SaveLoadBundle_Ed25519(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadBundle_MLDSA44(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundle_MLDSA44(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, err := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA44)
@@ -687,7 +687,7 @@ func TestHybridSigner_SaveLoadBundle_MLDSA44(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadBundle_MLDSA87(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundle_MLDSA87(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	hybrid, err := GenerateHybridSigner(AlgECDSAP521, AlgMLDSA87)
@@ -711,21 +711,21 @@ func TestHybridSigner_SaveLoadBundle_MLDSA87(t *testing.T) {
 	}
 }
 
-func TestLoadHybridSigner_FileNotFound(t *testing.T) {
+func TestU_Crypto_LoadHybridSigner_FileNotFound(t *testing.T) {
 	_, err := LoadHybridSigner("/nonexistent/classical.pem", "/nonexistent/pqc.pem", nil)
 	if err == nil {
 		t.Error("expected error for non-existent file")
 	}
 }
 
-func TestLoadHybridSignerBundle_FileNotFound(t *testing.T) {
+func TestU_Crypto_LoadHybridSignerBundle_FileNotFound(t *testing.T) {
 	_, err := LoadHybridSignerBundle("/nonexistent/bundle.pem", nil)
 	if err == nil {
 		t.Error("expected error for non-existent file")
 	}
 }
 
-func TestSaveHybridKeys_InvalidPath(t *testing.T) {
+func TestU_Crypto_SaveHybridKeys_InvalidPath(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 
 	err := hybrid.SaveHybridKeys("/nonexistent/dir/classical.pem", "/nonexistent/dir/pqc.pem", nil)
@@ -734,7 +734,7 @@ func TestSaveHybridKeys_InvalidPath(t *testing.T) {
 	}
 }
 
-func TestSaveHybridKeyBundle_InvalidPath(t *testing.T) {
+func TestU_Crypto_SaveHybridKeyBundle_InvalidPath(t *testing.T) {
 	hybrid, _ := GenerateHybridSigner(AlgECDSAP256, AlgMLDSA65)
 
 	err := hybrid.SaveHybridKeyBundle("/nonexistent/dir/bundle.pem", nil)
@@ -759,7 +759,7 @@ func (m *mockFailingSigner) Sign(_ io.Reader, _ []byte, _ crypto.SignerOpts) ([]
 	return nil, fmt.Errorf("mock sign failure")
 }
 
-func TestSignHybrid_ClassicalSignFails(t *testing.T) {
+func TestU_Crypto_SignHybrid_ClassicalSignFails(t *testing.T) {
 	// Create a hybrid signer with failing classical signer
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
@@ -781,7 +781,7 @@ func TestSignHybrid_ClassicalSignFails(t *testing.T) {
 	}
 }
 
-func TestSignHybrid_PQCSignFails(t *testing.T) {
+func TestU_Crypto_SignHybrid_PQCSignFails(t *testing.T) {
 	// Create a hybrid signer with failing PQC signer
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
@@ -815,7 +815,7 @@ func (m *mockNonSoftwareSigner) Sign(_ io.Reader, digest []byte, _ crypto.Signer
 	return digest, nil
 }
 
-func TestSaveHybridKeys_NonSoftwareSignerClassical(t *testing.T) {
+func TestU_Crypto_SaveHybridKeys_NonSoftwareSignerClassical(t *testing.T) {
 	tmpDir := t.TempDir()
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
@@ -837,7 +837,7 @@ func TestSaveHybridKeys_NonSoftwareSignerClassical(t *testing.T) {
 	}
 }
 
-func TestSaveHybridKeys_NonSoftwareSignerPQC(t *testing.T) {
+func TestU_Crypto_SaveHybridKeys_NonSoftwareSignerPQC(t *testing.T) {
 	tmpDir := t.TempDir()
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
@@ -859,7 +859,7 @@ func TestSaveHybridKeys_NonSoftwareSignerPQC(t *testing.T) {
 	}
 }
 
-func TestSaveHybridKeyBundle_NonSoftwareSignerClassical(t *testing.T) {
+func TestU_Crypto_SaveHybridKeyBundle_NonSoftwareSignerClassical(t *testing.T) {
 	tmpDir := t.TempDir()
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
@@ -877,7 +877,7 @@ func TestSaveHybridKeyBundle_NonSoftwareSignerClassical(t *testing.T) {
 	}
 }
 
-func TestSaveHybridKeyBundle_NonSoftwareSignerPQC(t *testing.T) {
+func TestU_Crypto_SaveHybridKeyBundle_NonSoftwareSignerPQC(t *testing.T) {
 	tmpDir := t.TempDir()
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
@@ -895,7 +895,7 @@ func TestSaveHybridKeyBundle_NonSoftwareSignerPQC(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_ECPrivateKey(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_ECPrivateKey(t *testing.T) {
 	// Generate an EC key and save it as EC PRIVATE KEY format
 	tmpDir := t.TempDir()
 	keyPath := filepath.Join(tmpDir, "ec.key.pem")
@@ -935,7 +935,7 @@ func TestParsePEMBlockToSigner_ECPrivateKey(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_RSAPrivateKey(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_RSAPrivateKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	keyPath := filepath.Join(tmpDir, "rsa.key.pem")
 
@@ -970,7 +970,7 @@ func TestParsePEMBlockToSigner_RSAPrivateKey(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_UnknownType(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_UnknownType(t *testing.T) {
 	block := &pem.Block{
 		Type:  "UNKNOWN KEY TYPE",
 		Bytes: []byte("some data"),
@@ -985,7 +985,7 @@ func TestParsePEMBlockToSigner_UnknownType(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_InvalidPKCS8(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_InvalidPKCS8(t *testing.T) {
 	block := &pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: []byte("invalid pkcs8 data"),
@@ -997,7 +997,7 @@ func TestParsePEMBlockToSigner_InvalidPKCS8(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_InvalidECKey(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_InvalidECKey(t *testing.T) {
 	block := &pem.Block{
 		Type:  "EC PRIVATE KEY",
 		Bytes: []byte("invalid ec data"),
@@ -1009,7 +1009,7 @@ func TestParsePEMBlockToSigner_InvalidECKey(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_InvalidRSAKey(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_InvalidRSAKey(t *testing.T) {
 	block := &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: []byte("invalid rsa data"),
@@ -1021,7 +1021,7 @@ func TestParsePEMBlockToSigner_InvalidRSAKey(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_InvalidMLDSA44(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_InvalidMLDSA44(t *testing.T) {
 	block := &pem.Block{
 		Type:  "ML-DSA-44 PRIVATE KEY",
 		Bytes: []byte("invalid mldsa44 data"),
@@ -1033,7 +1033,7 @@ func TestParsePEMBlockToSigner_InvalidMLDSA44(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_InvalidMLDSA65(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_InvalidMLDSA65(t *testing.T) {
 	block := &pem.Block{
 		Type:  "ML-DSA-65 PRIVATE KEY",
 		Bytes: []byte("invalid mldsa65 data"),
@@ -1045,7 +1045,7 @@ func TestParsePEMBlockToSigner_InvalidMLDSA65(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_InvalidMLDSA87(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_InvalidMLDSA87(t *testing.T) {
 	block := &pem.Block{
 		Type:  "ML-DSA-87 PRIVATE KEY",
 		Bytes: []byte("invalid mldsa87 data"),
@@ -1057,7 +1057,7 @@ func TestParsePEMBlockToSigner_InvalidMLDSA87(t *testing.T) {
 	}
 }
 
-func TestPrivateKeyToPEMBlock_UnsupportedType(t *testing.T) {
+func TestU_Crypto_PrivateKeyToPEMBlock_UnsupportedType(t *testing.T) {
 	// Use a type that's not supported
 	type unsupportedKey struct{}
 
@@ -1070,7 +1070,7 @@ func TestPrivateKeyToPEMBlock_UnsupportedType(t *testing.T) {
 	}
 }
 
-func TestHybridSigner_SaveLoadBundle_SLHDSA(t *testing.T) {
+func TestU_Crypto_HybridSigner_SaveLoadBundle_SLHDSA(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Test with SLH-DSA-SHA2-128f (fast variant for testing)
@@ -1106,7 +1106,7 @@ func TestHybridSigner_SaveLoadBundle_SLHDSA(t *testing.T) {
 	}
 }
 
-func TestToHybridSigner_NilClassicalKeyPair(t *testing.T) {
+func TestU_Crypto_ToHybridSigner_NilClassicalKeyPair(t *testing.T) {
 	// Create a HybridKeyPair with nil classical KeyPair
 	pqc, _ := GenerateSoftwareSigner(AlgMLDSA65)
 
@@ -1125,7 +1125,7 @@ func TestToHybridSigner_NilClassicalKeyPair(t *testing.T) {
 	}
 }
 
-func TestToHybridSigner_NilPQCKeyPair(t *testing.T) {
+func TestU_Crypto_ToHybridSigner_NilPQCKeyPair(t *testing.T) {
 	// Create a HybridKeyPair with nil PQC KeyPair
 	classical, _ := GenerateSoftwareSigner(AlgECDSAP256)
 
@@ -1144,7 +1144,7 @@ func TestToHybridSigner_NilPQCKeyPair(t *testing.T) {
 	}
 }
 
-func TestLoadHybridSigner_PQCFileNotFound(t *testing.T) {
+func TestU_Crypto_LoadHybridSigner_PQCFileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create only classical key
@@ -1161,7 +1161,7 @@ func TestLoadHybridSigner_PQCFileNotFound(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_EncryptedWithoutPassphrase(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_EncryptedWithoutPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Save an encrypted key
@@ -1184,7 +1184,7 @@ func TestParsePEMBlockToSigner_EncryptedWithoutPassphrase(t *testing.T) {
 	}
 }
 
-func TestParsePEMBlockToSigner_EncryptedWrongPassphrase(t *testing.T) {
+func TestU_Crypto_ParsePEMBlockToSigner_EncryptedWrongPassphrase(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Save an encrypted key

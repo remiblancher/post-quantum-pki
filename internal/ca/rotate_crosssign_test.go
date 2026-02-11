@@ -12,7 +12,7 @@ import (
 // crossSign Tests
 // =============================================================================
 
-func TestCrossSign_ECDSAtoECDSA(t *testing.T) {
+func TestU_CA_CrossSign_ECDSAtoECDSA(t *testing.T) {
 	// Create old CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -71,7 +71,7 @@ func TestCrossSign_ECDSAtoECDSA(t *testing.T) {
 	}
 }
 
-func TestCrossSign_RSAtoRSA(t *testing.T) {
+func TestU_CA_CrossSign_RSAtoRSA(t *testing.T) {
 	// Create old CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -125,7 +125,7 @@ func TestCrossSign_RSAtoRSA(t *testing.T) {
 	}
 }
 
-func TestCrossSign_Ed25519toEd25519(t *testing.T) {
+func TestU_CA_CrossSign_Ed25519toEd25519(t *testing.T) {
 	// Create old CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -174,7 +174,7 @@ func TestCrossSign_Ed25519toEd25519(t *testing.T) {
 	}
 }
 
-func TestCrossSign_MixedAlgorithms(t *testing.T) {
+func TestU_CA_CrossSign_MixedAlgorithms(t *testing.T) {
 	// Create old ECDSA CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -231,7 +231,7 @@ func TestCrossSign_MixedAlgorithms(t *testing.T) {
 // crossSignPQC Tests
 // =============================================================================
 
-func TestCrossSignPQC_ECDSAtoPQC(t *testing.T) {
+func TestU_CA_CrossSignPQC_ECDSAtoPQC(t *testing.T) {
 	// Create old classical CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -285,7 +285,7 @@ func TestCrossSignPQC_ECDSAtoPQC(t *testing.T) {
 	}
 }
 
-func TestCrossSignPQC_RSAtoPQC(t *testing.T) {
+func TestU_CA_CrossSignPQC_RSAtoPQC(t *testing.T) {
 	// Create old RSA CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -334,7 +334,7 @@ func TestCrossSignPQC_RSAtoPQC(t *testing.T) {
 	}
 }
 
-func TestCrossSignPQC_SLHDSA(t *testing.T) {
+func TestU_CA_CrossSignPQC_SLHDSA(t *testing.T) {
 	// Create old ECDSA CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -382,7 +382,7 @@ func TestCrossSignPQC_SLHDSA(t *testing.T) {
 // saveCrossSignedCert Tests
 // =============================================================================
 
-func TestSaveCrossSignedCert(t *testing.T) {
+func TestU_CA_SaveCrossSignedCert(t *testing.T) {
 	// Create a simple CA to get a certificate
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -412,7 +412,7 @@ func TestSaveCrossSignedCert(t *testing.T) {
 	}
 }
 
-func TestSaveCrossSignedCert_CreatesDirectory(t *testing.T) {
+func TestU_CA_SaveCrossSignedCert_CreatesDirectory(t *testing.T) {
 	// Create a simple CA to get a certificate
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -446,7 +446,7 @@ func TestSaveCrossSignedCert_CreatesDirectory(t *testing.T) {
 // crossSign with Extensions Tests
 // =============================================================================
 
-func TestCrossSign_PreservesExtensions(t *testing.T) {
+func TestU_CA_CrossSign_PreservesExtensions(t *testing.T) {
 	// Create old CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -500,7 +500,7 @@ func TestCrossSign_PreservesExtensions(t *testing.T) {
 // crossSign Hybrid Tests
 // =============================================================================
 
-func TestCrossSign_HybridCAToClassical(t *testing.T) {
+func TestU_CA_CrossSign_HybridCAToClassical(t *testing.T) {
 	// Create old Hybrid CA (Catalyst)
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)
@@ -554,7 +554,7 @@ func TestCrossSign_HybridCAToClassical(t *testing.T) {
 	}
 }
 
-func TestCrossSign_ClassicalToHybrid(t *testing.T) {
+func TestU_CA_CrossSign_ClassicalToHybrid(t *testing.T) {
 	// Create old classical CA
 	oldDir := t.TempDir()
 	oldStore := NewFileStore(oldDir)

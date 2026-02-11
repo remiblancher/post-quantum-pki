@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestVariableValidator_String(t *testing.T) {
+func TestU_Profile_VariableValidator_String(t *testing.T) {
 	vars := map[string]*Variable{
 		"cn": {
 			Name:     "cn",
@@ -59,7 +59,7 @@ func TestVariableValidator_String(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_Integer(t *testing.T) {
+func TestU_Profile_VariableValidator_Integer(t *testing.T) {
 	min := 1
 	max := 825
 
@@ -102,7 +102,7 @@ func TestVariableValidator_Integer(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_List(t *testing.T) {
+func TestU_Profile_VariableValidator_List(t *testing.T) {
 	vars := map[string]*Variable{
 		"dns_names": {
 			Name:     "dns_names",
@@ -146,7 +146,7 @@ func TestVariableValidator_List(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_IPList(t *testing.T) {
+func TestU_Profile_VariableValidator_IPList(t *testing.T) {
 	vars := map[string]*Variable{
 		"ip_addresses": {
 			Name:     "ip_addresses",
@@ -188,7 +188,7 @@ func TestVariableValidator_IPList(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_ValidateAll(t *testing.T) {
+func TestU_Profile_VariableValidator_ValidateAll(t *testing.T) {
 	vars := map[string]*Variable{
 		"cn": {
 			Name:     "cn",
@@ -244,7 +244,7 @@ func TestVariableValidator_ValidateAll(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_MergeWithDefaults(t *testing.T) {
+func TestU_Profile_VariableValidator_MergeWithDefaults(t *testing.T) {
 	vars := map[string]*Variable{
 		"cn": {
 			Name:     "cn",
@@ -291,7 +291,7 @@ func TestVariableValidator_MergeWithDefaults(t *testing.T) {
 	}
 }
 
-func TestParseVarFlags(t *testing.T) {
+func TestU_Profile_ParseVarFlags(t *testing.T) {
 	tests := []struct {
 		name    string
 		flags   []string
@@ -357,7 +357,7 @@ func TestParseVarFlags(t *testing.T) {
 	}
 }
 
-func TestTemplateEngine_SubstituteString(t *testing.T) {
+func TestU_Profile_TemplateEngine_SubstituteString(t *testing.T) {
 	profile := &Profile{
 		Name:      "test",
 		Algorithm: "ecdsa-p256",
@@ -414,7 +414,7 @@ func TestTemplateEngine_SubstituteString(t *testing.T) {
 
 // DNS Validation Tests (RFC 1035/1123)
 
-func TestValidateDNSName(t *testing.T) {
+func TestU_Profile_ValidateDNSName(t *testing.T) {
 	tests := []struct {
 		name    string
 		dns     string
@@ -455,7 +455,7 @@ func TestValidateDNSName(t *testing.T) {
 	}
 }
 
-func TestNormalizeDNSName(t *testing.T) {
+func TestU_Profile_NormalizeDNSName(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -478,7 +478,7 @@ func TestNormalizeDNSName(t *testing.T) {
 	}
 }
 
-func TestValidateDNSNameWithOptions(t *testing.T) {
+func TestU_Profile_ValidateDNSNameWithOptions(t *testing.T) {
 	tests := []struct {
 		name             string
 		dns              string
@@ -507,7 +507,7 @@ func TestValidateDNSNameWithOptions(t *testing.T) {
 	}
 }
 
-func TestValidateWildcard(t *testing.T) {
+func TestU_Profile_ValidateWildcard(t *testing.T) {
 	allowWildcard := &WildcardPolicy{Allowed: true, SingleLabel: true}
 	denyWildcard := &WildcardPolicy{Allowed: false}
 
@@ -545,7 +545,7 @@ func TestValidateWildcard(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_DNSName(t *testing.T) {
+func TestU_Profile_VariableValidator_DNSName(t *testing.T) {
 	vars := map[string]*Variable{
 		"cn_no_wildcard": {
 			Name:     "cn_no_wildcard",
@@ -600,7 +600,7 @@ func TestVariableValidator_DNSName(t *testing.T) {
 	}
 }
 
-func TestVariableValidator_DNSNames(t *testing.T) {
+func TestU_Profile_VariableValidator_DNSNames(t *testing.T) {
 	vars := map[string]*Variable{
 		"sans": {
 			Name:     "sans",
@@ -663,7 +663,7 @@ func TestVariableValidator_DNSNames(t *testing.T) {
 }
 
 // Test label boundary suffix matching (security fix)
-func TestMatchesSuffixOnLabelBoundary(t *testing.T) {
+func TestU_Profile_MatchesSuffixOnLabelBoundary(t *testing.T) {
 	tests := []struct {
 		dnsName string
 		suffix  string
@@ -701,7 +701,7 @@ func TestMatchesSuffixOnLabelBoundary(t *testing.T) {
 }
 
 // Test AllowSingleLabel option in validator
-func TestVariableValidator_DNSName_SingleLabel(t *testing.T) {
+func TestU_Profile_VariableValidator_DNSName_SingleLabel(t *testing.T) {
 	vars := map[string]*Variable{
 		"cn_single": {
 			Name:             "cn_single",
@@ -750,7 +750,7 @@ func TestVariableValidator_DNSName_SingleLabel(t *testing.T) {
 }
 
 // Test ForbidPublicSuffix option
-func TestValidateWildcard_ForbidPublicSuffix(t *testing.T) {
+func TestU_Profile_ValidateWildcard_ForbidPublicSuffix(t *testing.T) {
 	allowNoCheck := &WildcardPolicy{Allowed: true, ForbidPublicSuffix: false}
 	allowWithCheck := &WildcardPolicy{Allowed: true, ForbidPublicSuffix: true}
 

@@ -9,7 +9,7 @@ import (
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
 
-func TestNewCAMetadata(t *testing.T) {
+func TestU_CA_NewCAMetadata(t *testing.T) {
 	meta := NewCAMetadata("ec/root-ca")
 
 	if meta.Created.IsZero() {
@@ -21,7 +21,7 @@ func TestNewCAMetadata(t *testing.T) {
 	}
 }
 
-func TestCAMetadataAddKey(t *testing.T) {
+func TestU_CA_CAMetadataAddKey(t *testing.T) {
 	meta := NewCAMetadata("test/profile")
 
 	keyRef := KeyRef{
@@ -48,7 +48,7 @@ func TestCAMetadataAddKey(t *testing.T) {
 	}
 }
 
-func TestCAMetadataGetKey(t *testing.T) {
+func TestU_CA_CAMetadataGetKey(t *testing.T) {
 	meta := NewCAMetadata("test/profile")
 
 	meta.AddKey(KeyRef{ID: "classical", Algorithm: pkicrypto.AlgECDSAP384})
@@ -72,7 +72,7 @@ func TestCAMetadataGetKey(t *testing.T) {
 	})
 }
 
-func TestCAMetadataGetDefaultKey(t *testing.T) {
+func TestU_CA_CAMetadataGetDefaultKey(t *testing.T) {
 	t.Run("empty keys", func(t *testing.T) {
 		meta := NewCAMetadata("test/profile")
 		key := meta.GetDefaultKey()
@@ -110,7 +110,7 @@ func TestCAMetadataGetDefaultKey(t *testing.T) {
 	})
 }
 
-func TestCAMetadataIsHybrid(t *testing.T) {
+func TestU_CA_CAMetadataIsHybrid(t *testing.T) {
 	t.Run("non-hybrid", func(t *testing.T) {
 		meta := NewCAMetadata("test/profile")
 		meta.AddKey(KeyRef{ID: "default", Algorithm: pkicrypto.AlgECDSAP384})
@@ -131,7 +131,7 @@ func TestCAMetadataIsHybrid(t *testing.T) {
 	})
 }
 
-func TestSaveLoadCAMetadata(t *testing.T) {
+func TestU_CA_SaveLoadCAMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	original := NewCAInfo(Subject{CommonName: "Test CA"})
@@ -187,7 +187,7 @@ func TestSaveLoadCAMetadata(t *testing.T) {
 	}
 }
 
-func TestLoadCAMetadataNotFound(t *testing.T) {
+func TestU_CA_LoadCAMetadataNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Load from directory without metadata
@@ -201,7 +201,7 @@ func TestLoadCAMetadataNotFound(t *testing.T) {
 	}
 }
 
-func TestMetadataExists(t *testing.T) {
+func TestU_CA_MetadataExists(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	t.Run("not exists", func(t *testing.T) {
@@ -222,7 +222,7 @@ func TestMetadataExists(t *testing.T) {
 	})
 }
 
-func TestCreateSoftwareKeyRef(t *testing.T) {
+func TestU_CA_CreateSoftwareKeyRef(t *testing.T) {
 	keyPath := "keys/ca.ecdsa-p384.key"
 	ref := CreateSoftwareKeyRef(keyPath)
 
@@ -234,7 +234,7 @@ func TestCreateSoftwareKeyRef(t *testing.T) {
 	}
 }
 
-func TestCreatePKCS11KeyRef(t *testing.T) {
+func TestU_CA_CreatePKCS11KeyRef(t *testing.T) {
 	ref := CreatePKCS11KeyRef("./hsm.yaml", "ca-key", "0x01")
 
 	if ref.Type != "pkcs11" {
@@ -251,7 +251,7 @@ func TestCreatePKCS11KeyRef(t *testing.T) {
 	}
 }
 
-func TestCAKeyPathForAlgorithm(t *testing.T) {
+func TestU_CA_CAKeyPathForAlgorithm(t *testing.T) {
 	tests := []struct {
 		basePath string
 		alg      pkicrypto.AlgorithmID
@@ -272,7 +272,7 @@ func TestCAKeyPathForAlgorithm(t *testing.T) {
 	}
 }
 
-func TestRelativeCAKeyPathForAlgorithm(t *testing.T) {
+func TestU_CA_RelativeCAKeyPathForAlgorithm(t *testing.T) {
 	tests := []struct {
 		alg  pkicrypto.AlgorithmID
 		want string
@@ -291,7 +291,7 @@ func TestRelativeCAKeyPathForAlgorithm(t *testing.T) {
 	}
 }
 
-func TestKeyRefBuildKeyStorageConfig(t *testing.T) {
+func TestU_CA_KeyRefBuildKeyStorageConfig(t *testing.T) {
 	t.Run("software key", func(t *testing.T) {
 		keyRef := KeyRef{
 			ID:        "default",
@@ -319,7 +319,7 @@ func TestKeyRefBuildKeyStorageConfig(t *testing.T) {
 	})
 }
 
-func TestCAMetadataHybridKeys(t *testing.T) {
+func TestU_CA_CAMetadataHybridKeys(t *testing.T) {
 	meta := NewCAMetadata("hybrid/root-ca")
 
 	meta.AddKey(KeyRef{
@@ -361,7 +361,7 @@ func TestCAMetadataHybridKeys(t *testing.T) {
 	})
 }
 
-func TestCAMetadataJSON(t *testing.T) {
+func TestU_CA_CAMetadataJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a complete metadata structure
@@ -429,7 +429,7 @@ func containsAt(s, substr string, start int) bool {
 // CAInfo CreatePendingVersion and Activate Tests
 // =============================================================================
 
-func TestCAInfo_CreatePendingVersion(t *testing.T) {
+func TestU_CA_CAInfo_CreatePendingVersion(t *testing.T) {
 	tmpDir := t.TempDir()
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath(tmpDir)
@@ -454,7 +454,7 @@ func TestCAInfo_CreatePendingVersion(t *testing.T) {
 	}
 }
 
-func TestCAInfo_Activate(t *testing.T) {
+func TestU_CA_CAInfo_Activate(t *testing.T) {
 	tmpDir := t.TempDir()
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath(tmpDir)
@@ -480,7 +480,7 @@ func TestCAInfo_Activate(t *testing.T) {
 	}
 }
 
-func TestCAInfo_Activate_NoPending(t *testing.T) {
+func TestU_CA_CAInfo_Activate_NoPending(t *testing.T) {
 	tmpDir := t.TempDir()
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath(tmpDir)
@@ -497,7 +497,7 @@ func TestCAInfo_Activate_NoPending(t *testing.T) {
 // CAInfo Path Tests
 // =============================================================================
 
-func TestCAInfo_ActiveCertPath(t *testing.T) {
+func TestU_CA_CAInfo_ActiveCertPath(t *testing.T) {
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath("/tmp/test-ca")
 	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256"})
@@ -511,7 +511,7 @@ func TestCAInfo_ActiveCertPath(t *testing.T) {
 	}
 }
 
-func TestCAInfo_ActiveKeyPath(t *testing.T) {
+func TestU_CA_CAInfo_ActiveKeyPath(t *testing.T) {
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath("/tmp/test-ca")
 	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256"})
@@ -529,7 +529,7 @@ func TestCAInfo_ActiveKeyPath(t *testing.T) {
 // KeyRef BuildKeyStorageConfig Tests
 // =============================================================================
 
-func TestKeyRef_BuildKeyStorageConfig_Software(t *testing.T) {
+func TestU_CA_KeyRef_BuildKeyStorageConfig_Software(t *testing.T) {
 	keyRef := KeyRef{
 		ID:        "default",
 		Algorithm: pkicrypto.AlgECDSAP256,
@@ -552,7 +552,7 @@ func TestKeyRef_BuildKeyStorageConfig_Software(t *testing.T) {
 // VersionStore Tests
 // =============================================================================
 
-func TestVersionStore_Init(t *testing.T) {
+func TestU_CA_VersionStore_Init(t *testing.T) {
 	tmpDir := t.TempDir()
 	vs := NewVersionStore(tmpDir)
 
@@ -567,7 +567,7 @@ func TestVersionStore_Init(t *testing.T) {
 	}
 }
 
-func TestVersionStore_CrossSignedCertPath(t *testing.T) {
+func TestU_CA_VersionStore_CrossSignedCertPath(t *testing.T) {
 	vs := NewVersionStore("/tmp/test-ca")
 
 	path := vs.CrossSignedCertPath("v1", "ecdsa-p256")
@@ -577,7 +577,7 @@ func TestVersionStore_CrossSignedCertPath(t *testing.T) {
 	}
 }
 
-func TestVersionStore_ListVersions(t *testing.T) {
+func TestU_CA_VersionStore_ListVersions(t *testing.T) {
 	tmpDir := t.TempDir()
 	vs := NewVersionStore(tmpDir)
 
@@ -603,7 +603,7 @@ func TestVersionStore_ListVersions(t *testing.T) {
 	}
 }
 
-func TestVersionStore_Activate(t *testing.T) {
+func TestU_CA_VersionStore_Activate(t *testing.T) {
 	tmpDir := t.TempDir()
 	vs := NewVersionStore(tmpDir)
 
@@ -634,7 +634,7 @@ func TestVersionStore_Activate(t *testing.T) {
 	}
 }
 
-func TestVersionStore_LoadIndex(t *testing.T) {
+func TestU_CA_VersionStore_LoadIndex(t *testing.T) {
 	tmpDir := t.TempDir()
 	vs := NewVersionStore(tmpDir)
 
@@ -662,7 +662,7 @@ func TestVersionStore_LoadIndex(t *testing.T) {
 // GetAlgorithmFamilyName Tests
 // =============================================================================
 
-func TestGetAlgorithmFamilyName(t *testing.T) {
+func TestU_CA_GetAlgorithmFamilyName(t *testing.T) {
 	testCases := []struct {
 		algorithm pkicrypto.AlgorithmID
 		expected  string
@@ -687,7 +687,7 @@ func TestGetAlgorithmFamilyName(t *testing.T) {
 // CAInfo ListAlgorithmFamilies Tests
 // =============================================================================
 
-func TestCAInfo_ListAlgorithmFamilies(t *testing.T) {
+func TestU_CA_CAInfo_ListAlgorithmFamilies(t *testing.T) {
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath("/tmp/test-ca")
 	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256", "ml-dsa-65"})
@@ -702,7 +702,7 @@ func TestCAInfo_ListAlgorithmFamilies(t *testing.T) {
 // CAInfo GetActiveVersionID Tests
 // =============================================================================
 
-func TestCAInfo_GetActiveVersionID(t *testing.T) {
+func TestU_CA_CAInfo_GetActiveVersionID(t *testing.T) {
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath("/tmp/test-ca")
 	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256"})
@@ -717,7 +717,7 @@ func TestCAInfo_GetActiveVersionID(t *testing.T) {
 // AddCrossSignedBy Tests
 // =============================================================================
 
-func TestVersionStore_AddCrossSignedBy(t *testing.T) {
+func TestU_CA_VersionStore_AddCrossSignedBy(t *testing.T) {
 	tmpDir := t.TempDir()
 	vs := NewVersionStore(tmpDir)
 
@@ -765,7 +765,7 @@ func TestVersionStore_AddCrossSignedBy(t *testing.T) {
 // CAInfo BuildKeyStorageConfig Tests
 // =============================================================================
 
-func TestCAInfo_BuildKeyStorageConfig(t *testing.T) {
+func TestU_CA_CAInfo_BuildKeyStorageConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath(tmpDir)
@@ -811,7 +811,7 @@ func TestCAInfo_BuildKeyStorageConfig(t *testing.T) {
 // VersionStore getActiveVersionID Tests
 // =============================================================================
 
-func TestVersionStore_getActiveVersionID(t *testing.T) {
+func TestU_CA_VersionStore_getActiveVersionID(t *testing.T) {
 	t.Run("with info loaded", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		vs := NewVersionStore(tmpDir)
@@ -848,7 +848,7 @@ func TestVersionStore_getActiveVersionID(t *testing.T) {
 // formatAlgorithmForCertName Tests
 // =============================================================================
 
-func TestFormatAlgorithmForCertName(t *testing.T) {
+func TestU_CA_FormatAlgorithmForCertName(t *testing.T) {
 	testCases := []struct {
 		name         string
 		algorithm    pkicrypto.AlgorithmID
@@ -901,7 +901,7 @@ func TestFormatAlgorithmForCertName(t *testing.T) {
 // AddCertificateRef Tests
 // =============================================================================
 
-func TestVersionStore_AddCertificateRef(t *testing.T) {
+func TestU_CA_VersionStore_AddCertificateRef(t *testing.T) {
 	tmpDir := t.TempDir()
 	vs := NewVersionStore(tmpDir)
 
@@ -990,7 +990,7 @@ func TestVersionStore_AddCertificateRef(t *testing.T) {
 // ListAlgorithmFamilies Empty Active Tests
 // =============================================================================
 
-func TestCAInfo_ListAlgorithmFamilies_Empty(t *testing.T) {
+func TestU_CA_CAInfo_ListAlgorithmFamilies_Empty(t *testing.T) {
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	// No active version set
 
@@ -1004,7 +1004,7 @@ func TestCAInfo_ListAlgorithmFamilies_Empty(t *testing.T) {
 // HybridCertName and HybridCertPath Tests
 // =============================================================================
 
-func TestHybridCertName(t *testing.T) {
+func TestU_CA_HybridCertName(t *testing.T) {
 	testCases := []struct {
 		name         string
 		certType     HybridCertType
@@ -1049,7 +1049,7 @@ func TestHybridCertName(t *testing.T) {
 	}
 }
 
-func TestHybridCertPath(t *testing.T) {
+func TestU_CA_HybridCertPath(t *testing.T) {
 	basePath := "/tmp/test-ca"
 	result := HybridCertPath(basePath, HybridCertCatalyst, pkicrypto.AlgECDSAP256, "ml-dsa-44", false)
 	expected := "/tmp/test-ca/certs/ca.catalyst-ecdsa-p256-mldsa44.pem"
@@ -1058,7 +1058,7 @@ func TestHybridCertPath(t *testing.T) {
 	}
 }
 
-func TestCAInfo_HybridCertPathForVersion(t *testing.T) {
+func TestU_CA_CAInfo_HybridCertPathForVersion(t *testing.T) {
 	info := NewCAInfo(Subject{CommonName: "Test CA"})
 	info.SetBasePath("/tmp/test-ca")
 	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256"})

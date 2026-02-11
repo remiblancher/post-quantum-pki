@@ -56,7 +56,7 @@ func createTestCertificate(t *testing.T, template *x509.Certificate, issuer *x50
 // VerifyChain Tests
 // =============================================================================
 
-func TestVerifyChain_DirectSignature(t *testing.T) {
+func TestU_CA_VerifyChain_DirectSignature(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -89,7 +89,7 @@ func TestVerifyChain_DirectSignature(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_WithIntermediate(t *testing.T) {
+func TestU_CA_VerifyChain_WithIntermediate(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -134,7 +134,7 @@ func TestVerifyChain_WithIntermediate(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_WrongOrder(t *testing.T) {
+func TestU_CA_VerifyChain_WrongOrder(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -180,7 +180,7 @@ func TestVerifyChain_WrongOrder(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_ExpiredCertificate(t *testing.T) {
+func TestU_CA_VerifyChain_ExpiredCertificate(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -213,7 +213,7 @@ func TestVerifyChain_ExpiredCertificate(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_NotYetValidCertificate(t *testing.T) {
+func TestU_CA_VerifyChain_NotYetValidCertificate(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -246,7 +246,7 @@ func TestVerifyChain_NotYetValidCertificate(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_IssuerNotCA(t *testing.T) {
+func TestU_CA_VerifyChain_IssuerNotCA(t *testing.T) {
 	// Root that is NOT a CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Not CA"},
@@ -279,7 +279,7 @@ func TestVerifyChain_IssuerNotCA(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_MissingKeyUsageCertSign(t *testing.T) {
+func TestU_CA_VerifyChain_MissingKeyUsageCertSign(t *testing.T) {
 	// Root CA without KeyUsageCertSign
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -312,7 +312,7 @@ func TestVerifyChain_MissingKeyUsageCertSign(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_NilLeaf(t *testing.T) {
+func TestU_CA_VerifyChain_NilLeaf(t *testing.T) {
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
 		NotBefore:             time.Now().Add(-time.Hour),
@@ -333,7 +333,7 @@ func TestVerifyChain_NilLeaf(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_NilRoot(t *testing.T) {
+func TestU_CA_VerifyChain_NilRoot(t *testing.T) {
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Leaf"},
 		NotBefore:             time.Now().Add(-time.Hour),
@@ -353,7 +353,7 @@ func TestVerifyChain_NilRoot(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_DefaultTime(t *testing.T) {
+func TestU_CA_VerifyChain_DefaultTime(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -390,7 +390,7 @@ func TestVerifyChain_DefaultTime(t *testing.T) {
 // VerifySignature Tests
 // =============================================================================
 
-func TestVerifySignature_Classical(t *testing.T) {
+func TestU_CA_VerifySignature_Classical(t *testing.T) {
 	// Root CA
 	rootTemplate := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -418,7 +418,7 @@ func TestVerifySignature_Classical(t *testing.T) {
 	}
 }
 
-func TestVerifySignature_WrongIssuer(t *testing.T) {
+func TestU_CA_VerifySignature_WrongIssuer(t *testing.T) {
 	// Root CA 1
 	root1Template := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Root CA 1"},
@@ -462,7 +462,7 @@ func TestVerifySignature_WrongIssuer(t *testing.T) {
 // IsPQCCertificate / IsCatalystCertificate Tests
 // =============================================================================
 
-func TestIsPQCCertificate_Classical(t *testing.T) {
+func TestU_CA_IsPQCCertificate_Classical(t *testing.T) {
 	template := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test"},
 		NotBefore:             time.Now().Add(-time.Hour),
@@ -476,7 +476,7 @@ func TestIsPQCCertificate_Classical(t *testing.T) {
 	}
 }
 
-func TestIsCatalystCertificate_Classical(t *testing.T) {
+func TestU_CA_IsCatalystCertificate_Classical(t *testing.T) {
 	template := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test"},
 		NotBefore:             time.Now().Add(-time.Hour),
@@ -494,7 +494,7 @@ func TestIsCatalystCertificate_Classical(t *testing.T) {
 // VerifySignature PQC Tests
 // =============================================================================
 
-func TestVerifySignature_PQC_MLDSA(t *testing.T) {
+func TestU_CA_VerifySignature_PQC_MLDSA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -519,7 +519,7 @@ func TestVerifySignature_PQC_MLDSA(t *testing.T) {
 	}
 }
 
-func TestVerifySignature_PQC_MLDSA87(t *testing.T) {
+func TestU_CA_VerifySignature_PQC_MLDSA87(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -544,7 +544,7 @@ func TestVerifySignature_PQC_MLDSA87(t *testing.T) {
 	}
 }
 
-func TestVerifySignature_PQC_SLHDSA(t *testing.T) {
+func TestU_CA_VerifySignature_PQC_SLHDSA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -573,7 +573,7 @@ func TestVerifySignature_PQC_SLHDSA(t *testing.T) {
 // VerifySignature Catalyst Tests
 // =============================================================================
 
-func TestVerifySignature_Catalyst(t *testing.T) {
+func TestU_CA_VerifySignature_Catalyst(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -599,7 +599,7 @@ func TestVerifySignature_Catalyst(t *testing.T) {
 	}
 }
 
-func TestVerifySignature_Catalyst_ECDSAandMLDSA65(t *testing.T) {
+func TestU_CA_VerifySignature_Catalyst_ECDSAandMLDSA65(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -629,7 +629,7 @@ func TestVerifySignature_Catalyst_ECDSAandMLDSA65(t *testing.T) {
 // IsPQCCertificate Tests
 // =============================================================================
 
-func TestIsPQCCertificate_MLDSA(t *testing.T) {
+func TestU_CA_IsPQCCertificate_MLDSA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -655,7 +655,7 @@ func TestIsPQCCertificate_MLDSA(t *testing.T) {
 // IsCatalystCertificate Tests
 // =============================================================================
 
-func TestIsCatalystCertificate_Hybrid(t *testing.T) {
+func TestU_CA_IsCatalystCertificate_Hybrid(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -682,7 +682,7 @@ func TestIsCatalystCertificate_Hybrid(t *testing.T) {
 // VerifyChain with Real CAs Tests
 // =============================================================================
 
-func TestVerifyChain_Classical_RealCA(t *testing.T) {
+func TestU_CA_VerifyChain_Classical_RealCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -711,7 +711,7 @@ func TestVerifyChain_Classical_RealCA(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_PQC_RealCA(t *testing.T) {
+func TestU_CA_VerifyChain_PQC_RealCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -740,7 +740,7 @@ func TestVerifyChain_PQC_RealCA(t *testing.T) {
 	}
 }
 
-func TestVerifyChain_Catalyst_RealCA(t *testing.T) {
+func TestU_CA_VerifyChain_Catalyst_RealCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -774,7 +774,7 @@ func TestVerifyChain_Catalyst_RealCA(t *testing.T) {
 // VerifySignature Composite Tests
 // =============================================================================
 
-func TestVerifySignature_Composite(t *testing.T) {
+func TestU_CA_VerifySignature_Composite(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -800,7 +800,7 @@ func TestVerifySignature_Composite(t *testing.T) {
 	}
 }
 
-func TestVerifySignature_Composite_P521andMLDSA87(t *testing.T) {
+func TestU_CA_VerifySignature_Composite_P521andMLDSA87(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -830,7 +830,7 @@ func TestVerifySignature_Composite_P521andMLDSA87(t *testing.T) {
 // IsCompositeCertificate Tests
 // =============================================================================
 
-func TestIsCompositeCertificate_Classical(t *testing.T) {
+func TestU_CA_IsCompositeCertificate_Classical(t *testing.T) {
 	template := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test"},
 		NotBefore:             time.Now().Add(-time.Hour),
@@ -844,7 +844,7 @@ func TestIsCompositeCertificate_Classical(t *testing.T) {
 	}
 }
 
-func TestIsCompositeCertificate_CompositeVerify(t *testing.T) {
+func TestU_CA_IsCompositeCertificate_CompositeVerify(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -871,7 +871,7 @@ func TestIsCompositeCertificate_CompositeVerify(t *testing.T) {
 // VerifyChain Composite Tests
 // =============================================================================
 
-func TestVerifyChain_Composite_RealCA(t *testing.T) {
+func TestU_CA_VerifyChain_Composite_RealCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 

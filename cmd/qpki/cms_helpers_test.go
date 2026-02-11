@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestLoadSigningCert(t *testing.T) {
+func TestF_CMS_LoadSigningCert(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a test certificate
@@ -60,7 +60,7 @@ func TestLoadSigningCert(t *testing.T) {
 	}
 }
 
-func TestLoadDecryptionCert(t *testing.T) {
+func TestF_CMS_LoadDecryptionCert(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a test certificate
@@ -100,7 +100,7 @@ func TestLoadDecryptionCert(t *testing.T) {
 	}
 }
 
-func TestLoadSigningKey(t *testing.T) {
+func TestF_CMS_LoadSigningKey(t *testing.T) {
 	// Test with software key
 	tmpDir := t.TempDir()
 	priv, _ := generateECDSAKeyPair(t)
@@ -200,7 +200,7 @@ func saveECKeyPEM(t *testing.T, key *ecdsa.PrivateKey, path string) {
 // loadDecryptionKey Tests
 // =============================================================================
 
-func TestLoadDecryptionKey(t *testing.T) {
+func TestF_CMS_LoadDecryptionKey(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a test EC key
@@ -278,7 +278,7 @@ func TestLoadDecryptionKey(t *testing.T) {
 // loadStandardKey Tests
 // =============================================================================
 
-func TestLoadStandardKey(t *testing.T) {
+func TestF_CMS_LoadStandardKey(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a test EC key
@@ -324,7 +324,7 @@ func TestLoadStandardKey(t *testing.T) {
 // loadPKCS8Key Tests
 // =============================================================================
 
-func TestLoadPKCS8Key(t *testing.T) {
+func TestF_CMS_LoadPKCS8Key(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create PKCS8 key

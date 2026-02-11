@@ -1429,7 +1429,7 @@ func TestU_Extension_NameConstraints_ExcludedDNS(t *testing.T) {
 // Validation Tests - Criticality Requirements
 // =============================================================================
 
-func TestValidate_BasicConstraints_RejectNonCriticalForCA(t *testing.T) {
+func TestU_Profile_Validate_BasicConstraints_RejectNonCriticalForCA(t *testing.T) {
 	critical := false
 	ext := &ExtensionsConfig{
 		BasicConstraints: &BasicConstraintsConfig{
@@ -1450,7 +1450,7 @@ func TestValidate_BasicConstraints_RejectNonCriticalForCA(t *testing.T) {
 	}
 }
 
-func TestValidate_BasicConstraints_AllowCriticalForCA(t *testing.T) {
+func TestU_Profile_Validate_BasicConstraints_AllowCriticalForCA(t *testing.T) {
 	critical := true
 	ext := &ExtensionsConfig{
 		BasicConstraints: &BasicConstraintsConfig{
@@ -1468,7 +1468,7 @@ func TestValidate_BasicConstraints_AllowCriticalForCA(t *testing.T) {
 	}
 }
 
-func TestValidate_NameConstraints_RejectNonCritical(t *testing.T) {
+func TestU_Profile_Validate_NameConstraints_RejectNonCritical(t *testing.T) {
 	critical := false
 	ext := &ExtensionsConfig{
 		BasicConstraints: &BasicConstraintsConfig{
@@ -1494,7 +1494,7 @@ func TestValidate_NameConstraints_RejectNonCritical(t *testing.T) {
 	}
 }
 
-func TestValidate_NameConstraints_AllowCritical(t *testing.T) {
+func TestU_Profile_Validate_NameConstraints_AllowCritical(t *testing.T) {
 	critical := true
 	ext := &ExtensionsConfig{
 		BasicConstraints: &BasicConstraintsConfig{
@@ -1517,7 +1517,7 @@ func TestValidate_NameConstraints_AllowCritical(t *testing.T) {
 	}
 }
 
-func TestValidate_AuthorityInfoAccess_RejectCritical(t *testing.T) {
+func TestU_Profile_Validate_AuthorityInfoAccess_RejectCritical(t *testing.T) {
 	critical := true
 	ext := &ExtensionsConfig{
 		BasicConstraints: &BasicConstraintsConfig{
@@ -1541,7 +1541,7 @@ func TestValidate_AuthorityInfoAccess_RejectCritical(t *testing.T) {
 	}
 }
 
-func TestValidate_AuthorityInfoAccess_AllowNonCritical(t *testing.T) {
+func TestU_Profile_Validate_AuthorityInfoAccess_AllowNonCritical(t *testing.T) {
 	critical := false
 	ext := &ExtensionsConfig{
 		BasicConstraints: &BasicConstraintsConfig{
@@ -2469,7 +2469,7 @@ func encodeHex(b []byte) []byte {
 // OID for QCStatements extension
 var oidQCStatementsExt = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 3}
 
-func TestQCStatementsConfig_Validate(t *testing.T) {
+func TestU_Profile_QCStatementsConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  *QCStatementsConfig
@@ -2564,7 +2564,7 @@ func TestQCStatementsConfig_Validate(t *testing.T) {
 	}
 }
 
-func TestQCStatementsConfig_HasStatements(t *testing.T) {
+func TestU_Profile_QCStatementsConfig_HasStatements(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *QCStatementsConfig
@@ -2623,7 +2623,7 @@ func TestQCStatementsConfig_HasStatements(t *testing.T) {
 	}
 }
 
-func TestQCStatementsConfig_IsCritical(t *testing.T) {
+func TestU_Profile_QCStatementsConfig_IsCritical(t *testing.T) {
 	trueBool := true
 	falseBool := false
 
@@ -2658,7 +2658,7 @@ func TestQCStatementsConfig_IsCritical(t *testing.T) {
 	}
 }
 
-func TestQCStatements_ApplyToCertificate(t *testing.T) {
+func TestU_Profile_QCStatements_ApplyToCertificate(t *testing.T) {
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
 			QcCompliance:      true,
@@ -2707,7 +2707,7 @@ func TestQCStatements_ApplyToCertificate(t *testing.T) {
 	}
 }
 
-func TestQCStatements_ApplyWithNilConfig(t *testing.T) {
+func TestU_Profile_QCStatements_ApplyWithNilConfig(t *testing.T) {
 	config := &ExtensionsConfig{
 		QCStatements: nil,
 	}
@@ -2722,7 +2722,7 @@ func TestQCStatements_ApplyWithNilConfig(t *testing.T) {
 	}
 }
 
-func TestQCStatements_ApplyWithEmptyConfig(t *testing.T) {
+func TestU_Profile_QCStatements_ApplyWithEmptyConfig(t *testing.T) {
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{}, // empty - no statements
 	}
@@ -2737,7 +2737,7 @@ func TestQCStatements_ApplyWithEmptyConfig(t *testing.T) {
 	}
 }
 
-func TestQCStatements_Critical(t *testing.T) {
+func TestU_Profile_QCStatements_Critical(t *testing.T) {
 	critical := true
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
@@ -2766,7 +2766,7 @@ func TestQCStatements_Critical(t *testing.T) {
 	}
 }
 
-func TestQCStatements_DeepCopy(t *testing.T) {
+func TestU_Profile_QCStatements_DeepCopy(t *testing.T) {
 	original := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
 			QcCompliance:      true,
@@ -2813,7 +2813,7 @@ func TestQCStatements_DeepCopy(t *testing.T) {
 	}
 }
 
-func TestQCStatements_SubstituteVariables(t *testing.T) {
+func TestU_Profile_QCStatements_SubstituteVariables(t *testing.T) {
 	original := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
 			QcCompliance: true,
@@ -2845,7 +2845,7 @@ func TestQCStatements_SubstituteVariables(t *testing.T) {
 	}
 }
 
-func TestQCStatements_YAMLLoading(t *testing.T) {
+func TestU_Profile_QCStatements_YAMLLoading(t *testing.T) {
 	yamlContent := `
 name: test-qcstatements
 algorithm: ecdsa-p256
@@ -2903,7 +2903,7 @@ extensions:
 // Additional QCStatements Tests
 // =============================================================================
 
-func TestQCStatements_containsTemplateVar(t *testing.T) {
+func TestU_Profile_QCStatements_containsTemplateVar(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected bool
@@ -2930,7 +2930,7 @@ func TestQCStatements_containsTemplateVar(t *testing.T) {
 	}
 }
 
-func TestQCStatements_ValidateTemplateVariables(t *testing.T) {
+func TestU_Profile_QCStatements_ValidateTemplateVariables(t *testing.T) {
 	// Template variables should pass validation
 	config := &QCStatementsConfig{
 		QcCompliance: true,
@@ -2944,7 +2944,7 @@ func TestQCStatements_ValidateTemplateVariables(t *testing.T) {
 	}
 }
 
-func TestQCStatements_TemplateVarsSkippedInEncoding(t *testing.T) {
+func TestU_Profile_QCStatements_TemplateVarsSkippedInEncoding(t *testing.T) {
 	// When QcPDS contains template variables, they should be skipped during encoding
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
@@ -2983,7 +2983,7 @@ func TestQCStatements_TemplateVarsSkippedInEncoding(t *testing.T) {
 	}
 }
 
-func TestQCStatements_MixedStaticAndTemplateQcPDS(t *testing.T) {
+func TestU_Profile_QCStatements_MixedStaticAndTemplateQcPDS(t *testing.T) {
 	// Static PDS entries should be encoded, template ones skipped
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
@@ -3023,7 +3023,7 @@ func TestQCStatements_MixedStaticAndTemplateQcPDS(t *testing.T) {
 	}
 }
 
-func TestQCStatements_EachQcType(t *testing.T) {
+func TestU_Profile_QCStatements_EachQcType(t *testing.T) {
 	types := []struct {
 		qcType string
 	}{
@@ -3069,7 +3069,7 @@ func TestQCStatements_EachQcType(t *testing.T) {
 	}
 }
 
-func TestQCStatements_QcSSCDOnly(t *testing.T) {
+func TestU_Profile_QCStatements_QcSSCDOnly(t *testing.T) {
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
 			QcSSCD: true,
@@ -3102,7 +3102,7 @@ func TestQCStatements_QcSSCDOnly(t *testing.T) {
 	}
 }
 
-func TestQCStatements_QcRetentionPeriodOnly(t *testing.T) {
+func TestU_Profile_QCStatements_QcRetentionPeriodOnly(t *testing.T) {
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
 			QcRetentionPeriod: intPtr(20),
@@ -3135,7 +3135,7 @@ func TestQCStatements_QcRetentionPeriodOnly(t *testing.T) {
 	}
 }
 
-func TestQCStatements_QcPDSMultipleLanguages(t *testing.T) {
+func TestU_Profile_QCStatements_QcPDSMultipleLanguages(t *testing.T) {
 	config := &ExtensionsConfig{
 		QCStatements: &QCStatementsConfig{
 			QcPDS: []PDSLocationConfig{
@@ -3172,7 +3172,7 @@ func TestQCStatements_QcPDSMultipleLanguages(t *testing.T) {
 	}
 }
 
-func TestQCStatements_ZeroRetentionPeriod(t *testing.T) {
+func TestU_Profile_QCStatements_ZeroRetentionPeriod(t *testing.T) {
 	// Zero retention period should be valid
 	config := &QCStatementsConfig{
 		QcRetentionPeriod: intPtr(0),
@@ -3188,7 +3188,7 @@ func TestQCStatements_ZeroRetentionPeriod(t *testing.T) {
 }
 
 // TestQCStatementsConfig_Validate_PDSValidation tests PDS-specific validation.
-func TestQCStatementsConfig_Validate_PDSValidation(t *testing.T) {
+func TestU_Profile_QCStatementsConfig_Validate_PDSValidation(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  QCStatementsConfig
@@ -3252,7 +3252,7 @@ func TestQCStatementsConfig_Validate_PDSValidation(t *testing.T) {
 }
 
 // TestQCStatementsConfig_HasStatements_Combinations tests various statement combinations.
-func TestQCStatementsConfig_HasStatements_Combinations(t *testing.T) {
+func TestU_Profile_QCStatementsConfig_HasStatements_Combinations(t *testing.T) {
 	trueVal := true
 	tests := []struct {
 		name   string

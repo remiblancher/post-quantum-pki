@@ -624,7 +624,7 @@ func TestF_EdDSA_BothAlgorithmsWork(t *testing.T) {
 
 // TestI_Ed448_SignerFromPkiCrypto tests that Ed448 keys generated
 // via pkicrypto package work correctly with CMS signing.
-func TestI_Ed448_SignerFromPkiCrypto(t *testing.T) {
+func TestU_CMS_Ed448_SignerFromPkiCrypto(t *testing.T) {
 	// Generate key using pkicrypto
 	signer, err := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgEd448)
 	if err != nil {

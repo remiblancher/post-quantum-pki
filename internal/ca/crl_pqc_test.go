@@ -12,7 +12,7 @@ import (
 	"github.com/remiblancher/post-quantum-pki/internal/x509util"
 )
 
-func TestGeneratePQCCRL_MLDSA65(t *testing.T) {
+func TestU_CA_GeneratePQCCRL_MLDSA65(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -116,7 +116,7 @@ func TestGeneratePQCCRL_MLDSA65(t *testing.T) {
 	t.Logf("CRL size: %d bytes", len(crlDER))
 }
 
-func TestGeneratePQCCRL_MLDSA44(t *testing.T) {
+func TestU_CA_GeneratePQCCRL_MLDSA44(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -159,7 +159,7 @@ func TestGeneratePQCCRL_MLDSA44(t *testing.T) {
 	}
 }
 
-func TestGeneratePQCCRL_MLDSA87(t *testing.T) {
+func TestU_CA_GeneratePQCCRL_MLDSA87(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -199,7 +199,7 @@ func TestGeneratePQCCRL_MLDSA87(t *testing.T) {
 	}
 }
 
-func TestVerifyPQCCRL_WrongIssuer(t *testing.T) {
+func TestU_CA_VerifyPQCCRL_WrongIssuer(t *testing.T) {
 	// Create two different CAs
 	store1 := NewFileStore(t.TempDir())
 	store2 := NewFileStore(t.TempDir())
@@ -246,7 +246,7 @@ func TestVerifyPQCCRL_WrongIssuer(t *testing.T) {
 	}
 }
 
-func TestVerifyPQCCRL_TamperedCRL(t *testing.T) {
+func TestU_CA_VerifyPQCCRL_TamperedCRL(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -282,7 +282,7 @@ func TestVerifyPQCCRL_TamperedCRL(t *testing.T) {
 	}
 }
 
-func TestGenerateCRL_FallbackToStandard(t *testing.T) {
+func TestU_CA_GenerateCRL_FallbackToStandard(t *testing.T) {
 	// Test that classical algorithms still use the standard Go implementation
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -326,7 +326,7 @@ func TestGenerateCRL_FallbackToStandard(t *testing.T) {
 	}
 }
 
-func TestIsPQCSignatureOID(t *testing.T) {
+func TestU_CA_IsPQCSignatureOID(t *testing.T) {
 	tests := []struct {
 		name     string
 		oid      asn1.ObjectIdentifier
@@ -351,7 +351,7 @@ func TestIsPQCSignatureOID(t *testing.T) {
 	}
 }
 
-func TestOidToAlgorithmID(t *testing.T) {
+func TestU_CA_OidToAlgorithmID(t *testing.T) {
 	tests := []struct {
 		name        string
 		oid         asn1.ObjectIdentifier
@@ -389,7 +389,7 @@ func TestOidToAlgorithmID(t *testing.T) {
 	}
 }
 
-func TestGeneratePQCCRL_NonPQCSigner(t *testing.T) {
+func TestU_CA_GeneratePQCCRL_NonPQCSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -413,7 +413,7 @@ func TestGeneratePQCCRL_NonPQCSigner(t *testing.T) {
 	}
 }
 
-func TestGeneratePQCCRL_NoSigner(t *testing.T) {
+func TestU_CA_GeneratePQCCRL_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -443,7 +443,7 @@ func TestGeneratePQCCRL_NoSigner(t *testing.T) {
 	}
 }
 
-func TestGeneratePQCCRLWithEntries_NonPQCSigner(t *testing.T) {
+func TestU_CA_GeneratePQCCRLWithEntries_NonPQCSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -466,7 +466,7 @@ func TestGeneratePQCCRLWithEntries_NonPQCSigner(t *testing.T) {
 	}
 }
 
-func TestGeneratePQCCRLWithEntries_NoSigner(t *testing.T) {
+func TestU_CA_GeneratePQCCRLWithEntries_NoSigner(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -494,7 +494,7 @@ func TestGeneratePQCCRLWithEntries_NoSigner(t *testing.T) {
 	}
 }
 
-func TestVerifyPQCCRL_InvalidDER(t *testing.T) {
+func TestU_CA_VerifyPQCCRL_InvalidDER(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
@@ -517,14 +517,14 @@ func TestVerifyPQCCRL_InvalidDER(t *testing.T) {
 	}
 }
 
-func TestExtractCRLSignatureAlgorithmOID_InvalidDER(t *testing.T) {
+func TestU_CA_ExtractCRLSignatureAlgorithmOID_InvalidDER(t *testing.T) {
 	_, err := ExtractCRLSignatureAlgorithmOID([]byte{0xff, 0xff, 0xff})
 	if err == nil {
 		t.Error("ExtractCRLSignatureAlgorithmOID() should fail with invalid DER")
 	}
 }
 
-func TestBuildCRLExtensions_NoAuthorityKeyId(t *testing.T) {
+func TestU_CA_BuildCRLExtensions_NoAuthorityKeyId(t *testing.T) {
 	// Test buildCRLExtensions with empty authority key ID
 	exts, err := buildCRLExtensions([]byte{0x01}, nil)
 	if err != nil {
@@ -537,7 +537,7 @@ func TestBuildCRLExtensions_NoAuthorityKeyId(t *testing.T) {
 	}
 }
 
-func TestBuildCRLExtensions_WithAuthorityKeyId(t *testing.T) {
+func TestU_CA_BuildCRLExtensions_WithAuthorityKeyId(t *testing.T) {
 	// Test buildCRLExtensions with authority key ID
 	akid := []byte{0x01, 0x02, 0x03, 0x04}
 	exts, err := buildCRLExtensions([]byte{0x01}, akid)

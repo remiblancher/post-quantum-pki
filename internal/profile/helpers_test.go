@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestLoadVariables(t *testing.T) {
+func TestU_Profile_LoadVariables(t *testing.T) {
 	t.Run("empty inputs", func(t *testing.T) {
 		values, err := LoadVariables("", nil)
 		if err != nil {
@@ -113,7 +113,7 @@ organization: File Org
 	})
 }
 
-func TestBuildSubject(t *testing.T) {
+func TestU_Profile_BuildSubject(t *testing.T) {
 	t.Run("cn only", func(t *testing.T) {
 		vars := VariableValues{"cn": "example.com"}
 		subject, err := BuildSubject(vars)
@@ -197,7 +197,7 @@ func TestBuildSubject(t *testing.T) {
 	})
 }
 
-func TestBuildSubjectFromProfile(t *testing.T) {
+func TestU_Profile_BuildSubjectFromProfile(t *testing.T) {
 	t.Run("profile defaults used when vars missing", func(t *testing.T) {
 		prof := &Profile{
 			Subject: &SubjectConfig{
@@ -327,7 +327,7 @@ func TestBuildSubjectFromProfile(t *testing.T) {
 	})
 }
 
-func TestExtractTemplateVariables_SAN(t *testing.T) {
+func TestU_Profile_ExtractTemplateVariables_SAN(t *testing.T) {
 	t.Run("all SAN types", func(t *testing.T) {
 		vars := VariableValues{
 			"dns_names":    []string{"a.com", "b.com"},
@@ -377,7 +377,7 @@ func TestExtractTemplateVariables_SAN(t *testing.T) {
 	})
 }
 
-func TestExtractAllTemplateVariables(t *testing.T) {
+func TestU_Profile_ExtractAllTemplateVariables(t *testing.T) {
 	t.Run("extracts all variables", func(t *testing.T) {
 		vars := VariableValues{
 			"dns":          "example.com",
@@ -403,7 +403,7 @@ func TestExtractAllTemplateVariables(t *testing.T) {
 	})
 }
 
-func TestResolveProfileExtensions_TemplateValidation(t *testing.T) {
+func TestU_Profile_ResolveProfileExtensions_TemplateValidation(t *testing.T) {
 	t.Run("required variable missing returns error", func(t *testing.T) {
 		prof := &Profile{
 			Name: "test",
@@ -624,7 +624,7 @@ func containsSubstring(s, substr string) bool {
 	return false
 }
 
-func TestResolveProfileExtensions_DNSIncludeCN(t *testing.T) {
+func TestU_Profile_ResolveProfileExtensions_DNSIncludeCN(t *testing.T) {
 	t.Run("adds CN to DNS SANs when flag is true", func(t *testing.T) {
 		prof := &Profile{
 			Name:      "test",
