@@ -40,10 +40,14 @@ docs/quality/
 Generated documentation comes from machine-readable specifications:
 
 ```
-specs/compliance/standards-matrix.yaml  ──>  docs/quality/compliance/FIPS.md
-                                        ──>  docs/quality/compliance/RFC.md
+specs/compliance/standards-matrix.yaml  ──→  docs/quality/compliance/FIPS.md
+                                        ──→  docs/quality/compliance/RFC.md
 
-specs/tests/test-catalog.yaml           ──>  docs/quality/testing/CATALOG.md
+specs/tests/test-catalog.yaml           ──→  docs/quality/testing/CATALOG.md
+specs/tests/test-mapping.yaml                (TC-ID → Go test mapping)
+
+specs/tests/cli-coverage.yaml           ──→  docs/quality/testing/CLI-COVERAGE.md
+specs/tests/feature-coverage.yaml       ──→  docs/quality/testing/FEATURES.md
 ```
 
 **Rule**: Never edit generated files directly. Modify the source in `specs/` and regenerate.
@@ -55,8 +59,10 @@ specs/tests/test-catalog.yaml           ──>  docs/quality/testing/CATALOG.md
 make quality-docs
 
 # Or individually
-./scripts/generate-compliance-docs.sh    # Compliance docs
-./scripts/generate-test-catalog-docs.sh  # Test catalog
+./scripts/generate-compliance-docs.sh       # → FIPS.md, RFC.md
+./scripts/generate-test-catalog-docs.sh     # → CATALOG.md
+./scripts/generate-cli-coverage.sh          # → CLI-COVERAGE.md
+./scripts/generate-feature-coverage.sh      # → FEATURES.md
 ```
 
 ## Quality Metrics

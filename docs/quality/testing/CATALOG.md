@@ -11,225 +11,151 @@ generated: true
 
 This catalog documents all test cases following ISO/IEC 29119-3 Test Documentation standard.
 
+## TC-ID Format
+
+```
+TC-<TYPE>-<DOMAIN>-<SEQ>
+
+TYPE:   U (Unit), F (Functional), A (Acceptance), C (Crossval), Z (fuZz)
+DOMAIN: KEY, CA, CERT, CRL, OCSP, TSA, CMS, HSM
+SEQ:    001-999
+```
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Test Suites | 10 |
-| Total Test Cases | 40+ |
+| Test Types | 5 (U, F, A, C, Z) |
+| Domains | 8 |
 | Last Updated | 2026-02-11 |
 
-## Test Suites
+---
 
-| Suite ID | Name | Category | Description |
-|----------|------|----------|-------------|
-| TC-KEY | Key Generation | core-pki | Cryptographic key generation tests |
-| TC-CA | Certificate Authority | core-pki | CA initialization and management |
-| TC-CERT | Certificate Operations | core-pki | Certificate issuance and validation |
-| TC-CRL | CRL Operations | core-pki | Certificate revocation lists |
-| TC-OCSP | OCSP | protocols | Online Certificate Status Protocol |
-| TC-TSA | TSA | protocols | Time-Stamp Authority |
-| TC-CMS | CMS | protocols | Cryptographic Message Syntax |
-| TC-XOSL | OpenSSL Cross-Validation | interop | OpenSSL interoperability |
-| TC-XBC | BouncyCastle Cross-Validation | interop | BouncyCastle interoperability |
-| TC-FUZZ | Fuzzing | security | Parser robustness testing |
+## Unit Tests (TC-U-*)
+
+Unit tests validate individual functions in isolation.
+
+### TC-U-KEY - Key Generation
+
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-U-KEY-001 | ECDSA P-256 key generation | `TestU_Key_Generate_ECDSA_P256` | FIPS 186-5 |
+| TC-U-KEY-002 | ECDSA P-384 key generation | `TestU_Key_Generate_ECDSA_P384` | FIPS 186-5 |
+| TC-U-KEY-003 | ML-DSA-44 key generation | `TestU_Key_Generate_MLDSA44` | FIPS 204 |
+| TC-U-KEY-004 | ML-DSA-65 key generation | `TestU_Key_Generate_MLDSA65` | FIPS 204 |
+| TC-U-KEY-005 | ML-DSA-87 key generation | `TestU_Key_Generate_MLDSA87` | FIPS 204 |
+| TC-U-KEY-006 | SLH-DSA-128f key generation | `TestU_Key_Generate_SLHDSA` | FIPS 205 |
+| TC-U-KEY-007 | ML-KEM-768 key generation | `TestU_Key_Generate_MLKEM768` | FIPS 203 |
 
 ---
 
-## TC-KEY - Key Generation Operations
+## Functional Tests (TC-F-*)
 
-**Objective**: Validate cryptographic key generation for all supported algorithms
+Functional tests validate internal workflows and APIs.
 
-**Category**: `core-pki` | **ISO 25010**: Functional Correctness
+### TC-F-CA - Certificate Authority
 
-### Test Cases
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-F-CA-001 | ECDSA CA initialization | `TestF_CA_Initialize_ECDSA` | RFC 5280 |
+| TC-F-CA-002 | ML-DSA-65 CA initialization | `TestF_CA_Initialize_MLDSA65` | RFC 5280, FIPS 204 |
+| TC-F-CA-003 | Catalyst hybrid CA | `TestF_CA_Initialize_Catalyst` | ITU-T X.509 9.8 |
+| TC-F-CA-004 | Composite hybrid CA | `TestF_CA_Initialize_Composite` | IETF draft-13 |
 
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-KEY-EC-001 | ECDSA P-256 key generation | unit | P1 | FIPS 186-5 |
-| TC-KEY-EC-002 | ECDSA P-384 key generation | unit | P1 | FIPS 186-5 |
-| TC-KEY-ML-001 | ML-DSA-44 key generation | unit | P1 | FIPS 204 |
-| TC-KEY-ML-002 | ML-DSA-65 key generation | unit | P1 | FIPS 204 |
-| TC-KEY-ML-003 | ML-DSA-87 key generation | unit | P1 | FIPS 204 |
-| TC-KEY-SLH-001 | SLH-DSA-128f key generation | unit | P2 | FIPS 205 |
-| TC-KEY-KEM-001 | ML-KEM-768 key generation | unit | P1 | FIPS 203 |
+### TC-F-CERT - Certificate Operations
 
----
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-F-CERT-001 | ECDSA certificate from CSR | `TestF_Cert_Issue_ECDSA` | RFC 5280, RFC 2986 |
+| TC-F-CERT-002 | ML-DSA certificate issuance | `TestF_Cert_Issue_MLDSA` | RFC 5280, FIPS 204 |
+| TC-F-CERT-003 | ML-KEM certificate | `TestF_Cert_Issue_MLKEM` | RFC 9883 |
 
-## TC-CA - Certificate Authority Operations
+### TC-F-CRL - CRL Operations
 
-**Objective**: Validate CA initialization, certificate issuance, and management
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-F-CRL-001 | ECDSA CRL generation | `TestF_CRL_Generate_ECDSA` | RFC 5280 |
+| TC-F-CRL-002 | ML-DSA CRL generation | `TestF_CRL_Generate_MLDSA` | RFC 5280, FIPS 204 |
 
-**Category**: `core-pki` | **ISO 25010**: Functional Correctness
+### TC-F-OCSP - OCSP Operations
 
-### Test Cases
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-F-OCSP-001 | ECDSA OCSP response | `TestF_OCSP_Response_ECDSA` | RFC 6960 |
+| TC-F-OCSP-002 | ML-DSA OCSP response | `TestF_OCSP_Response_MLDSA` | RFC 6960, FIPS 204 |
 
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-CA-EC-001 | ECDSA P-256 CA initialization | functional | P1 | RFC 5280 |
-| TC-CA-ML-001 | ML-DSA-65 CA initialization | functional | P1 | RFC 5280, FIPS 204 |
-| TC-CA-CAT-001 | Catalyst hybrid CA initialization | functional | P1 | ITU-T X.509 9.8 |
-| TC-CA-COMP-001 | Composite hybrid CA initialization | functional | P1 | IETF draft-13 |
+### TC-F-TSA - TSA Operations
 
----
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-F-TSA-001 | ECDSA timestamp | `TestF_TSA_Timestamp_ECDSA` | RFC 3161 |
+| TC-F-TSA-002 | ML-DSA timestamp | `TestF_TSA_Timestamp_MLDSA` | RFC 3161, FIPS 204 |
 
-## TC-CERT - X.509 Certificate Operations
+### TC-F-CMS - CMS Operations
 
-**Objective**: Validate certificate issuance, verification, and lifecycle
-
-**Category**: `core-pki` | **ISO 25010**: Functional Correctness
-
-### Test Cases
-
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-CERT-EC-001 | ECDSA certificate issuance from CSR | functional | P1 | RFC 5280, RFC 2986 |
-| TC-CERT-ML-001 | ML-DSA-65 certificate issuance | functional | P1 | RFC 5280, FIPS 204 |
-| TC-CERT-KEM-001 | ML-KEM certificate with attestation | functional | P1 | RFC 9883 |
-
----
-
-## TC-CRL - CRL Operations
-
-**Objective**: Validate CRL generation, distribution, and verification
-
-**Category**: `core-pki` | **ISO 25010**: Functional Correctness
-
-### Test Cases
-
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-CRL-EC-001 | ECDSA CRL generation | functional | P1 | RFC 5280 |
-| TC-CRL-ML-001 | ML-DSA CRL generation | functional | P1 | RFC 5280, FIPS 204 |
+| ID | Name | Go Test | Requirement |
+|----|------|---------|-------------|
+| TC-F-CMS-001 | ECDSA CMS SignedData | `TestF_CMS_Sign_ECDSA` | RFC 5652 |
+| TC-F-CMS-002 | ML-DSA CMS SignedData | `TestF_CMS_Sign_MLDSA` | RFC 5652, RFC 9882 |
+| TC-F-CMS-003 | ML-KEM CMS EnvelopedData | `TestF_CMS_Encrypt_MLKEM` | RFC 5652, FIPS 203 |
 
 ---
 
-## TC-OCSP - OCSP Operations
+## Acceptance Tests (TC-A-*)
 
-**Objective**: Validate OCSP request/response handling per RFC 6960
+Acceptance tests validate CLI commands end-to-end (black box).
 
-**Category**: `protocols` | **ISO 25010**: Functional Correctness
+**Location**: `test/acceptance/`
 
-### Test Cases
+| ID | Name | Go Test | Command |
+|----|------|---------|---------|
+| TC-A-CA-001 | CA init with profile | `TestA_CA_Init_WithProfile` | `qpki ca init` |
+| TC-A-CA-002 | CA init with HSM | `TestA_CA_Init_WithHSM` | `qpki ca init --hsm` |
+| TC-A-CERT-001 | Certificate from CSR | `TestA_Cert_Issue_FromCSR` | `qpki cert issue` |
+| TC-A-CMS-001 | CMS sign ML-DSA | `TestA_CMS_Sign_MLDSA` | `qpki cms sign` |
 
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-OCSP-EC-001 | ECDSA OCSP response signing | functional | P1 | RFC 6960 |
-| TC-OCSP-ML-001 | ML-DSA OCSP response signing | functional | P1 | RFC 6960, FIPS 204 |
-
----
-
-## TC-TSA - TSA Operations
-
-**Objective**: Validate timestamping per RFC 3161
-
-**Category**: `protocols` | **ISO 25010**: Functional Correctness
-
-### Test Cases
-
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-TSA-EC-001 | ECDSA timestamp signing | functional | P1 | RFC 3161 |
-| TC-TSA-ML-001 | ML-DSA timestamp signing | functional | P1 | RFC 3161, FIPS 204 |
+> **Note**: See [CLI-COVERAGE.md](CLI-COVERAGE.md) for complete CLI test coverage.
 
 ---
 
-## TC-CMS - CMS Operations
+## Cross-Validation Tests (TC-C-*)
 
-**Objective**: Validate CMS SignedData and EnvelopedData per RFC 5652
+Cross-validation tests verify interoperability with external implementations.
 
-**Category**: `protocols` | **ISO 25010**: Functional Correctness
+**Location**: `test/bouncycastle/`, `test/openssl/`
 
-### Test Cases
+### TC-C-OSL - OpenSSL 3.6+
 
-| ID | Name | Type | Priority | Requirement |
-|----|------|------|----------|-------------|
-| TC-CMS-SIGN-EC-001 | ECDSA CMS SignedData | functional | P1 | RFC 5652 |
-| TC-CMS-SIGN-ML-001 | ML-DSA CMS SignedData | functional | P1 | RFC 5652, RFC 9882 |
-| TC-CMS-ENC-KEM-001 | ML-KEM CMS EnvelopedData | functional | P1 | RFC 5652, FIPS 203 |
+| ID | Name | Validator | Artifact |
+|----|------|-----------|----------|
+| TC-C-OSL-001 | Verify ECDSA certificate | OpenSSL | Certificate |
+| TC-C-OSL-002 | Verify ML-DSA certificate | OpenSSL | Certificate |
+| TC-C-OSL-003 | Verify ML-DSA CMS | OpenSSL | CMS SignedData |
+| TC-C-OSL-004 | Decrypt ML-KEM CMS | OpenSSL | CMS EnvelopedData |
 
----
+### TC-C-BC - BouncyCastle 1.83+
 
-## TC-XOSL - OpenSSL Cross-Validation
-
-**Objective**: Verify QPKI artifacts with OpenSSL 3.6+
-
-**Category**: `interop` | **ISO 25010**: Interoperability
-
-**Validator**: OpenSSL 3.6+
-
-### Test Cases
-
-| ID | Name | Type | Priority |
-|----|------|------|----------|
-| TC-XOSL-CERT-EC | OpenSSL verifies ECDSA certificate | integration | P1 |
-| TC-XOSL-CERT-ML | OpenSSL verifies ML-DSA certificate | integration | P1 |
-| TC-XOSL-CMS-ML | OpenSSL verifies ML-DSA CMS signature | integration | P1 |
-| TC-XOSL-CMSENC-KEM | OpenSSL decrypts ML-KEM CMS | integration | P1 |
+| ID | Name | Validator | Artifact |
+|----|------|-----------|----------|
+| TC-C-BC-001 | Verify ECDSA certificate | BouncyCastle | Certificate |
+| TC-C-BC-002 | Verify ML-DSA certificate | BouncyCastle | Certificate |
+| TC-C-BC-003 | Verify Catalyst certificate | BouncyCastle | Certificate |
+| TC-C-BC-004 | Verify Composite certificate | BouncyCastle | Certificate |
 
 ---
 
-## TC-XBC - BouncyCastle Cross-Validation
+## Fuzzing Tests (TC-Z-*)
 
-**Objective**: Verify QPKI artifacts with BouncyCastle 1.83+
+Fuzzing tests ensure parsers handle malformed input without panicking.
 
-**Category**: `interop` | **ISO 25010**: Interoperability
-
-**Validator**: BouncyCastle 1.83+
-
-### Test Cases
-
-| ID | Name | Type | Priority |
-|----|------|------|----------|
-| TC-XBC-CERT-EC | BouncyCastle verifies ECDSA certificate | integration | P1 |
-| TC-XBC-CERT-ML | BouncyCastle verifies ML-DSA certificate | integration | P1 |
-| TC-XBC-CERT-CAT | BouncyCastle verifies Catalyst certificate | integration | P1 |
-| TC-XBC-CERT-COMP | BouncyCastle verifies Composite certificate | integration | P2 |
+| ID | Name | Go Test | File |
+|----|------|---------|------|
+| TC-Z-CMS-001 | CMS parser fuzzing | `FuzzCMSParser` | internal/cms/fuzz_test.go |
+| TC-Z-OCSP-001 | OCSP request fuzzing | `FuzzOCSPRequest` | internal/ocsp/fuzz_test.go |
+| TC-Z-PROFILE-001 | Profile YAML fuzzing | `FuzzProfileParser` | internal/profile/fuzz_test.go |
+| TC-Z-CSR-001 | PQC CSR fuzzing | `FuzzCSRParser` | internal/x509util/fuzz_test.go |
 
 ---
-
-## TC-FUZZ - Fuzzing Tests
-
-**Objective**: Ensure parsers handle malformed input without panicking
-
-**Category**: `security` | **ISO 25010**: Security
-
-### Test Cases
-
-| ID | Name | Type | Priority | File |
-|----|------|------|----------|------|
-| TC-FUZZ-CMS-001 | CMS SignedData parser fuzzing | fuzz | P1 | internal/cms/fuzz_test.go |
-| TC-FUZZ-OCSP-001 | OCSP request parser fuzzing | fuzz | P1 | internal/ocsp/fuzz_test.go |
-| TC-FUZZ-PROFILE-001 | Profile YAML parser fuzzing | fuzz | P1 | internal/profile/fuzz_test.go |
-| TC-FUZZ-CSR-001 | PQC CSR parser fuzzing | fuzz | P1 | internal/x509util/fuzz_test.go |
-
----
-
-## Categories
-
-### core-pki
-
-Core PKI operations: keys, CA, certificates, CRL
-
-**Suites**: TC-KEY, TC-CA, TC-CERT, TC-CRL
-
-### protocols
-
-RFC protocol implementations: OCSP, TSA, CMS
-
-**Suites**: TC-OCSP, TC-TSA, TC-CMS
-
-### interop
-
-Cross-validation with external implementations
-
-**Suites**: TC-XOSL, TC-XBC
-
-### security
-
-Security testing: fuzzing, static analysis
-
-**Suites**: TC-FUZZ
 
 ## Priority Definitions
 
@@ -241,6 +167,8 @@ Security testing: fuzzing, static analysis
 
 ## See Also
 
-- [Test Strategy](STRATEGY.md) - Testing philosophy and approach
-- [specs/tests/test-catalog.yaml](../../../specs/tests/test-catalog.yaml) - Source data
-- [specs/tests/traceability-matrix.yaml](../../../specs/tests/traceability-matrix.yaml) - Requirements traceability
+- [Test Strategy](STRATEGY.md) - Testing philosophy
+- [Test Naming](NAMING.md) - Naming conventions
+- [CLI Coverage](CLI-COVERAGE.md) - CLI command coverage
+- [Feature Coverage](FEATURES.md) - Feature coverage
+- [specs/tests/test-mapping.yaml](../../../specs/tests/test-mapping.yaml) - TC-ID mapping
