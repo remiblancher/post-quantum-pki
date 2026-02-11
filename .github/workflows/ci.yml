@@ -1730,3 +1730,59 @@ jobs:
           path: |
             **/testdata/fuzz/**/
           retention-days: 30
+
+  # ===========================================================================
+  # Quality Report (consolidates all CI results)
+  # ===========================================================================
+  quality-report:
+    name: "[Report] Quality Dashboard"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [test, crosstest-openssl, crosstest-bc]
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: coverage-report
+          path: ./
+        continue-on-error: true
+
+      - name: Download BC test results
+        uses: actions/download-artifact@v7
+        with:
+          name: bc-test-results
+          path: ./bc-results
+        continue-on-error: true
+
+      - name: "[Report] Generate Quality Dashboard"
+        run: |
+          chmod +x scripts/ci/generate-ci-report.sh
+          COVERAGE_FILE=coverage.out \
+          BC_RESULTS_DIR=./bc-results \
+          OUTPUT_FILE=quality-report.md \
+          ./scripts/ci/generate-ci-report.sh
+
+      - name: "[Report] Upload Quality Report"
+        uses: actions/upload-artifact@v6
+        with:
+          name: quality-report
+          path: |
+            quality-report.md
+            quality-report.json
+          retention-days: 90
+
+      - name: "[Report] Add to Job Summary"
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat quality-report.md >> $GITHUB_STEP_SUMMARY
