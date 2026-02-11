@@ -240,6 +240,16 @@ test_suites:
         function: "TestF_CA_CRL_Generate_MLDSA"
         expected_result: "PQC-signed CRL generated"
 
+      - id: TC-F-CRL-003
+        name: "SLH-DSA CRL generation"
+        type: functional
+        priority: P1
+        requirement: "RFC 5280, FIPS 205"
+        preconditions: ["SLH-DSA CA initialized"]
+        file: "internal/ca/crl_multi_test.go"
+        function: "TestF_CA_GenerateCRL_SLHDSA"
+        expected_result: "SLH-DSA signed CRL generated"
+
   # ==========================================================================
   # TC-EXT: X.509 Extensions Tests
   # ==========================================================================
@@ -680,6 +690,15 @@ test_suites:
         file: "internal/ocsp/ocsp_test.go"
         function: "TestF_OCSP_Sign_MLDSA"
         expected_result: "PQC-signed OCSP response"
+
+      - id: TC-F-OCSP-003
+        name: "SLH-DSA OCSP response signing"
+        type: functional
+        priority: P1
+        requirement: "RFC 6960, FIPS 205"
+        file: "internal/ocsp/response_test.go"
+        function: "TestU_ResponseBuilder_SLHDSA"
+        expected_result: "SLH-DSA signed OCSP response"
 
   # ==========================================================================
   # TC-TSA: Timestamping Tests
