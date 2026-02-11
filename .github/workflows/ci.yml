@@ -231,7 +231,7 @@ jobs:
       - name: Run PKI acceptance tests
         run: |
           chmod +x ./qpki
-          QPKI_BINARY=./qpki go test -v -tags=acceptance -run 'TestA_(Key|CA|CSR|Cert|CRL|Credential|Profile|Inspect|E2E|CLI)' ./test/acceptance/...
+          QPKI_BINARY=$(pwd)/qpki go test -v -tags=acceptance -run 'TestA_(Key|CA|CSR|Cert|CRL|Credential|Profile|Inspect|E2E|CLI)' ./test/acceptance/...
 
   acceptance-protocols:
     name: "[Acceptance] OCSP/TSA/CMS"
@@ -255,7 +255,7 @@ jobs:
       - name: Run protocol acceptance tests
         run: |
           chmod +x ./qpki
-          QPKI_BINARY=./qpki go test -v -tags=acceptance -run 'TestA_(OCSP|TSA|CMS)' ./test/acceptance/...
+          QPKI_BINARY=$(pwd)/qpki go test -v -tags=acceptance -run 'TestA_(OCSP|TSA|CMS)' ./test/acceptance/...
 
   acceptance-agility:
     name: "[Acceptance] Crypto-Agility"
@@ -279,7 +279,7 @@ jobs:
       - name: Run crypto-agility tests
         run: |
           chmod +x ./qpki
-          QPKI_BINARY=./qpki go test -v -tags=acceptance -run 'TestA_Agility' ./test/acceptance/...
+          QPKI_BINARY=$(pwd)/qpki go test -v -tags=acceptance -run 'TestA_Agility' ./test/acceptance/...
 
   crosstest-openssl:
     name: "[Interop] OpenSSL 3.6"
@@ -447,7 +447,7 @@ jobs:
           HSM_PIN: "1234"
           HSM_CONFIG: /tmp/hsm-test.yaml
           SOFTHSM2_LIB: /usr/lib/softhsm/libsofthsm2.so
-          QPKI_BINARY: ./qpki
+          QPKI_BINARY: ${{ github.workspace }}/qpki
         run: |
           export SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
           go test -v -tags=acceptance -run 'TestA_HSM' ./test/acceptance/...
