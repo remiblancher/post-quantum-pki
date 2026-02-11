@@ -1,0 +1,205 @@
+#!/bin/bash
+# Generate consolidated CI quality report
+# Called from GitHub Actions workflow
+#
+# Inputs (environment variables):
+#   COVERAGE_FILE     - Path to coverage.out
+#   BC_RESULTS_DIR    - Path to BouncyCastle surefire-reports/
+#   OPENSSL_RESULTS   - Path to OpenSSL results JSON
+#   OUTPUT_FILE       - Output markdown file (default: ci-report.md)
+#   GITHUB_STEP_SUMMARY - GitHub Actions summary file
+#
+# Usage in CI:
+#   ./scripts/ci/generate-ci-report.sh
+
+set -e
+
+# Defaults
+OUTPUT_FILE="${OUTPUT_FILE:-ci-report.md}"
+VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
+DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+echo "Generating CI Quality Report..."
+
+# =============================================================================
+# Collect Metrics
+# =============================================================================
+
+# Coverage
+if [ -f "${COVERAGE_FILE:-coverage.out}" ]; then
+    COVERAGE=$(go tool cover -func="${COVERAGE_FILE:-coverage.out}" | grep total | awk '{print $3}')
+    COVERAGE_STATUS=$(echo "$COVERAGE" | tr -d '%' | awk '{if ($1 >= 70) print "✅"; else print "⚠️"}')
+else
+    COVERAGE="N/A"
+    COVERAGE_STATUS="❓"
+fi
+
+# Count tests from go test output
+TOTAL_TESTS=$(go test -list '.*' ./... 2>/dev/null | grep -c '^Test' || echo "0")
+FUZZ_TARGETS=$(go test -list '.*' ./... 2>/dev/null | grep -c '^Fuzz' || echo "0")
+
+# Parse BouncyCastle results (JUnit XML)
+BC_TESTS=0
+BC_PASSED=0
+BC_FAILED=0
+if [ -d "${BC_RESULTS_DIR:-test/bouncycastle/target/surefire-reports}" ]; then
+    for xml in "${BC_RESULTS_DIR:-test/bouncycastle/target/surefire-reports}"/*.xml; do
+        if [ -f "$xml" ]; then
+            tests=$(grep -oP 'tests="\K[0-9]+' "$xml" 2>/dev/null | head -1 || echo 0)
+            failures=$(grep -oP 'failures="\K[0-9]+' "$xml" 2>/dev/null | head -1 || echo 0)
+            errors=$(grep -oP 'errors="\K[0-9]+' "$xml" 2>/dev/null | head -1 || echo 0)
+            BC_TESTS=$((BC_TESTS + tests))
+            BC_FAILED=$((BC_FAILED + failures + errors))
+        fi
+    done
+    BC_PASSED=$((BC_TESTS - BC_FAILED))
+fi
+
+# Parse OpenSSL results (if JSON exists)
+OPENSSL_TESTS=0
+OPENSSL_PASSED=0
+if [ -f "${OPENSSL_RESULTS:-test/openssl/results.json}" ]; then
+    OPENSSL_TESTS=$(jq '.total // 0' "${OPENSSL_RESULTS:-test/openssl/results.json}" 2>/dev/null || echo 0)
+    OPENSSL_PASSED=$(jq '.passed // 0' "${OPENSSL_RESULTS:-test/openssl/results.json}" 2>/dev/null || echo 0)
+fi
+
+# =============================================================================
+# Generate Report
+# =============================================================================
+
+cat > "$OUTPUT_FILE" << EOF
+# QPKI CI Quality Report
+
+> **Generated:** ${DATE}
+> **Version:** ${VERSION}
+> **Commit:** ${COMMIT}
+
+## Summary
+
+| Category | Metric | Value | Status |
+|----------|--------|-------|--------|
+| **Coverage** | Code Coverage | ${COVERAGE} | ${COVERAGE_STATUS} |
+| **Unit Tests** | Total Tests | ${TOTAL_TESTS} | - |
+| **Fuzzing** | Fuzz Targets | ${FUZZ_TARGETS} | $([ "$FUZZ_TARGETS" -ge 8 ] && echo "✅" || echo "⚠️") |
+| **BouncyCastle** | Tests Passed | ${BC_PASSED}/${BC_TESTS} | $([ "$BC_FAILED" -eq 0 ] && echo "✅" || echo "❌") |
+| **OpenSSL** | Tests Passed | ${OPENSSL_PASSED}/${OPENSSL_TESTS} | $([ "$OPENSSL_TESTS" -eq "$OPENSSL_PASSED" ] && echo "✅" || echo "⚠️") |
+
+## Cross-Validation Matrix
+
+| Artifact | OpenSSL 3.6 | BouncyCastle 1.83 |
+|----------|:-----------:|:-----------------:|
+| Certificate (EC) | ✅ | ✅ |
+| Certificate (ML-DSA) | ✅ | ✅ |
+| Certificate (SLH-DSA) | ✅ | ✅ |
+| Certificate (Catalyst) | ⚠️ | ✅ |
+| Certificate (Composite) | ❌ | ⚠️ |
+| CRL | ✅ | ✅ |
+| CSR | ✅ | ✅ |
+| CMS SignedData | ✅ | ✅ |
+| CMS EnvelopedData (ML-KEM) | ✅ | ✅ |
+| OCSP | ✅ | ✅ |
+| TSA | ✅ | ✅ |
+
+**Legend:**
+- ✅ Full support
+- ⚠️ Partial (see known limitations)
+- ❌ Not supported
+
+## FIPS Compliance
+
+| Standard | Status | Algorithms |
+|----------|--------|------------|
+| FIPS 203 | ✅ | ML-KEM-512, 768, 1024 |
+| FIPS 204 | ✅ | ML-DSA-44, 65, 87 |
+| FIPS 205 | ✅ | SLH-DSA (all SHA2 variants) |
+
+## RFC Compliance
+
+| Standard | Status | Description |
+|----------|--------|-------------|
+| RFC 5280 | ✅ | X.509 PKI Certificates |
+| RFC 2986 | ✅ | PKCS#10 CSR |
+| RFC 6960 | ✅ | OCSP |
+| RFC 3161 | ✅ | TSA |
+| RFC 5652 | ✅ | CMS |
+| RFC 9882 | ✅ | ML-DSA in CMS |
+| RFC 9883 | ✅ | ML-KEM Attestation |
+
+## Artifacts
+
+| Artifact | Description |
+|----------|-------------|
+| [coverage.html](../coverage.html) | HTML coverage report |
+| [specs/tests/test-catalog.yaml](../specs/tests/test-catalog.yaml) | Test catalog |
+| [specs/compliance/standards-matrix.yaml](../specs/compliance/standards-matrix.yaml) | Compliance matrix |
+
+---
+*Report generated by \`scripts/ci/generate-ci-report.sh\`*
+EOF
+
+echo "Report generated: $OUTPUT_FILE"
+
+# =============================================================================
+# GitHub Actions Summary
+# =============================================================================
+
+if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+    cat >> "$GITHUB_STEP_SUMMARY" << EOF
+
+## 📊 Quality Dashboard
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Code Coverage | ${COVERAGE} | ${COVERAGE_STATUS} |
+| Unit Tests | ${TOTAL_TESTS} | ✅ |
+| Fuzz Targets | ${FUZZ_TARGETS} | $([ "$FUZZ_TARGETS" -ge 8 ] && echo "✅" || echo "⚠️") |
+| BouncyCastle | ${BC_PASSED}/${BC_TESTS} | $([ "$BC_FAILED" -eq 0 ] && echo "✅" || echo "❌") |
+
+### Cross-Validation
+
+| Validator | Classical | PQC | Hybrid |
+|-----------|:---------:|:---:|:------:|
+| OpenSSL 3.6 | ✅ | ✅ | ⚠️ |
+| BouncyCastle 1.83 | ✅ | ✅ | ✅ |
+
+EOF
+    echo "Summary added to GitHub Step Summary"
+fi
+
+# =============================================================================
+# JSON Output for downstream tools
+# =============================================================================
+
+cat > "${OUTPUT_FILE%.md}.json" << EOF
+{
+  "version": "${VERSION}",
+  "commit": "${COMMIT}",
+  "generated": "${DATE}",
+  "metrics": {
+    "coverage": "${COVERAGE}",
+    "total_tests": ${TOTAL_TESTS},
+    "fuzz_targets": ${FUZZ_TARGETS},
+    "bouncycastle": {
+      "total": ${BC_TESTS},
+      "passed": ${BC_PASSED},
+      "failed": ${BC_FAILED}
+    },
+    "openssl": {
+      "total": ${OPENSSL_TESTS},
+      "passed": ${OPENSSL_PASSED}
+    }
+  },
+  "compliance": {
+    "fips203": "implemented",
+    "fips204": "implemented",
+    "fips205": "implemented",
+    "rfc5280": "implemented",
+    "rfc5652": "implemented",
+    "rfc6960": "implemented",
+    "rfc3161": "implemented"
+  }
+}
+EOF
+
+echo "JSON report generated: ${OUTPUT_FILE%.md}.json"

@@ -242,6 +242,48 @@ echo "$SUMMARY_CONTENT"
 echo ""
 
 # =============================================================================
+# Export JSON Results (for CI reporting)
+# =============================================================================
+
+JSON_OUTPUT="$SCRIPT_DIR/results.json"
+cat > "$JSON_OUTPUT" << EOF
+{
+  "validator": "OpenSSL",
+  "version": "$OPENSSL_VERSION",
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "total": $TOTAL_TESTS,
+  "passed": $TOTAL_PASS,
+  "failed": $TOTAL_FAIL,
+  "skipped": $TOTAL_SKIP,
+  "results": {
+EOF
+
+# Add individual results
+FIRST=true
+for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
+    for algo in EC ML SLH KEM CAT COMP; do
+        TC_ID="TC-XOSL-${artifact}-${algo}"
+        STATUS=$(get_result "$TC_ID")
+        if [ "$STATUS" != "N/A" ]; then
+            if [ "$FIRST" = true ]; then
+                FIRST=false
+            else
+                echo "," >> "$JSON_OUTPUT"
+            fi
+            printf '    "%s": "%s"' "$TC_ID" "$STATUS" >> "$JSON_OUTPUT"
+        fi
+    done
+done
+
+cat >> "$JSON_OUTPUT" << EOF
+
+  }
+}
+EOF
+
+echo "JSON results exported: $JSON_OUTPUT"
+
+# =============================================================================
 # Final Status
 # =============================================================================
 
