@@ -82,12 +82,11 @@ build-all: ## Build for all platforms
 
 smoke-test: build ## Run smoke test
 	@mkdir -p /tmp/pki-test
-	./$(BUILD_DIR)/$(BINARY_NAME) init-ca --name "Test CA" --dir /tmp/pki-test/ca
-	./$(BUILD_DIR)/$(BINARY_NAME) issue --ca-dir /tmp/pki-test/ca --profile ec/tls-server \
-		--cn test.local --dns test.local \
-		--out /tmp/pki-test/server.crt --key-out /tmp/pki-test/server.key
-	./$(BUILD_DIR)/$(BINARY_NAME) list --ca-dir /tmp/pki-test/ca
-	openssl verify -CAfile /tmp/pki-test/ca/ca.crt /tmp/pki-test/server.crt
+	./$(BUILD_DIR)/$(BINARY_NAME) ca init --profile ec/root-ca --var cn="Test CA" --ca-dir /tmp/pki-test/ca
+	./$(BUILD_DIR)/$(BINARY_NAME) credential enroll --ca-dir /tmp/pki-test/ca --cred-dir /tmp/pki-test/creds \
+		--profile ec/tls-server --var cn=test.local --var dns_names=test.local
+	./$(BUILD_DIR)/$(BINARY_NAME) cert list --ca-dir /tmp/pki-test/ca
+	openssl verify -CAfile /tmp/pki-test/ca/ca.crt /tmp/pki-test/creds/*/certificates.pem
 	@rm -rf /tmp/pki-test
 	@echo "Smoke test passed!"
 
