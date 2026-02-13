@@ -198,11 +198,12 @@ func NewPKCS11HybridSigner(cfg PKCS11Config) (*PKCS11HybridSigner, error) {
 		return nil, fmt.Errorf("failed to get session pool: %w", err)
 	}
 
-	session, err := pool.GetSession()
+	// Acquire a session temporarily to find the keys and extract public keys
+	session, release, err := pool.Acquire()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
+		return nil, fmt.Errorf("failed to acquire session: %w", err)
 	}
-	defer pool.ReturnSession(session)
+	defer release() // Release session back to pool after init
 
 	// Find classical EC key
 	classicalHandle, err := findPrivateKeyByType(pool.Context(), session, cfg, pkcs11.CKK_EC)
