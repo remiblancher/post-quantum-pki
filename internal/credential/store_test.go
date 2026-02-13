@@ -673,8 +673,9 @@ func TestU_FileStore_UpdateStatus_Expired(t *testing.T) {
 
 	loaded, _ := store.Load(context.Background(), cred.ID)
 	if ver, ok := loaded.Versions[loaded.Active]; ok {
-		if ver.Status != string(StatusExpired) {
-			t.Errorf("expected status 'expired', got '%s'", ver.Status)
+		// Status is computed from ArchivedAt - verify it's archived
+		if ver.ArchivedAt == nil {
+			t.Error("expected ArchivedAt to be set for expired status")
 		}
 	} else {
 		t.Error("active version not found")
@@ -696,8 +697,9 @@ func TestU_FileStore_UpdateStatus_Archived(t *testing.T) {
 
 	loaded, _ := store.Load(context.Background(), cred.ID)
 	if ver, ok := loaded.Versions[loaded.Active]; ok {
-		if ver.Status != string(StatusArchived) {
-			t.Errorf("expected status 'archived', got '%s'", ver.Status)
+		// Status is computed from ArchivedAt - verify it's archived
+		if ver.ArchivedAt == nil {
+			t.Error("expected ArchivedAt to be set for archived status")
 		}
 	} else {
 		t.Error("active version not found")

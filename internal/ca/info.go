@@ -62,9 +62,6 @@ type CAVersion struct {
 	// Algos lists the algorithm families present (e.g., "ec", "ml-dsa").
 	Algos []string `json:"algos"`
 
-	// Status is the current status of this version.
-	Status VersionStatus `json:"status"`
-
 	// Created is when this version was created.
 	Created time.Time `json:"created"`
 
@@ -122,6 +119,22 @@ func (c *CAInfo) ActiveVersion() *CAVersion {
 	return &ver
 }
 
+// GetVersionStatus returns the computed status of a version.
+// Status is derived from: active field and ArchivedAt timestamp.
+func (c *CAInfo) GetVersionStatus(versionID string) VersionStatus {
+	if versionID == c.Active {
+		return VersionStatusActive
+	}
+	ver, ok := c.Versions[versionID]
+	if !ok {
+		return VersionStatusPending
+	}
+	if ver.ArchivedAt != nil {
+		return VersionStatusArchived
+	}
+	return VersionStatusPending
+}
+
 // NextVersionID returns the next version ID.
 func (c *CAInfo) NextVersionID() string {
 	return fmt.Sprintf("v%d", len(c.Versions)+1)
@@ -133,7 +146,6 @@ func (c *CAInfo) CreateInitialVersion(profiles, algos []string) string {
 	c.Versions["v1"] = CAVersion{
 		Profiles:    profiles,
 		Algos:       algos,
-		Status:      VersionStatusActive,
 		Created:     now,
 		ActivatedAt: &now,
 	}
@@ -147,7 +159,6 @@ func (c *CAInfo) CreatePendingVersion(profiles, algos []string) string {
 	c.Versions[id] = CAVersion{
 		Profiles: profiles,
 		Algos:    algos,
-		Status:   VersionStatusPending,
 		Created:  time.Now(),
 	}
 	return id
@@ -159,9 +170,9 @@ func (c *CAInfo) Activate(versionID string) error {
 	if !ok {
 		return fmt.Errorf("version not found: %s", versionID)
 	}
-	// Allow activating both pending versions (after rotation) and archived versions (rollback)
-	if ver.Status != VersionStatusPending && ver.Status != VersionStatusArchived {
-		return fmt.Errorf("can only activate pending or archived versions, current status: %s", ver.Status)
+	// Cannot activate the already active version
+	if versionID == c.Active {
+		return fmt.Errorf("version %s is already active", versionID)
 	}
 
 	now := time.Now()
@@ -169,19 +180,15 @@ func (c *CAInfo) Activate(versionID string) error {
 	// Archive current active
 	if c.Active != "" {
 		if active, ok := c.Versions[c.Active]; ok {
-			active.Status = VersionStatusArchived
 			active.ArchivedAt = &now
 			c.Versions[c.Active] = active
 		}
 	}
 
 	// Activate new version
-	ver.Status = VersionStatusActive
 	ver.ActivatedAt = &now
 	c.Versions[versionID] = ver
 	c.Active = versionID
-
-	// Keys are now stored directly in the version, no need to copy from version meta files
 
 	return nil
 }
@@ -533,7 +540,7 @@ func (vs *VersionStore) GetVersion(id string) (*Version, error) {
 
 	return &Version{
 		ID:            id,
-		Status:        ver.Status,
+		Status:        vs.info.GetVersionStatus(id),
 		Profiles:      ver.Profiles,
 		Certificates:  certs,
 		Created:       ver.Created,
@@ -564,7 +571,6 @@ func (vs *VersionStore) CreateVersionWithID(id string, profiles []string) (*Vers
 	// Add version to CAInfo
 	vs.info.Versions[id] = CAVersion{
 		Profiles: profiles,
-		Status:   VersionStatusPending,
 		Created:  time.Now(),
 	}
 
@@ -711,7 +717,7 @@ func (vs *VersionStore) ListVersions() ([]*Version, error) {
 
 		versions = append(versions, &Version{
 			ID:            id,
-			Status:        ver.Status,
+			Status:        vs.info.GetVersionStatus(id),
 			Profiles:      ver.Profiles,
 			Certificates:  certs,
 			Created:       ver.Created,

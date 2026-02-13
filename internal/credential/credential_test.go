@@ -55,8 +55,8 @@ func TestU_Credential_CreateInitialVersion(t *testing.T) {
 	if len(ver.Profiles) != 1 || ver.Profiles[0] != "classic" {
 		t.Errorf("expected Profiles ['classic'], got '%v'", ver.Profiles)
 	}
-	if ver.Status != "active" {
-		t.Errorf("expected Status 'active', got '%s'", ver.Status)
+	if cred.GetVersionStatus(cred.Active) != "active" {
+		t.Errorf("expected Status 'active', got '%s'", cred.GetVersionStatus(cred.Active))
 	}
 }
 
@@ -87,11 +87,10 @@ func TestU_Credential_ActivateVersion(t *testing.T) {
 	// Create initial version (active)
 	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
 
-	// Create pending version
+	// Create pending version (no Status field - it's computed)
 	cred.Versions["v2"] = CredVersion{
 		Profiles: []string{"pqc"},
 		Algos:    []string{"ml-dsa"},
-		Status:   "pending",
 		Created:  testNow(),
 	}
 
@@ -104,14 +103,13 @@ func TestU_Credential_ActivateVersion(t *testing.T) {
 		t.Errorf("expected Active 'v2', got '%s'", cred.Active)
 	}
 
-	v1 := cred.Versions["v1"]
-	if v1.Status != "archived" {
-		t.Errorf("expected v1 Status 'archived', got '%s'", v1.Status)
+	// Check status via GetVersionStatus (status is computed, not stored)
+	if cred.GetVersionStatus("v1") != "archived" {
+		t.Errorf("expected v1 Status 'archived', got '%s'", cred.GetVersionStatus("v1"))
 	}
 
-	v2 := cred.Versions["v2"]
-	if v2.Status != "active" {
-		t.Errorf("expected v2 Status 'active', got '%s'", v2.Status)
+	if cred.GetVersionStatus("v2") != "active" {
+		t.Errorf("expected v2 Status 'active', got '%s'", cred.GetVersionStatus("v2"))
 	}
 }
 
@@ -721,8 +719,9 @@ func TestU_CredentialExists_Found(t *testing.T) {
 func TestU_Credential_ActiveVersion_NotFound(t *testing.T) {
 	cred := NewCredential("test", Subject{CommonName: "Test"})
 	cred.Active = "nonexistent"
+	now := time.Now()
 	cred.Versions = map[string]CredVersion{
-		"v1": {Status: "active"},
+		"v1": {Created: now, ActivatedAt: &now},
 	}
 
 	ver := cred.ActiveVersion()
@@ -754,18 +753,40 @@ func TestU_Credential_ActivateVersion_NotFound(t *testing.T) {
 	}
 }
 
-func TestU_Credential_ActivateVersion_NotPending(t *testing.T) {
+func TestU_Credential_ActivateVersion_AlreadyActive(t *testing.T) {
 	cred := NewCredential("test", Subject{CommonName: "Test"})
-	cred.Versions = map[string]CredVersion{
-		"v1": {Status: "active"},
-	}
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
 
+	// Try to activate already active version
 	err := cred.ActivateVersion("v1")
 	if err == nil {
-		t.Error("ActivateVersion() should fail for non-pending version")
+		t.Error("ActivateVersion() should fail for already active version")
 	}
-	if !strings.Contains(err.Error(), "can only activate pending versions") {
-		t.Errorf("expected 'can only activate pending versions' error, got: %v", err)
+	if !strings.Contains(err.Error(), "already active") {
+		t.Errorf("expected 'already active' error, got: %v", err)
+	}
+}
+
+func TestU_Credential_ActivateVersion_Archived(t *testing.T) {
+	cred := NewCredential("test", Subject{CommonName: "Test"})
+	cred.CreateInitialVersion([]string{"classic"}, []string{"ec"})
+
+	// Create and archive v1 by activating v2
+	now := time.Now()
+	cred.Versions["v2"] = CredVersion{
+		Profiles: []string{"pqc"},
+		Algos:    []string{"ml-dsa"},
+		Created:  now,
+	}
+	_ = cred.ActivateVersion("v2")
+
+	// Try to activate archived version v1
+	err := cred.ActivateVersion("v1")
+	if err == nil {
+		t.Error("ActivateVersion() should fail for archived version")
+	}
+	if !strings.Contains(err.Error(), "archived") {
+		t.Errorf("expected 'archived' error, got: %v", err)
 	}
 }
 

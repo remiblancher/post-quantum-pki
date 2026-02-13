@@ -52,12 +52,10 @@ type VersionCertRef struct {
 
 // Version represents a credential version with multiple certificates.
 // Each version contains one or more certificates (one per profile/algorithm).
+// Note: Status is computed, not stored. Use VersionStore methods to get status.
 type Version struct {
 	// ID is the unique version identifier (e.g., v20251228_abc123).
 	ID string `json:"id"`
-
-	// Status is the current status of this version.
-	Status VersionStatus `json:"status"`
 
 	// Profiles lists all profile names in this version.
 	Profiles []string `json:"profiles"`
@@ -85,6 +83,23 @@ type VersionIndex struct {
 
 	// NextVersion is the next version number to use (v1, v2, v3...).
 	NextVersion int `json:"next_version"`
+}
+
+// GetVersionStatus returns the computed status of a version.
+// Status is derived from: ActiveVersion field and ArchivedAt timestamp.
+func (idx *VersionIndex) GetVersionStatus(versionID string) VersionStatus {
+	if versionID == idx.ActiveVersion {
+		return VersionStatusActive
+	}
+	for _, ver := range idx.Versions {
+		if ver.ID == versionID {
+			if ver.ArchivedAt != nil {
+				return VersionStatusArchived
+			}
+			return VersionStatusPending
+		}
+	}
+	return VersionStatusPending
 }
 
 // VersionStore manages credential version storage.
@@ -243,7 +258,6 @@ func (vs *VersionStore) MigrateIfNeeded() error {
 		NextVersion:   2,
 		Versions: []Version{{
 			ID:          "v1",
-			Status:      VersionStatusActive,
 			Profiles:    []string{}, // Will be populated from credential.json if available
 			Created:     now,
 			ActivatedAt: &now,
@@ -330,7 +344,6 @@ func (vs *VersionStore) CreateInitialVersion(profiles []string) (*Version, error
 	now := time.Now()
 	version := &Version{
 		ID:           "v1",
-		Status:       VersionStatusActive, // v1 is immediately active
 		Profiles:     profiles,
 		Certificates: []VersionCertRef{},
 		Created:      now,
@@ -384,7 +397,6 @@ func (vs *VersionStore) CreateVersion(profiles []string) (*Version, error) {
 
 	version := &Version{
 		ID:           id,
-		Status:       VersionStatusPending,
 		Profiles:     profiles,
 		Certificates: []VersionCertRef{},
 		Created:      time.Now(),
@@ -510,6 +522,7 @@ func (vs *VersionStore) ListAlgorithmFamilies() ([]string, error) {
 
 // Activate activates a version and archives the previously active one.
 // Uses atomic directory rename for crash-safe activation.
+// Note: Status is computed from ActiveVersion and ArchivedAt, not stored.
 func (vs *VersionStore) Activate(versionID string) error {
 	// Recover from any previous crash
 	if err := vs.RecoverIfNeeded(); err != nil {
@@ -523,20 +536,20 @@ func (vs *VersionStore) Activate(versionID string) error {
 
 	now := time.Now()
 	var found bool
+	var versionIdx int
 
 	for i := range index.Versions {
-		switch index.Versions[i].ID {
-		case versionID:
-			if index.Versions[i].Status != VersionStatusPending {
-				return fmt.Errorf("can only activate pending versions, current status: %s", index.Versions[i].Status)
+		if index.Versions[i].ID == versionID {
+			// Check if already active
+			if versionID == index.ActiveVersion {
+				return fmt.Errorf("version %s is already active", versionID)
 			}
-			index.Versions[i].Status = VersionStatusActive
-			index.Versions[i].ActivatedAt = &now
+			// Check if archived (cannot activate archived versions)
+			if index.Versions[i].ArchivedAt != nil {
+				return fmt.Errorf("cannot activate archived version: %s", versionID)
+			}
+			versionIdx = i
 			found = true
-		case index.ActiveVersion:
-			// Archive previously active version
-			index.Versions[i].Status = VersionStatusArchived
-			index.Versions[i].ArchivedAt = &now
 		}
 	}
 
@@ -544,6 +557,16 @@ func (vs *VersionStore) Activate(versionID string) error {
 		return fmt.Errorf("version not found: %s", versionID)
 	}
 
+	// Archive previously active version
+	for i := range index.Versions {
+		if index.Versions[i].ID == index.ActiveVersion {
+			index.Versions[i].ArchivedAt = &now
+			break
+		}
+	}
+
+	// Activate new version
+	index.Versions[versionIdx].ActivatedAt = &now
 	index.ActiveVersion = versionID
 
 	// Atomic activation: copy version to active.new, then atomic rename

@@ -157,14 +157,15 @@ func TestU_VersionStore_LoadIndex_Existing(t *testing.T) {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
+	now := time.Now()
 	index := &VersionIndex{
 		ActiveVersion: "v20250101_abc123",
 		Versions: []Version{
 			{
-				ID:       "v20250101_abc123",
-				Status:   VersionStatusActive,
-				Profiles: []string{"ec/tls-server"},
-				Created:  time.Now(),
+				ID:          "v20250101_abc123",
+				Profiles:    []string{"ec/tls-server"},
+				Created:     now,
+				ActivatedAt: &now,
 			},
 		},
 	}
@@ -224,8 +225,8 @@ func TestU_VersionStore_SaveIndex(t *testing.T) {
 	index := &VersionIndex{
 		ActiveVersion: "v1",
 		Versions: []Version{
-			{ID: "v2", Status: VersionStatusPending, Created: now.Add(time.Hour)},
-			{ID: "v1", Status: VersionStatusActive, Created: now},
+			{ID: "v2", Created: now.Add(time.Hour)},                    // pending (not active, not archived)
+			{ID: "v1", Created: now, ActivatedAt: func() *time.Time { t := now; return &t }()}, // active
 		},
 	}
 
@@ -265,8 +266,10 @@ func TestU_VersionStore_CreateVersion(t *testing.T) {
 	if version.ID == "" {
 		t.Error("version ID should not be empty")
 	}
-	if version.Status != VersionStatusPending {
-		t.Errorf("expected status pending, got '%s'", version.Status)
+	// Status is computed from index, check via LoadIndex
+	index, _ := vs.LoadIndex()
+	if index.GetVersionStatus(version.ID) != VersionStatusPending {
+		t.Errorf("expected status pending, got '%s'", index.GetVersionStatus(version.ID))
 	}
 	if len(version.Profiles) != 2 {
 		t.Errorf("expected 2 profiles, got %d", len(version.Profiles))
@@ -277,8 +280,7 @@ func TestU_VersionStore_CreateVersion(t *testing.T) {
 		t.Error("version directory should exist")
 	}
 
-	// Verify index was updated
-	index, _ := vs.LoadIndex()
+	// Verify index was updated (index already loaded above)
 	if len(index.Versions) != 1 {
 		t.Errorf("expected 1 version in index, got %d", len(index.Versions))
 	}
@@ -558,10 +560,10 @@ func TestU_VersionStore_Activate(t *testing.T) {
 		AlgorithmFamily: "ec",
 	})
 
-	// Verify initial status
-	loadedBefore, _ := vs.GetVersion(version.ID)
-	if loadedBefore.Status != VersionStatusPending {
-		t.Errorf("expected pending status before activation, got '%s'", loadedBefore.Status)
+	// Verify initial status (computed from index)
+	indexBefore, _ := vs.LoadIndex()
+	if indexBefore.GetVersionStatus(version.ID) != VersionStatusPending {
+		t.Errorf("expected pending status before activation, got '%s'", indexBefore.GetVersionStatus(version.ID))
 	}
 
 	// Activate
@@ -569,11 +571,12 @@ func TestU_VersionStore_Activate(t *testing.T) {
 		t.Fatalf("Activate failed: %v", err)
 	}
 
-	// Verify status changed
-	loadedAfter, _ := vs.GetVersion(version.ID)
-	if loadedAfter.Status != VersionStatusActive {
-		t.Errorf("expected active status after activation, got '%s'", loadedAfter.Status)
+	// Verify status changed (computed from index)
+	indexAfter, _ := vs.LoadIndex()
+	if indexAfter.GetVersionStatus(version.ID) != VersionStatusActive {
+		t.Errorf("expected active status after activation, got '%s'", indexAfter.GetVersionStatus(version.ID))
 	}
+	loadedAfter, _ := vs.GetVersion(version.ID)
 	if loadedAfter.ActivatedAt == nil {
 		t.Error("ActivatedAt should not be nil after activation")
 	}
@@ -600,23 +603,23 @@ func TestU_VersionStore_Activate_Archives_Previous(t *testing.T) {
 	_ = vs.AddCertificate(v2.ID, VersionCertRef{AlgorithmFamily: "ec"})
 	_ = vs.Activate(v2.ID)
 
-	// Verify first version is now archived
-	loadedV1, _ := vs.GetVersion(v1.ID)
-	if loadedV1.Status != VersionStatusArchived {
-		t.Errorf("expected first version to be archived, got '%s'", loadedV1.Status)
+	// Verify first version is now archived (status computed from index)
+	index, _ := vs.LoadIndex()
+	if index.GetVersionStatus(v1.ID) != VersionStatusArchived {
+		t.Errorf("expected first version to be archived, got '%s'", index.GetVersionStatus(v1.ID))
 	}
+	loadedV1, _ := vs.GetVersion(v1.ID)
 	if loadedV1.ArchivedAt == nil {
 		t.Error("ArchivedAt should not be nil for archived version")
 	}
 
 	// Verify second version is active
-	loadedV2, _ := vs.GetVersion(v2.ID)
-	if loadedV2.Status != VersionStatusActive {
-		t.Errorf("expected second version to be active, got '%s'", loadedV2.Status)
+	if index.GetVersionStatus(v2.ID) != VersionStatusActive {
+		t.Errorf("expected second version to be active, got '%s'", index.GetVersionStatus(v2.ID))
 	}
 }
 
-func TestU_VersionStore_Activate_NotPending(t *testing.T) {
+func TestU_VersionStore_Activate_AlreadyActive(t *testing.T) {
 	tmpDir := t.TempDir()
 	credPath := filepath.Join(tmpDir, "test-cred")
 	vs := NewVersionStore(credPath)
@@ -626,13 +629,13 @@ func TestU_VersionStore_Activate_NotPending(t *testing.T) {
 	_ = vs.AddCertificate(version.ID, VersionCertRef{AlgorithmFamily: "ec"})
 	_ = vs.Activate(version.ID)
 
-	// Try to activate again
+	// Try to activate again - should fail because already active
 	err := vs.Activate(version.ID)
 	if err == nil {
-		t.Error("expected error when activating non-pending version")
+		t.Error("expected error when activating already active version")
 	}
-	if !strings.Contains(err.Error(), "can only activate pending versions") {
-		t.Errorf("expected 'can only activate pending versions' error, got: %v", err)
+	if !strings.Contains(err.Error(), "already active") {
+		t.Errorf("expected 'already active' error, got: %v", err)
 	}
 }
 
@@ -990,10 +993,10 @@ func TestU_Credential_VersionStore_FullWorkflow(t *testing.T) {
 		t.Errorf("expected active version '%s', got '%s'", v2.ID, active.ID)
 	}
 
-	// Verify v1 is archived
-	v1Loaded, _ := vs.GetVersion(v1.ID)
-	if v1Loaded.Status != VersionStatusArchived {
-		t.Errorf("expected v1 to be archived, got '%s'", v1Loaded.Status)
+	// Verify v1 is archived (status computed from index)
+	index, _ := vs.LoadIndex()
+	if index.GetVersionStatus(v1.ID) != VersionStatusArchived {
+		t.Errorf("expected v1 to be archived, got '%s'", index.GetVersionStatus(v1.ID))
 	}
 
 	// Verify all versions are listed
@@ -1228,10 +1231,10 @@ func TestU_FileStore_ActivateVersion(t *testing.T) {
 		t.Fatalf("ActivateVersion failed: %v", err)
 	}
 
-	// Verify activation
-	loadedVersion, _ := vs.GetVersion(version.ID)
-	if loadedVersion.Status != VersionStatusActive {
-		t.Errorf("expected active status, got '%s'", loadedVersion.Status)
+	// Verify activation (status computed from index)
+	index, _ := vs.LoadIndex()
+	if index.GetVersionStatus(version.ID) != VersionStatusActive {
+		t.Errorf("expected active status, got '%s'", index.GetVersionStatus(version.ID))
 	}
 }
 
@@ -1307,9 +1310,10 @@ func TestU_VersionStore_CreateInitialVersion(t *testing.T) {
 		t.Errorf("expected version ID 'v1', got '%s'", version.ID)
 	}
 
-	// Verify status is active (not pending)
-	if version.Status != VersionStatusActive {
-		t.Errorf("expected status active, got '%s'", version.Status)
+	// Verify status is active (not pending) - computed from index
+	index, _ := vs.LoadIndex()
+	if index.GetVersionStatus(version.ID) != VersionStatusActive {
+		t.Errorf("expected status active, got '%s'", index.GetVersionStatus(version.ID))
 	}
 
 	// Verify ActivatedAt is set
@@ -1317,10 +1321,9 @@ func TestU_VersionStore_CreateInitialVersion(t *testing.T) {
 		t.Error("ActivatedAt should be set for initial version")
 	}
 
-	// Verify index was created
-	index, err := vs.LoadIndex()
-	if err != nil {
-		t.Fatalf("LoadIndex failed: %v", err)
+	// Verify index was created (index already loaded above, just verify)
+	if index.ActiveVersion != "v1" {
+		t.Errorf("expected ActiveVersion 'v1', got '%s'", index.ActiveVersion)
 	}
 
 	if index.ActiveVersion != "v1" {
