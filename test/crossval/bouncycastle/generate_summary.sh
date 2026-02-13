@@ -423,11 +423,8 @@ echo "Generating Summary Matrix..."
 echo "============================================================"
 echo ""
 
-# Determine output destination
-SUMMARY_OUTPUT=""
-if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-    SUMMARY_OUTPUT="$GITHUB_STEP_SUMMARY"
-fi
+# Note: Summary is now centralized in scripts/ci/generate-ci-report.sh
+# This script only exports JSON results for the consolidated report
 
 # Count results first for executive summary
 TOTAL_PASS=$(grep '=PASS$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
@@ -504,12 +501,7 @@ SUMMARY_CONTENT="$SUMMARY_CONTENT
 
 </details>"
 
-# Output summary
-if [ -n "$SUMMARY_OUTPUT" ]; then
-    echo "$SUMMARY_CONTENT" >> "$SUMMARY_OUTPUT"
-fi
-
-# Always print to terminal
+# Print summary to terminal (CI summary is centralized in generate-ci-report.sh)
 echo "$SUMMARY_CONTENT"
 echo ""
 
@@ -521,7 +513,7 @@ echo ""
 # Export JSON Results (for CI reporting)
 # =============================================================================
 
-JSON_OUTPUT="$SCRIPT_DIR/results.json"
+JSON_OUTPUT="$SCRIPT_DIR/results-bc.json"
 cat > "$JSON_OUTPUT" << EOF
 {
   "validator": "BouncyCastle",

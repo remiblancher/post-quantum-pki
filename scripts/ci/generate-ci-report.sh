@@ -3,11 +3,13 @@
 # Generate Consolidated CI Quality Report (CTRF-based)
 # =============================================================================
 #
-# Reads aggregated CTRF (Common Test Report Format) and generates quality report.
+# Reads aggregated CTRF and interop results, generates unified quality report.
 #
 # Inputs (environment variables):
 #   CTRF_FILE         - Path to merged CTRF JSON (required)
 #   COVERAGE_FILE     - Path to coverage.out (optional)
+#   OPENSSL_RESULTS   - Path to OpenSSL results.json (optional)
+#   BC_RESULTS        - Path to BouncyCastle results.json (optional)
 #   OUTPUT_FILE       - Output markdown file (default: quality-report.md)
 #   GITHUB_STEP_SUMMARY - GitHub Actions summary file
 #
@@ -19,8 +21,11 @@ set -e
 # Defaults
 CTRF_FILE="${CTRF_FILE:-ctrf-merged.json}"
 OUTPUT_FILE="${OUTPUT_FILE:-quality-report.md}"
+OPENSSL_RESULTS="${OPENSSL_RESULTS:-test/crossval/openssl/results.json}"
+BC_RESULTS="${BC_RESULTS:-test/crossval/bouncycastle/results.json}"
+
 VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
-DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 echo "Generating CI Quality Report..."
@@ -31,13 +36,17 @@ echo "Generating CI Quality Report..."
 
 # Coverage
 if [ -f "${COVERAGE_FILE:-coverage.out}" ]; then
-    COVERAGE=$(go tool cover -func="${COVERAGE_FILE:-coverage.out}" | grep total | awk '{print $3}')
+    COVERAGE=$(go tool cover -func="${COVERAGE_FILE:-coverage.out}" 2>/dev/null | grep total | awk '{print $3}' || echo "N/A")
     COVERAGE_PCT=$(echo "$COVERAGE" | tr -d '%')
-    COVERAGE_STATUS=$(echo "$COVERAGE_PCT" | awk '{if ($1 >= 70) print "✅"; else print "⚠️"}')
+    if [ "$COVERAGE" != "N/A" ] && [ "$(echo "$COVERAGE_PCT >= 70" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
+        COVERAGE_STATUS="pass"
+    else
+        COVERAGE_STATUS="warn"
+    fi
 else
     COVERAGE="N/A"
     COVERAGE_PCT="0"
-    COVERAGE_STATUS="❓"
+    COVERAGE_STATUS="unknown"
 fi
 
 # Parse CTRF file
@@ -46,22 +55,73 @@ if [ -f "$CTRF_FILE" ]; then
     TOTAL_PASSED=$(jq '.results.summary.passed // 0' "$CTRF_FILE")
     TOTAL_FAILED=$(jq '.results.summary.failed // 0' "$CTRF_FILE")
     TOTAL_SKIPPED=$(jq '.results.summary.skipped // 0' "$CTRF_FILE")
+
+    # Calculate duration from CTRF timestamps
+    START_TS=$(jq '.results.summary.start // 0' "$CTRF_FILE")
+    STOP_TS=$(jq '.results.summary.stop // 0' "$CTRF_FILE")
+    if [ "$START_TS" -gt 0 ] && [ "$STOP_TS" -gt 0 ]; then
+        DURATION_MS=$((STOP_TS - START_TS))
+        DURATION_SEC=$((DURATION_MS / 1000))
+        DURATION_MIN=$((DURATION_SEC / 60))
+        DURATION_REM=$((DURATION_SEC % 60))
+        if [ "$DURATION_MIN" -gt 0 ]; then
+            DURATION="${DURATION_MIN}m ${DURATION_REM}s"
+        else
+            DURATION="${DURATION_SEC}s"
+        fi
+    else
+        DURATION="N/A"
+    fi
 else
     echo "WARNING: CTRF file not found: $CTRF_FILE"
     TOTAL_TESTS=0
     TOTAL_PASSED=0
     TOTAL_FAILED=0
     TOTAL_SKIPPED=0
+    DURATION="N/A"
 fi
 
-# Overall status
-if [ "$TOTAL_FAILED" -gt 0 ]; then
-    OVERALL_STATUS="❌"
-elif [ "$TOTAL_SKIPPED" -gt 0 ]; then
-    OVERALL_STATUS="⚠️"
-else
-    OVERALL_STATUS="✅"
-fi
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+# Get emoji for interop status
+get_interop_emoji() {
+    case "$1" in
+        PASS) echo "✅" ;;
+        FAIL) echo "❌" ;;
+        SKIP) echo "⚠️" ;;
+        *)    echo "-" ;;
+    esac
+}
+
+# Get interop result from JSON
+get_interop_result() {
+    local json_file="$1"
+    local tc_id="$2"
+
+    if [ -f "$json_file" ]; then
+        jq -r ".results[\"$tc_id\"] // \"N/A\"" "$json_file" 2>/dev/null || echo "N/A"
+    else
+        echo "N/A"
+    fi
+}
+
+# Generate interop matrix row
+generate_interop_row() {
+    local json_file="$1"
+    local artifact="$2"
+    local prefix="$3"  # TC-XOSL or TC-XBC
+
+    local row="| $artifact"
+    for algo in EC ML SLH KEM CAT COMP; do
+        local tc_id="${prefix}-${artifact}-${algo}"
+        local status=$(get_interop_result "$json_file" "$tc_id")
+        local emoji=$(get_interop_emoji "$status")
+        row="$row | $emoji"
+    done
+    echo "$row |"
+}
 
 # =============================================================================
 # Generate Suite Table
@@ -69,127 +129,157 @@ fi
 
 generate_suite_table() {
     if [ ! -f "$CTRF_FILE" ]; then
-        echo "| No data | - | - | - | - |"
+        echo "| No data | - | - | - |"
         return
     fi
 
-    jq -r '.results.suites[]? | "| \(.name) | \(.tests) | \(.passed) | \(.failed) | \(if .failed > 0 then "❌" elif .skipped > 0 then "⚠️" else "✅" end) |"' "$CTRF_FILE" 2>/dev/null || echo "| No suites | - | - | - | - |"
+    jq -r '.results.suites[]? | "| \(.name) | \(.tests) | \(.passed) | \(.failed) |"' "$CTRF_FILE" 2>/dev/null || echo "| No suites | - | - | - |"
 }
 
 # =============================================================================
-# Generate Cross-Validation Matrix (from crosstest suites)
+# Generate Skipped Tests Details
 # =============================================================================
 
-generate_crossval_matrix() {
-    if [ ! -f "$CTRF_FILE" ]; then
+generate_skipped_details() {
+    if [ ! -f "$CTRF_FILE" ] || [ "$TOTAL_SKIPPED" -eq 0 ]; then
+        return
+    fi
+
+    echo ""
+    echo "<details>"
+    echo "<summary>$TOTAL_SKIPPED tests skipped - see details</summary>"
+    echo ""
+    echo "| Suite | Skipped | Reason |"
+    echo "|-------|--------:|--------|"
+
+    # Known skip reasons by suite
+    jq -r '.results.suites[]? | select(.skipped > 0) | "\(.name)|\(.skipped)"' "$CTRF_FILE" 2>/dev/null | while IFS='|' read -r suite skipped; do
+        reason="-"
+        case "$suite" in
+            crosstest-bouncycastle) reason="BC 1.83 draft-07 OIDs (Composite)" ;;
+            crosstest-openssl) reason="Composite not supported" ;;
+            hsm) reason="SoftHSM only in CI" ;;
+            unit) reason="Build tags" ;;
+        esac
+        echo "| $suite | $skipped | $reason |"
+    done
+
+    echo ""
+    echo "</details>"
+}
+
+# =============================================================================
+# Generate Interop Matrix
+# =============================================================================
+
+generate_openssl_matrix() {
+    if [ ! -f "$OPENSSL_RESULTS" ]; then
         echo "| N/A | - | - | - | - | - | - |"
         return
     fi
 
-    # Extract crosstest results
-    local osl_results=$(jq -r '.results.suites[]? | select(.name == "crosstest-openssl") | .tests_detail // empty' "$CTRF_FILE" 2>/dev/null)
-    local bc_results=$(jq -r '.results.suites[]? | select(.name == "crosstest-bc") | .tests_detail // empty' "$CTRF_FILE" 2>/dev/null)
+    for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
+        generate_interop_row "$OPENSSL_RESULTS" "$artifact" "TC-XOSL"
+    done
+}
 
-    # For now, show simplified view based on suite pass/fail
-    local osl_status=$(jq -r '.results.suites[]? | select(.name == "crosstest-openssl") | if .failed > 0 then "❌" elif .tests == 0 then "-" else "✅" end' "$CTRF_FILE" 2>/dev/null || echo "-")
-    local bc_status=$(jq -r '.results.suites[]? | select(.name == "crosstest-bc") | if .failed > 0 then "❌" elif .tests == 0 then "-" else "✅" end' "$CTRF_FILE" 2>/dev/null || echo "-")
+generate_bc_matrix() {
+    if [ ! -f "$BC_RESULTS" ]; then
+        echo "| N/A | - | - | - | - | - | - |"
+        return
+    fi
 
-    echo "| OpenSSL 3.6 | $osl_status |"
-    echo "| BouncyCastle 1.83 | $bc_status |"
+    for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
+        generate_interop_row "$BC_RESULTS" "$artifact" "TC-XBC"
+    done
 }
 
 # =============================================================================
-# Generate Report
+# Build Report Content
 # =============================================================================
 
-cat > "$OUTPUT_FILE" << EOF
-# QPKI CI Quality Report
+# Header with metadata
+REPORT_CONTENT="# QPKI Quality Report
 
-> **Generated:** ${DATE}
-> **Version:** ${VERSION}
-> **Commit:** ${COMMIT}
+> \`$COMMIT\` • $DATE • $DURATION
 
 ## Summary
 
-| Metric | Value | Status |
-|--------|------:|:------:|
-| **Total Tests** | ${TOTAL_TESTS} | ${OVERALL_STATUS} |
-| **Passed** | ${TOTAL_PASSED} | - |
-| **Failed** | ${TOTAL_FAILED} | $([ "$TOTAL_FAILED" -eq 0 ] && echo "✅" || echo "❌") |
-| **Skipped** | ${TOTAL_SKIPPED} | - |
-| **Coverage** | ${COVERAGE} | ${COVERAGE_STATUS} |
+| Tests | Passed | Failed | Skipped | Coverage |
+|------:|-------:|-------:|--------:|:--------:|
+| $TOTAL_TESTS | $TOTAL_PASSED ✅ | $TOTAL_FAILED $([ "$TOTAL_FAILED" -eq 0 ] && echo "✅" || echo "❌") | $TOTAL_SKIPPED $([ "$TOTAL_SKIPPED" -eq 0 ] && echo "✅" || echo "⚠️") | $COVERAGE $([ "$COVERAGE_STATUS" = "pass" ] && echo "✅" || echo "⚠️") |"
+
+# Add skipped details if any
+REPORT_CONTENT="$REPORT_CONTENT$(generate_skipped_details)"
+
+# Test Suites
+REPORT_CONTENT="$REPORT_CONTENT
 
 ## Test Suites
 
-| Suite | Tests | Passed | Failed | Status |
-|-------|------:|-------:|-------:|:------:|
-EOF
+| Suite | Tests | Passed | Failed |
+|-------|------:|-------:|-------:|
+$(generate_suite_table)"
 
-generate_suite_table >> "$OUTPUT_FILE"
+# Interop section (only if results exist)
+if [ -f "$OPENSSL_RESULTS" ] || [ -f "$BC_RESULTS" ]; then
+    REPORT_CONTENT="$REPORT_CONTENT
 
-cat >> "$OUTPUT_FILE" << EOF
+## Interoperability"
 
-## Cross-Validation
+    if [ -f "$OPENSSL_RESULTS" ]; then
+        OSL_VERSION=$(jq -r '.version // "3.6"' "$OPENSSL_RESULTS" 2>/dev/null | sed 's/^OpenSSL //' || echo "3.6")
+        REPORT_CONTENT="$REPORT_CONTENT
 
-| Validator | Status |
-|-----------|:------:|
-EOF
+### OpenSSL $OSL_VERSION
 
-generate_crossval_matrix >> "$OUTPUT_FILE"
+| Artifact | Classical | ML-DSA | SLH-DSA | ML-KEM | Catalyst | Composite |
+|----------|:---------:|:------:|:-------:|:------:|:--------:|:---------:|
+$(generate_openssl_matrix)"
+    fi
 
-cat >> "$OUTPUT_FILE" << EOF
+    if [ -f "$BC_RESULTS" ]; then
+        BC_VERSION=$(jq -r '.version // "1.83"' "$BC_RESULTS" 2>/dev/null || echo "1.83")
+        REPORT_CONTENT="$REPORT_CONTENT
 
-## FIPS Compliance
+### BouncyCastle $BC_VERSION
 
-| Standard | Status | Algorithms |
-|----------|:------:|------------|
-| FIPS 203 | ✅ | ML-KEM-512, 768, 1024 |
-| FIPS 204 | ✅ | ML-DSA-44, 65, 87 |
-| FIPS 205 | ✅ | SLH-DSA (all SHA2 variants) |
+| Artifact | Classical | ML-DSA | SLH-DSA | ML-KEM | Catalyst | Composite |
+|----------|:---------:|:------:|:-------:|:------:|:--------:|:---------:|
+$(generate_bc_matrix)
 
-## RFC Compliance
+> ⚠️ Composite: BC uses draft-07 OIDs, QPKI uses IETF draft-13"
+    fi
+fi
+
+# Compliance section
+REPORT_CONTENT="$REPORT_CONTENT
+
+## Compliance
 
 | Standard | Status | Description |
 |----------|:------:|-------------|
-| RFC 5280 | ✅ | X.509 PKI Certificates |
-| RFC 2986 | ✅ | PKCS#10 CSR |
+| FIPS 203 | ✅ | ML-KEM-512/768/1024 |
+| FIPS 204 | ✅ | ML-DSA-44/65/87 |
+| FIPS 205 | ✅ | SLH-DSA SHA2 |
+| RFC 5280 | ✅ | X.509 Certificates |
+| RFC 5652 | ✅ | CMS |
 | RFC 6960 | ✅ | OCSP |
 | RFC 3161 | ✅ | TSA |
-| RFC 5652 | ✅ | CMS |
 | RFC 9882 | ✅ | ML-DSA in CMS |
-| RFC 9883 | ✅ | ML-KEM Attestation |
+| RFC 9883 | ✅ | ML-KEM in CMS |"
 
----
-*Report generated by \`scripts/ci/generate-ci-report.sh\` using CTRF format*
-EOF
+# =============================================================================
+# Write Outputs
+# =============================================================================
 
+# Write markdown report
+echo "$REPORT_CONTENT" > "$OUTPUT_FILE"
 echo "Report generated: $OUTPUT_FILE"
 
-# =============================================================================
-# GitHub Actions Summary
-# =============================================================================
-
+# Write to GitHub Step Summary (single source of truth)
 if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-    cat >> "$GITHUB_STEP_SUMMARY" << EOF
-
-## 📊 Quality Dashboard
-
-| Metric | Value | Status |
-|--------|------:|:------:|
-| Total Tests | ${TOTAL_TESTS} | ${OVERALL_STATUS} |
-| Passed | ${TOTAL_PASSED} | ✅ |
-| Failed | ${TOTAL_FAILED} | $([ "$TOTAL_FAILED" -eq 0 ] && echo "✅" || echo "❌") |
-| Skipped | ${TOTAL_SKIPPED} | - |
-| Coverage | ${COVERAGE} | ${COVERAGE_STATUS} |
-
-### Test Suites
-
-| Suite | Tests | Passed | Failed | Status |
-|-------|------:|-------:|-------:|:------:|
-EOF
-
-    generate_suite_table >> "$GITHUB_STEP_SUMMARY"
-    echo "" >> "$GITHUB_STEP_SUMMARY"
+    echo "$REPORT_CONTENT" >> "$GITHUB_STEP_SUMMARY"
     echo "Summary added to GitHub Step Summary"
 fi
 
@@ -202,6 +292,7 @@ cat > "${OUTPUT_FILE%.md}.json" << EOF
   "version": "${VERSION}",
   "commit": "${COMMIT}",
   "generated": "${DATE}",
+  "duration": "${DURATION}",
   "format": "ctrf",
   "metrics": {
     "coverage": "${COVERAGE}",
@@ -218,7 +309,9 @@ cat > "${OUTPUT_FILE%.md}.json" << EOF
     "rfc5280": "implemented",
     "rfc5652": "implemented",
     "rfc6960": "implemented",
-    "rfc3161": "implemented"
+    "rfc3161": "implemented",
+    "rfc9882": "implemented",
+    "rfc9883": "implemented"
   }
 }
 EOF
