@@ -2,6 +2,7 @@ package ca
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/remiblancher/post-quantum-pki/internal/audit"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
@@ -198,7 +199,12 @@ func (ca *CA) loadHybridSignerFromInfo(classicalPassphrase, pqcPassphrase string
 // This function uses findPrivateKeyByType to distinguish EC and ML-DSA keys with the same label.
 func (ca *CA) loadHybridSignerFromHSM(keyRef *KeyRef) (pkicrypto.HybridSigner, error) {
 	// Load HSM config from the path stored in KeyRef
-	hsmCfg, err := pkicrypto.LoadHSMConfig(keyRef.Storage.Config)
+	// Resolve relative path to absolute using CA base path
+	hsmConfigPath := keyRef.Storage.Config
+	if !filepath.IsAbs(hsmConfigPath) && ca.info != nil {
+		hsmConfigPath = filepath.Join(ca.info.BasePath(), hsmConfigPath)
+	}
+	hsmCfg, err := pkicrypto.LoadHSMConfig(hsmConfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load HSM config: %w", err)
 	}
