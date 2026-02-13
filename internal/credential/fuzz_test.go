@@ -162,22 +162,18 @@ func FuzzGenerateCredentialID(f *testing.F) {
 
 // FuzzCredentialMethods tests Credential methods with various states.
 func FuzzCredentialMethods(f *testing.F) {
-	f.Add("cred-id", "test.example.com", "valid")
-	f.Add("", "", "")
-	f.Add("id", "cn", "revoked")
-	f.Add("id", "cn", "expired")
-	f.Add("id", "cn", "pending")
-	f.Add("id", "cn", "unknown-status")
+	f.Add("cred-id", "test.example.com")
+	f.Add("", "")
+	f.Add("id", "cn")
 
-	f.Fuzz(func(t *testing.T, id, cn, status string) {
+	f.Fuzz(func(t *testing.T, id, cn string) {
 		subj := Subject{CommonName: cn}
 		cred := NewCredential(id, subj)
 
-		// Create a version with the fuzzed status
+		// Create a version (status is now computed, not stored)
 		cred.Versions["v1"] = CredVersion{
 			Profiles: []string{"ec/tls-server"},
 			Algos:    []string{"ec"},
-			Status:   status,
 		}
 		cred.Active = "v1"
 
@@ -186,6 +182,7 @@ func FuzzCredentialMethods(f *testing.F) {
 		_ = cred.IsExpired()
 		_ = cred.Summary()
 		_ = cred.ActiveVersion()
+		_ = cred.GetVersionStatus("v1")
 	})
 }
 

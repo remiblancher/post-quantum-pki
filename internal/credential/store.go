@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 )
@@ -617,6 +618,8 @@ func (s *FileStore) ListAll(ctx context.Context) ([]*Credential, error) {
 }
 
 // UpdateStatus updates the status of a credential.
+// Note: Status is now computed from Active field and ArchivedAt timestamp.
+// This method handles revocation and archiving of the active version.
 func (s *FileStore) UpdateStatus(ctx context.Context, credentialID string, status Status, reason string) error {
 	// Check for cancellation before acquiring lock
 	select {
@@ -637,9 +640,10 @@ func (s *FileStore) UpdateStatus(ctx context.Context, credentialID string, statu
 	case StatusRevoked:
 		cred.Revoke(reason)
 	case StatusExpired, StatusArchived:
-		// Archive the active version
+		// Archive the active version by setting ArchivedAt
 		if ver, ok := cred.Versions[cred.Active]; ok {
-			ver.Status = string(status)
+			now := time.Now()
+			ver.ArchivedAt = &now
 			cred.Versions[cred.Active] = ver
 		}
 	}

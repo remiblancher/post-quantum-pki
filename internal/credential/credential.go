@@ -101,15 +101,13 @@ type CertificateRef struct {
 }
 
 // CredVersion represents a credential version with its certificates.
+// Note: Status is computed via GetVersionStatus(), not stored.
 type CredVersion struct {
 	// Profiles lists all profile names in this version.
 	Profiles []string `json:"profiles"`
 
 	// Algos lists the algorithm families in this version (e.g., "ec", "ml-dsa").
 	Algos []string `json:"algos"`
-
-	// Status is the version status (active, pending, archived).
-	Status string `json:"status"`
 
 	// Created is when this version was created.
 	Created time.Time `json:"created"`
@@ -224,6 +222,22 @@ func (c *Credential) ActiveVersion() *CredVersion {
 	return &ver
 }
 
+// GetVersionStatus returns the computed status of a version.
+// Status is derived from: active field and ArchivedAt timestamp.
+func (c *Credential) GetVersionStatus(versionID string) string {
+	if versionID == c.Active {
+		return "active"
+	}
+	ver, ok := c.Versions[versionID]
+	if !ok {
+		return "pending"
+	}
+	if ver.ArchivedAt != nil {
+		return "archived"
+	}
+	return "pending"
+}
+
 // CreateInitialVersion creates v1 as the initial active version.
 func (c *Credential) CreateInitialVersion(profiles, algos []string) {
 	now := time.Now()
@@ -232,7 +246,6 @@ func (c *Credential) CreateInitialVersion(profiles, algos []string) {
 		"v1": {
 			Profiles:    profiles,
 			Algos:       algos,
-			Status:      "active",
 			Created:     now,
 			ActivatedAt: &now,
 		},
@@ -282,8 +295,14 @@ func (c *Credential) ActivateVersion(versionID string) error {
 		return fmt.Errorf("version not found: %s", versionID)
 	}
 
-	if ver.Status != "pending" {
-		return fmt.Errorf("can only activate pending versions, current status: %s", ver.Status)
+	// Check if already active
+	if versionID == c.Active {
+		return fmt.Errorf("version %s is already active", versionID)
+	}
+
+	// Check if archived (cannot activate archived versions)
+	if ver.ArchivedAt != nil {
+		return fmt.Errorf("cannot activate archived version: %s", versionID)
 	}
 
 	now := time.Now()
@@ -291,14 +310,12 @@ func (c *Credential) ActivateVersion(versionID string) error {
 	// Archive the current active version
 	if c.Active != "" {
 		if oldVer, ok := c.Versions[c.Active]; ok {
-			oldVer.Status = "archived"
 			oldVer.ArchivedAt = &now
 			c.Versions[c.Active] = oldVer
 		}
 	}
 
 	// Activate the new version
-	ver.Status = "active"
 	ver.ActivatedAt = &now
 	c.Versions[versionID] = ver
 	c.Active = versionID
@@ -377,7 +394,7 @@ func (c *Credential) IsValid() bool {
 	}
 
 	ver := c.ActiveVersion()
-	if ver == nil || ver.Status != "active" {
+	if ver == nil {
 		return false
 	}
 
@@ -463,7 +480,7 @@ func (c *Credential) Summary() string {
 			c.ID, c.Subject.CommonName)
 	}
 
-	status := ver.Status
+	status := c.GetVersionStatus(c.Active)
 	if c.RevokedAt != nil {
 		status = "revoked"
 	} else if c.IsExpired() {

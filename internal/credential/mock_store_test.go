@@ -405,8 +405,10 @@ func (m *MockStore) UpdateStatus(ctx context.Context, credentialID string, statu
 	case StatusRevoked:
 		cred.Revoke(reason)
 	case StatusExpired, StatusArchived:
+		// Archive by setting ArchivedAt (status is computed)
 		if ver, ok := cred.Versions[cred.Active]; ok {
-			ver.Status = string(status)
+			now := time.Now()
+			ver.ArchivedAt = &now
 			cred.Versions[cred.Active] = ver
 		}
 	}

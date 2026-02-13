@@ -199,8 +199,11 @@ func TestCA_EnrollWithProfile_Simple(t *testing.T) {
 
 	// Verify credential is activated (version status should be "active")
 	ver := result.Credential.ActiveVersion()
-	if ver == nil || ver.Status != "active" {
-		t.Errorf("Credential version status = %v, want active", ver)
+	if ver == nil {
+		t.Error("Credential has no active version")
+	}
+	if result.Credential.GetVersionStatus(result.Credential.Active) != "active" {
+		t.Errorf("Credential version status = %s, want active", result.Credential.GetVersionStatus(result.Credential.Active))
 	}
 }
 

@@ -275,7 +275,7 @@ func TestU_LoadSigner_AfterRotateAndActivate(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	// Generate v1 signer and cert
@@ -312,7 +312,6 @@ func TestU_LoadSigner_AfterRotateAndActivate(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusPending),
 		Profiles:  []string{"ec/signing"},
 		Algos:     []string{"ec"},
 	}
@@ -321,7 +320,7 @@ func TestU_LoadSigner_AfterRotateAndActivate(t *testing.T) {
 	// Step 3: Activate v2
 	// In real FileStore, this updates the Active field and the stored certs/keys
 	cred.Active = "v2"
-	ver2.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v2"] = ver2
 
 	// Update the stored certs/keys to v2 (simulates what FileStore.Save does on activation)
@@ -364,7 +363,7 @@ func TestU_LoadSigner_RotateClassicalToPQC(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	// Generate classical v1
@@ -402,7 +401,6 @@ func TestU_LoadSigner_RotateClassicalToPQC(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"ml-dsa/signing"},
 		Algos:     []string{"ml-dsa"},
 	}
@@ -437,7 +435,7 @@ func TestU_LoadSigner_RotateToHybrid(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	signerV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -465,7 +463,6 @@ func TestU_LoadSigner_RotateToHybrid(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"hybrid/signing"},
 		Algos:     []string{"ec", "ml-dsa"},
 	}
@@ -505,7 +502,7 @@ func TestU_LoadSigner_RotateP256ToP384(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	signerV1, err := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -538,7 +535,6 @@ func TestU_LoadSigner_RotateP256ToP384(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"ec/signing"},
 		Algos:     []string{"ec"},
 	}
@@ -569,7 +565,7 @@ func TestU_LoadSigner_RotateHybridToClassical(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	classicalV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -597,7 +593,6 @@ func TestU_LoadSigner_RotateHybridToClassical(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"ec/signing"},
 		Algos:     []string{"ec"},
 	}
@@ -631,7 +626,7 @@ func TestU_LoadSigner_RotatePQCToClassical(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	signerV1, err := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgMLDSA65)
@@ -663,7 +658,6 @@ func TestU_LoadSigner_RotatePQCToClassical(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"ec/signing"},
 		Algos:     []string{"ec"},
 	}
@@ -697,18 +691,17 @@ func TestU_LoadSigner_PendingVersionNotUsed(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver1.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver1
 
 	signerV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
 	certV1 := generateCertForSigner(t, signerV1)
 
-	// Add v2 as PENDING (not activated)
+	// Add v2 as PENDING (not activated - status computed from Active field)
 	ver2 := CredVersion{
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusPending), // Not active!
 		Profiles:  []string{"ec/signing"},
 		Algos:     []string{"ec"},
 	}
@@ -1223,7 +1216,7 @@ func TestU_FindDecryptionKeyByRecipient_IssuerAndSerial(t *testing.T) {
 	ver := cred.Versions["v1"]
 	ver.NotBefore = time.Now().Add(-time.Hour)
 	ver.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1274,7 +1267,7 @@ func TestU_FindDecryptionKeyByRecipient_SKI(t *testing.T) {
 	ver := cred.Versions["v1"]
 	ver.NotBefore = time.Now().Add(-time.Hour)
 	ver.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1318,7 +1311,9 @@ func TestU_FindDecryptionKeyByRecipient_OldVersion(t *testing.T) {
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour * 24 * 30) // 30 days ago
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 335)  // expires in 335 days
-	ver1.Status = string(VersionStatusArchived)           // v1 is now archived
+	// v1 is now archived - set ArchivedAt instead of Status
+	archivedAt := time.Now()
+	ver1.ArchivedAt = &archivedAt
 	cred.Versions["v1"] = ver1
 
 	// v1 signer and cert
@@ -1330,7 +1325,6 @@ func TestU_FindDecryptionKeyByRecipient_OldVersion(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"ec/encryption"},
 		Algos:     []string{"ec"},
 	}
@@ -1392,7 +1386,7 @@ func TestU_FindDecryptionKeyByRecipient_NotFound(t *testing.T) {
 	ver := cred.Versions["v1"]
 	ver.NotBefore = time.Now().Add(-time.Hour)
 	ver.NotAfter = time.Now().Add(time.Hour * 24 * 365)
-	ver.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1449,11 +1443,12 @@ func TestU_FindAllDecryptionKeys(t *testing.T) {
 	cred := NewCredential(credID, Subject{CommonName: "Find All Test"})
 	cred.CreateInitialVersion([]string{"ec/encryption"}, []string{"ec"})
 
-	// Set up v1
+	// Set up v1 as archived
 	ver1 := cred.Versions["v1"]
 	ver1.NotBefore = time.Now().Add(-time.Hour * 24 * 30)
 	ver1.NotAfter = time.Now().Add(time.Hour * 24 * 335)
-	ver1.Status = string(VersionStatusArchived)
+	archivedAt := time.Now()
+	ver1.ArchivedAt = &archivedAt
 	cred.Versions["v1"] = ver1
 
 	signerV1, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)
@@ -1464,7 +1459,6 @@ func TestU_FindAllDecryptionKeys(t *testing.T) {
 		Created:   time.Now(),
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		Status:    string(VersionStatusActive),
 		Profiles:  []string{"ec/encryption"},
 		Algos:     []string{"ec"},
 	}
@@ -1746,7 +1740,7 @@ func TestU_FindDecryptionKeyByRecipient_LoadKeysError(t *testing.T) {
 	cred := NewCredential(credID, Subject{CommonName: "Test"})
 	cred.CreateInitialVersion([]string{"ec/encryption"}, []string{"ec"})
 	ver := cred.Versions["v1"]
-	ver.Status = string(VersionStatusActive)
+	// Status is computed from Active field, not stored
 	cred.Versions["v1"] = ver
 
 	signer, _ := pkicrypto.GenerateSoftwareSigner(pkicrypto.AlgECDSAP256)

@@ -49,21 +49,29 @@ After rotation, credentials have versions:
 
 ```
 credentials/<credential-id>/
-├── credential.meta.json  # Points to active version
+├── credential.meta.json  # Points to active version (status is computed, not stored)
 └── versions/
-    ├── v20260101_abc123/  # archived
-    │   ├── certificates.pem
-    │   └── private-keys.pem
-    └── v20260105_def456/  # active
-        ├── certificates.pem
-        └── private-keys.pem
+    ├── v1/               # archived
+    │   └── ec/
+    │       ├── certificates.pem
+    │       └── private-keys.pem
+    └── v2/               # active
+        └── ec/
+            ├── certificates.pem
+            └── private-keys.pem
 ```
 
-| Status | Description |
-|--------|-------------|
-| `pending` | Awaiting activation after rotation |
-| `active` | Currently in use |
-| `archived` | Superseded by newer version |
+**Version Status (computed, not stored):**
+
+| Status | Condition |
+|--------|-----------|
+| `active` | Version ID matches `active` field in credential.meta.json |
+| `pending` | Version exists but not active (no `archived_at` timestamp) |
+| `archived` | Version has `archived_at` timestamp set |
+
+Status is derived at runtime from:
+- `active` field in credential.meta.json → determines which version is active
+- `archived_at` timestamp in version → marks archived versions
 
 ### 1.4 Certificate Roles
 

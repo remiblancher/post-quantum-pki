@@ -387,7 +387,6 @@ func TestU_CA_CAMetadataJSON(t *testing.T) {
 			"v1": {
 				Profiles:    []string{"default"},
 				Algos:       []string{"ecdsa-p384"},
-				Status:      VersionStatusActive,
 				Created:     now,
 				ActivatedAt: &now,
 				Keys: []KeyRef{
@@ -473,8 +472,8 @@ func TestU_CA_CAInfo_CreatePendingVersion(t *testing.T) {
 		t.Error("Pending version should exist in Versions map")
 	}
 
-	// Verify status is pending
-	if info.Versions[pendingVersionID].Status != VersionStatusPending {
+	// Verify status is pending (computed from active field)
+	if info.GetVersionStatus(pendingVersionID) != VersionStatusPending {
 		t.Error("Version status should be pending")
 	}
 }
@@ -499,8 +498,8 @@ func TestU_CA_CAInfo_Activate(t *testing.T) {
 		t.Errorf("Active = %s, want %s", info.Active, pendingVersion)
 	}
 
-	// Verify status changed to active
-	if info.Versions[pendingVersion].Status != VersionStatusActive {
+	// Verify status changed to active (computed from active field)
+	if info.GetVersionStatus(pendingVersion) != VersionStatusActive {
 		t.Error("Version status should be active after activation")
 	}
 }

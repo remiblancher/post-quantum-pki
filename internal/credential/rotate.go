@@ -107,7 +107,7 @@ func RotateCredentialVersioned(caInstance *ca.CA, req CredentialRotateRequest) (
 	// Get current active version
 	previousVersion := cred.Active
 
-	// Create new version with pending status
+	// Create new version with pending status (status is computed, not stored)
 	newVersionID := cred.NextVersionID()
 	notBefore := time.Now().UTC()
 	notAfter := notBefore.Add(profiles[0].Validity)
@@ -115,7 +115,6 @@ func RotateCredentialVersioned(caInstance *ca.CA, req CredentialRotateRequest) (
 	cred.Versions[newVersionID] = CredVersion{
 		Profiles:  profileNames,
 		Algos:     algos,
-		Status:    "pending",
 		Created:   time.Now(),
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
