@@ -423,6 +423,11 @@ func runCAInitHSM(cmd *cobra.Command, args []string) error {
 		return runCAInitHSMCatalyst(cmd, hsmCfg, prof, subject, algInfo, store, absDir)
 	}
 
+	// Handle Composite profiles - requires two keys (classical + PQC)
+	if prof.IsComposite() {
+		return runCAInitHSMComposite(cmd, hsmCfg, prof, subject, algInfo, store, absDir)
+	}
+
 	// Single-algorithm CA (EC, RSA, or ML-DSA)
 	keyLabel, keyID := caInitKeyLabel, caInitKeyID
 	if !caInitUseExistingKey {
@@ -553,6 +558,100 @@ func runCAInitHSMCatalyst(cmd *cobra.Command, hsmCfg *crypto.HSMConfig, prof *pr
 	// Print success message
 	cert := newCA.Certificate()
 	fmt.Printf("\nCatalyst CA initialized successfully!\n")
+	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
+	fmt.Printf("  Classical:   %s\n", hybridSigner.ClassicalSigner().Algorithm().Description())
+	fmt.Printf("  PQC:         %s\n", hybridSigner.PQCSigner().Algorithm().Description())
+	fmt.Printf("  Key Label:   %s\n", keyLabel)
+	fmt.Printf("  HSM Config:  %s\n", hsmRefPath)
+	fmt.Printf("  CA Dir:      %s\n", absDir)
+
+	return nil
+}
+
+// runCAInitHSMComposite creates a Composite CA using HSM keys.
+func runCAInitHSMComposite(cmd *cobra.Command, hsmCfg *crypto.HSMConfig, prof *profile.Profile,
+	subject pkix.Name, algInfo *profileAlgorithmInfo, store *ca.FileStore, absDir string) error {
+
+	if len(prof.Algorithms) != 2 {
+		return fmt.Errorf("composite profile requires exactly 2 algorithms, got %d", len(prof.Algorithms))
+	}
+
+	classicalAlg := prof.Algorithms[0]
+	pqcAlg := prof.Algorithms[1]
+
+	// Use provided key label or generate one
+	keyLabel := caInitKeyLabel
+	if keyLabel == "" {
+		keyLabel = fmt.Sprintf("composite-ca-%d", time.Now().Unix())
+	}
+
+	fmt.Printf("Creating Composite CA with HSM keys...\n")
+	fmt.Printf("  Classical: %s\n", classicalAlg.Description())
+	fmt.Printf("  PQC:       %s\n", pqcAlg.Description())
+	fmt.Printf("  Key label: %s\n", keyLabel)
+
+	if !caInitUseExistingKey {
+		// Generate both keys with the same label (different CKA_KEY_TYPE)
+		fmt.Printf("Generating classical key (%s) in HSM...\n", classicalAlg)
+		_, _, err := generateHSMKey(hsmCfg, classicalAlg, keyLabel)
+		if err != nil {
+			return fmt.Errorf("failed to generate classical key: %w", err)
+		}
+
+		fmt.Printf("Generating PQC key (%s) in HSM...\n", pqcAlg)
+		_, _, err = generateHSMKey(hsmCfg, pqcAlg, keyLabel)
+		if err != nil {
+			return fmt.Errorf("failed to generate PQC key: %w", err)
+		}
+	}
+
+	// Create PKCS11 config for hybrid signer
+	pin, err := hsmCfg.GetPIN()
+	if err != nil {
+		return fmt.Errorf("failed to get HSM PIN: %w", err)
+	}
+
+	pkcs11Cfg := crypto.PKCS11Config{
+		ModulePath: hsmCfg.PKCS11.Lib,
+		TokenLabel: hsmCfg.PKCS11.Token,
+		PIN:        pin,
+		KeyLabel:   keyLabel,
+	}
+
+	// Create hybrid signer from two HSM keys (Composite uses same signer as Catalyst)
+	hybridSigner, err := crypto.NewPKCS11HybridSigner(pkcs11Cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create hybrid HSM signer: %w", err)
+	}
+	defer func() { _ = hybridSigner.Close() }()
+
+	fmt.Printf("Initializing Composite CA at %s...\n", absDir)
+
+	// Create Composite CA with hybrid signer
+	cfg := ca.CompositeWithSignerConfig{
+		CommonName:    subject.CommonName,
+		Organization:  firstOrEmpty(subject.Organization),
+		Country:       firstOrEmpty(subject.Country),
+		ValidityYears: algInfo.ValidityYears,
+		PathLen:       algInfo.PathLen,
+		HSMConfig:     caInitHSMConfig,
+		KeyLabel:      keyLabel,
+	}
+
+	newCA, err := ca.InitializeCompositeWithSigner(store, cfg, hybridSigner)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Composite CA: %w", err)
+	}
+
+	// Copy HSM config to CA directory
+	hsmRefPath := filepath.Join(absDir, "hsm.yaml")
+	if err := copyHSMConfig(caInitHSMConfig, hsmRefPath); err != nil {
+		fmt.Printf("Warning: failed to copy HSM config: %v\n", err)
+	}
+
+	// Print success message
+	cert := newCA.Certificate()
+	fmt.Printf("\nComposite CA initialized successfully!\n")
 	fmt.Printf("  Subject:     %s\n", cert.Subject.String())
 	fmt.Printf("  Classical:   %s\n", hybridSigner.ClassicalSigner().Algorithm().Description())
 	fmt.Printf("  PQC:         %s\n", hybridSigner.PQCSigner().Algorithm().Description())

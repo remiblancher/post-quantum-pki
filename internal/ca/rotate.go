@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/remiblancher/post-quantum-pki/internal/audit"
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
@@ -288,9 +289,14 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 	// Determine HSM config path
 	hsmConfigPath := req.HSMConfig
 	if hsmConfigPath == "" && currentCA.info != nil {
-		// Try to get from current CA's active version
-		if classicalKey := currentCA.info.GetClassicalKey(); classicalKey != nil && classicalKey.Storage.Type == "pkcs11" {
-			hsmConfigPath = classicalKey.Storage.Config
+		// Try to get from current CA's active version - check any key (not just "classical")
+		// For single-key CAs, the key ID is "default"; for hybrid CAs, it's "classical"/"pqc"
+		if defaultKey := currentCA.info.GetDefaultKey(); defaultKey != nil && defaultKey.Storage.Type == "pkcs11" {
+			hsmConfigPath = defaultKey.Storage.Config
+			// Resolve relative path to absolute using CA base path
+			if !filepath.IsAbs(hsmConfigPath) {
+				hsmConfigPath = filepath.Join(currentCA.info.BasePath(), hsmConfigPath)
+			}
 		}
 	}
 	if hsmConfigPath == "" {
@@ -305,9 +311,21 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 
 	// Determine key label (versioned)
 	baseLabel := req.KeyLabel
+	if baseLabel == "" && currentCA.info != nil {
+		// Try to get base label from existing key's label (strip version suffix if present)
+		if defaultKey := currentCA.info.GetDefaultKey(); defaultKey != nil && defaultKey.Storage.Label != "" {
+			baseLabel = defaultKey.Storage.Label
+			// Strip existing version suffix (e.g., "ca-key-abc123-v1" -> "ca-key-abc123")
+			if idx := strings.LastIndex(baseLabel, "-v"); idx != -1 && idx < len(baseLabel)-2 {
+				if _, err := fmt.Sscanf(baseLabel[idx+2:], "%d", new(int)); err == nil {
+					baseLabel = baseLabel[:idx]
+				}
+			}
+		}
+	}
 	if baseLabel == "" {
-		// Use CN-based label
-		baseLabel = currentCA.cert.Subject.CommonName
+		// Fallback to CN-based label with timestamp for uniqueness
+		baseLabel = fmt.Sprintf("%s-%d", currentCA.cert.Subject.CommonName, time.Now().Unix())
 	}
 	keyLabel := fmt.Sprintf("%s-%s", baseLabel, versionID)
 
