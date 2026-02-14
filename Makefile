@@ -177,22 +177,10 @@ dev-setup: ## Setup development environment
 	go install golang.org/x/tools/cmd/goimports@latest
 
 # =============================================================================
-# Quality & Compliance Reports
+# Validation
 # =============================================================================
 
-.PHONY: quality-docs quality-report validate-profiles validate-specs ci-report
-
-quality-docs: ## Generate all quality documentation from specs
-	@echo "=== Generating Quality Documentation ==="
-	./scripts/generate-quality-docs.sh
-
-quality-report: ## Generate quality dashboard report (legacy)
-	@echo "=== Generating Quality Dashboard ==="
-	./scripts/generate-quality-report.sh
-
-ci-report: coverage ## Generate CI-style consolidated report
-	@echo "=== Generating CI Quality Report ==="
-	COVERAGE_FILE=coverage.out OUTPUT_FILE=docs/quality/testing/COVERAGE.md ./scripts/ci/generate-ci-report.sh
+.PHONY: validate-profiles
 
 validate-profiles: ## Validate all profiles against JSON Schema
 	@echo "=== Validating Profile Schemas ==="
@@ -202,14 +190,6 @@ validate-profiles: ## Validate all profiles against JSON Schema
 		echo "ajv not installed. Install with: npm install -g ajv-cli"; \
 		exit 1; \
 	fi
-
-validate-specs: ## Validate all spec YAML files
-	@echo "=== Validating Spec Files ==="
-	@for f in specs/**/*.yaml; do \
-		echo "Checking $$f..."; \
-		yq eval 'true' "$$f" > /dev/null || exit 1; \
-	done
-	@echo "All spec files are valid YAML"
 
 # =============================================================================
 # Utimaco HSM Testing (macOS → Docker)

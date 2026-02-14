@@ -113,13 +113,11 @@ All jobs after `build` run **in parallel**.
 | `cryptoagility-test` | Algorithm transitions (EC → Catalyst → ML-DSA) |
 | `lab-tests` | End-to-end demos from pki-lab repo |
 
-See [INTEROPERABILITY.md](INTEROPERABILITY.md) for the detailed test matrix and cross-validation coverage.
+See [TESTS-INTEROP.md](TESTS-INTEROP.md) for the detailed test matrix and cross-validation coverage.
 
 ## 6. Writing Tests
 
 ### Naming Conventions
-
-See [NAMING.md](NAMING.md) for the complete naming reference.
 
 **Go Test Function Prefixes:**
 
@@ -168,5 +166,6 @@ Fuzzing tests ensure parsers don't panic on malformed input:
 
 ## 8. See Also
 
-- [INTEROPERABILITY.md](INTEROPERABILITY.md) - Cross-validation matrix
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow
+- [TESTS-ACCEPTANCE.md](TESTS-ACCEPTANCE.md) - Acceptance tests plan
+- [TESTS-INTEROP.md](TESTS-INTEROP.md) - Interoperability tests
+- [COMPLIANCE.md](COMPLIANCE.md) - Standards compliance
