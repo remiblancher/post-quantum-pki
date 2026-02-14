@@ -270,7 +270,7 @@ func TestU_TSAServer_HandleRequest_MethodNotAllowed(t *testing.T) {
 	certPath, keyPath := tc.setupSigningPair()
 
 	cert, _ := loadCertificate(certPath)
-	key, _ := loadSigningKey("", keyPath, "", "", "")
+	key, _ := loadSigningKey("", keyPath, "", "", "", nil)
 	policy, _ := parseOID("1.3.6.1.4.1.99999.2.1")
 
 	server := &tsaServer{
@@ -294,7 +294,7 @@ func TestU_TSAServer_HandleRequest_InvalidContentType(t *testing.T) {
 	certPath, keyPath := tc.setupSigningPair()
 
 	cert, _ := loadCertificate(certPath)
-	key, _ := loadSigningKey("", keyPath, "", "", "")
+	key, _ := loadSigningKey("", keyPath, "", "", "", nil)
 	policy, _ := parseOID("1.3.6.1.4.1.99999.2.1")
 
 	server := &tsaServer{
@@ -319,7 +319,7 @@ func TestU_TSAServer_HandleRequest_InvalidRequestBody(t *testing.T) {
 	certPath, keyPath := tc.setupSigningPair()
 
 	cert, _ := loadCertificate(certPath)
-	key, _ := loadSigningKey("", keyPath, "", "", "")
+	key, _ := loadSigningKey("", keyPath, "", "", "", nil)
 	policy, _ := parseOID("1.3.6.1.4.1.99999.2.1")
 
 	server := &tsaServer{
@@ -350,7 +350,7 @@ func TestU_TSAServer_SendError(t *testing.T) {
 	certPath, keyPath := tc.setupSigningPair()
 
 	cert, _ := loadCertificate(certPath)
-	key, _ := loadSigningKey("", keyPath, "", "", "")
+	key, _ := loadSigningKey("", keyPath, "", "", "", nil)
 	policy, _ := parseOID("1.3.6.1.4.1.99999.2.1")
 
 	server := &tsaServer{
@@ -1130,7 +1130,7 @@ func TestU_TSAServer_HandleRequest_ValidRequest(t *testing.T) {
 	certPath, keyPath := tc.setupSigningPair()
 
 	cert, _ := loadCertificate(certPath)
-	key, _ := loadSigningKey("", keyPath, "", "", "")
+	key, _ := loadSigningKey("", keyPath, "", "", "", nil)
 	policy, _ := parseOID("1.3.6.1.4.1.99999.2.1")
 
 	server := &tsaServer{

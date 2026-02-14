@@ -7,6 +7,7 @@ import (
 	"os"
 
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
+	"github.com/remiblancher/post-quantum-pki/internal/x509util"
 )
 
 // loadSigningCert loads a certificate for CMS signing.
@@ -30,7 +31,8 @@ func loadSigningCert(certPath string) (*x509.Certificate, error) {
 }
 
 // loadSigningKey loads a private key for CMS signing (HSM or software).
-func loadSigningKey(hsmConfig, keyPath, passphrase, keyLabel, keyID string) (pkicrypto.Signer, error) {
+// For Composite/Catalyst certificates, it automatically creates a HybridSigner.
+func loadSigningKey(hsmConfig, keyPath, passphrase, keyLabel, keyID string, cert *x509.Certificate) (pkicrypto.Signer, error) {
 	var keyCfg pkicrypto.KeyStorageConfig
 
 	if hsmConfig != "" {
@@ -42,6 +44,19 @@ func loadSigningKey(hsmConfig, keyPath, passphrase, keyLabel, keyID string) (pki
 		if err != nil {
 			return nil, fmt.Errorf("failed to get HSM PIN: %w", err)
 		}
+
+		// Check if certificate requires HybridSigner (Catalyst or Composite)
+		if cert != nil && (x509util.IsCatalystCertificate(cert) || x509util.IsCompositeCertificate(cert)) {
+			pkcs11Cfg := pkicrypto.PKCS11Config{
+				ModulePath: hsmCfg.PKCS11.Lib,
+				TokenLabel: hsmCfg.PKCS11.Token,
+				PIN:        pin,
+				KeyLabel:   keyLabel,
+			}
+			return pkicrypto.NewPKCS11HybridSigner(pkcs11Cfg)
+		}
+
+		// Single key signer
 		keyCfg = pkicrypto.KeyStorageConfig{
 			Type:           pkicrypto.KeyProviderTypePKCS11,
 			PKCS11Lib:      hsmCfg.PKCS11.Lib,

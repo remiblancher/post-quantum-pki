@@ -7,6 +7,7 @@ package acceptance
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -341,9 +342,9 @@ func enrollCredentialWithInfo(t *testing.T, caDir, profile string, vars ...strin
 		t.Fatal("no credential directory created")
 	}
 
-	// For HSM mode, the actual key label has "-0" appended (keyIndex=0 for simple credentials)
-	// See keygen.go line 32: hsmCfg.PKCS11KeyLabel = fmt.Sprintf("%s-%d", labelPrefix, keyIndex)
-	if keyConfig.UseHSM {
+	// For HSM mode with simple credentials, the key label has "-0" appended (keyIndex=0)
+	// For hybrid/composite credentials, both keys share the same label (no suffix) - see keygen.go noSuffix param
+	if keyConfig.UseHSM && !strings.Contains(profile, "catalyst") && !strings.Contains(profile, "composite") {
 		keyConfig.KeyLabel = keyConfig.KeyLabel + "-0"
 	}
 
@@ -355,15 +356,74 @@ func enrollCredentialWithInfo(t *testing.T, caDir, profile string, vars ...strin
 }
 
 // getCredentialCert returns the path to the certificate file in a credential directory.
+// For versioned credentials (Composite/Catalyst), finds the certificate in the active version directory.
 func getCredentialCert(t *testing.T, credDir string) string {
 	t.Helper()
-	return filepath.Join(credDir, "certificates.pem")
+
+	// First check for simple non-versioned structure
+	simplePath := filepath.Join(credDir, "certificates.pem")
+	if _, err := os.Stat(simplePath); err == nil {
+		return simplePath
+	}
+
+	// Read active version from credential.meta.json
+	metaPath := filepath.Join(credDir, "credential.meta.json")
+	metaData, err := os.ReadFile(metaPath)
+	if err == nil {
+		var meta struct {
+			Active string `json:"active"`
+		}
+		if json.Unmarshal(metaData, &meta) == nil && meta.Active != "" {
+			// New structure: versions/{active}/certs/credential.*.pem
+			certsDir := filepath.Join(credDir, "versions", meta.Active, "certs")
+			if entries, err := os.ReadDir(certsDir); err == nil {
+				for _, e := range entries {
+					if strings.HasSuffix(e.Name(), ".pem") {
+						return filepath.Join(certsDir, e.Name())
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to simple path (will fail with meaningful error)
+	return simplePath
 }
 
 // getCredentialKey returns the path to the private key file in a credential directory.
+// For versioned credentials (Composite/Catalyst), finds the key in the active version directory.
+// For HSM mode, returns empty string as keys are in the HSM.
 func getCredentialKey(t *testing.T, credDir string) string {
 	t.Helper()
-	return filepath.Join(credDir, "private-keys.pem")
+
+	// First check for simple non-versioned structure
+	simplePath := filepath.Join(credDir, "private-keys.pem")
+	if _, err := os.Stat(simplePath); err == nil {
+		return simplePath
+	}
+
+	// Read active version from credential.meta.json
+	metaPath := filepath.Join(credDir, "credential.meta.json")
+	metaData, err := os.ReadFile(metaPath)
+	if err == nil {
+		var meta struct {
+			Active string `json:"active"`
+		}
+		if json.Unmarshal(metaData, &meta) == nil && meta.Active != "" {
+			// New structure: versions/{active}/keys/credential.*.key
+			keysDir := filepath.Join(credDir, "versions", meta.Active, "keys")
+			if entries, err := os.ReadDir(keysDir); err == nil {
+				for _, e := range entries {
+					if strings.HasSuffix(e.Name(), ".key") {
+						return filepath.Join(keysDir, e.Name())
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to simple path (may be empty for HSM mode)
+	return simplePath
 }
 
 // getCACert returns the path to the CA certificate.

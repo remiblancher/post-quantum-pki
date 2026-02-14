@@ -11,6 +11,7 @@ import (
 
 	pkicrypto "github.com/remiblancher/post-quantum-pki/internal/crypto"
 	"github.com/remiblancher/post-quantum-pki/internal/ocsp"
+	"github.com/remiblancher/post-quantum-pki/internal/x509util"
 )
 
 // ocspSignParams holds parameters for OCSP response signing.
@@ -62,7 +63,8 @@ func parseOCSPRevocationTime(timeStr string) (time.Time, error) {
 }
 
 // loadOCSPSigner loads the signer key from HSM or software.
-func loadOCSPSigner(hsmConfig, keyPath, passphrase, keyLabel, keyID string) (crypto.Signer, error) {
+// For Composite/Catalyst certificates, it automatically creates a HybridSigner.
+func loadOCSPSigner(hsmConfig, keyPath, passphrase, keyLabel, keyID string, cert *x509.Certificate) (crypto.Signer, error) {
 	var keyCfg pkicrypto.KeyStorageConfig
 
 	if hsmConfig != "" {
@@ -75,6 +77,19 @@ func loadOCSPSigner(hsmConfig, keyPath, passphrase, keyLabel, keyID string) (cry
 		if err != nil {
 			return nil, fmt.Errorf("failed to get HSM PIN: %w", err)
 		}
+
+		// Check if certificate requires HybridSigner (Catalyst or Composite)
+		if cert != nil && (x509util.IsCatalystCertificate(cert) || x509util.IsCompositeCertificate(cert)) {
+			pkcs11Cfg := pkicrypto.PKCS11Config{
+				ModulePath: hsmCfg.PKCS11.Lib,
+				TokenLabel: hsmCfg.PKCS11.Token,
+				PIN:        pin,
+				KeyLabel:   keyLabel,
+			}
+			return pkicrypto.NewPKCS11HybridSigner(pkcs11Cfg)
+		}
+
+		// Single key signer
 		keyCfg = pkicrypto.KeyStorageConfig{
 			Type:           pkicrypto.KeyProviderTypePKCS11,
 			PKCS11Lib:      hsmCfg.PKCS11.Lib,

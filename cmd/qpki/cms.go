@@ -283,7 +283,7 @@ func runCMSSign(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		signer, err = loadSigningKey(cmsSignHSMConfig, cmsSignKey, cmsSignPassphrase, cmsSignKeyLabel, cmsSignKeyID)
+		signer, err = loadSigningKey(cmsSignHSMConfig, cmsSignKey, cmsSignPassphrase, cmsSignKeyLabel, cmsSignKeyID, cert)
 		if err != nil {
 			return fmt.Errorf("failed to load private key: %w", err)
 		}
@@ -554,7 +554,7 @@ func runCMSDecrypt(cmd *cobra.Command, args []string) error {
 		}
 
 		// Load the PKCS11Signer which implements crypto.Decrypter and DecapsulateKEM
-		signer, err := loadSigningKey(cmsDecryptHSMConfig, "", "", cmsDecryptKeyLabel, cmsDecryptKeyID)
+		signer, err := loadSigningKey(cmsDecryptHSMConfig, "", "", cmsDecryptKeyLabel, cmsDecryptKeyID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to load HSM key: %w", err)
 		}

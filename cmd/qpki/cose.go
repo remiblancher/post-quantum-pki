@@ -241,7 +241,7 @@ func runCOSESign(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to load certificate: %w", err)
 		}
 
-		signer, err = loadSigningKey(coseSignHSMConfig, coseSignKey, coseSignPassphrase, coseSignKeyLabel, coseSignKeyID)
+		signer, err = loadSigningKey(coseSignHSMConfig, coseSignKey, coseSignPassphrase, coseSignKeyLabel, coseSignKeyID, cert)
 		if err != nil {
 			return fmt.Errorf("failed to load private key: %w", err)
 		}
@@ -255,7 +255,7 @@ func runCOSESign(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if coseSignPQCKey != "" {
-		pqcSigner, err = loadSigningKey("", coseSignPQCKey, coseSignPassphrase, "", "")
+		pqcSigner, err = loadSigningKey("", coseSignPQCKey, coseSignPassphrase, "", "", pqcCert)
 		if err != nil {
 			return fmt.Errorf("failed to load PQC private key: %w", err)
 		}

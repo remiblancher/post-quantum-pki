@@ -179,6 +179,7 @@ func (s *PKCS11HybridSigner) Close() error {
 
 // NewPKCS11HybridSigner creates a HybridSigner from two HSM keys with the same label.
 // The classical key must be EC (CKK_EC), and the PQC key must be ML-DSA (CKK_UTI_MLDSA).
+// Both keys are distinguished by their CKA_KEY_TYPE attribute.
 func NewPKCS11HybridSigner(cfg PKCS11Config) (*PKCS11HybridSigner, error) {
 	if cfg.ModulePath == "" {
 		return nil, fmt.Errorf("PKCS#11 module path is required")
@@ -1315,8 +1316,10 @@ func GenerateHSMKeyPair(cfg GenerateHSMKeyPairConfig) (*GenerateHSMKeyPairResult
 	keyID := cfg.KeyID
 	if len(keyID) == 0 {
 		keyID = make([]byte, 8)
-		// Simple unique ID based on label hash
-		for i, c := range cfg.KeyLabel {
+		// Include algorithm in hash to ensure unique ID per key type
+		// This is critical for hybrid/composite where EC and ML-DSA share the same label
+		combined := cfg.KeyLabel + string(cfg.Algorithm)
+		for i, c := range combined {
 			keyID[i%8] ^= byte(c)
 		}
 	}

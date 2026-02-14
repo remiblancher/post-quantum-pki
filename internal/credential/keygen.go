@@ -14,12 +14,16 @@ import (
 // For HSM keys: generates directly in HSM, returns a storage ref with PKCS#11 info.
 //
 // The credentialID and keyIndex are used to construct unique key labels for HSM.
+// If noSuffix is true, the label is used as-is without adding -{keyIndex} suffix.
+// This is used for hybrid/composite credentials where both keys share the same label
+// and are distinguished by CKA_KEY_TYPE (like CA does).
 func GenerateKey(
 	kp pkicrypto.KeyProvider,
 	cfg pkicrypto.KeyStorageConfig,
 	alg pkicrypto.AlgorithmID,
 	credentialID string,
 	keyIndex int,
+	noSuffix bool,
 ) (pkicrypto.Signer, pkicrypto.StorageRef, error) {
 	switch cfg.Type {
 	case pkicrypto.KeyProviderTypePKCS11:
@@ -29,7 +33,11 @@ func GenerateKey(
 		if labelPrefix == "" {
 			labelPrefix = credentialID
 		}
-		hsmCfg.PKCS11KeyLabel = fmt.Sprintf("%s-%d", labelPrefix, keyIndex)
+		if noSuffix {
+			hsmCfg.PKCS11KeyLabel = labelPrefix
+		} else {
+			hsmCfg.PKCS11KeyLabel = fmt.Sprintf("%s-%d", labelPrefix, keyIndex)
+		}
 
 		signer, err := kp.Generate(alg, hsmCfg)
 		if err != nil {
