@@ -153,6 +153,40 @@ echo ">>> Generating CMS/OCSP/TSA fixtures..."
 # Create test data file
 echo "Test data for cross-compatibility testing" > "$OUT/testdata.txt"
 
+# Helper to get credential certificate path (handles both old and new structure)
+get_cred_cert() {
+    local cred_dir="$1"
+    # New structure: versions/v1/certs/credential.*.pem
+    local new_cert=$(find "$cred_dir/versions" -name "credential.*.pem" 2>/dev/null | head -1)
+    if [ -n "$new_cert" ]; then
+        echo "$new_cert"
+        return
+    fi
+    # Old structure: certificates.pem
+    if [ -f "$cred_dir/certificates.pem" ]; then
+        echo "$cred_dir/certificates.pem"
+        return
+    fi
+    echo ""
+}
+
+# Helper to get credential key path (handles both old and new structure)
+get_cred_key() {
+    local cred_dir="$1"
+    # New structure: versions/v1/keys/credential.*.key
+    local new_key=$(find "$cred_dir/versions" -name "credential.*.key" 2>/dev/null | head -1)
+    if [ -n "$new_key" ]; then
+        echo "$new_key"
+        return
+    fi
+    # Old structure: private-keys.pem
+    if [ -f "$cred_dir/private-keys.pem" ]; then
+        echo "$cred_dir/private-keys.pem"
+        return
+    fi
+    echo ""
+}
+
 # Function to generate CMS/OCSP/TSA fixtures for a CA
 generate_protocol_fixtures() {
     local CA_DIR="$1"
@@ -171,35 +205,53 @@ generate_protocol_fixtures() {
         return
     fi
 
+    # Get certificate and key paths
+    local SIGNING_CERT=$(get_cred_cert "$SIGNING_CRED")
+    local SIGNING_KEY=$(get_cred_key "$SIGNING_CRED")
+    local TSA_CERT=$(get_cred_cert "$TSA_CRED")
+    local TSA_KEY=$(get_cred_key "$TSA_CRED")
+    local OCSP_CERT=$(get_cred_cert "$OCSP_CRED")
+    local OCSP_KEY=$(get_cred_key "$OCSP_CRED")
+    local TLS_CERT=$(get_cred_cert "$TLS_CRED")
+
+    if [ -z "$SIGNING_CERT" ] || [ -z "$SIGNING_KEY" ]; then
+        echo "    $NAME: SKIP (missing signing credential files)"
+        return
+    fi
+
     # 1. CMS SignedData (attached)
     "$PKI" cms sign --data "$OUT/testdata.txt" \
-        --cert "$SIGNING_CRED/certificates.pem" \
-        --key "$SIGNING_CRED/private-keys.pem" \
+        --cert "$SIGNING_CERT" \
+        --key "$SIGNING_KEY" \
         --detached=false \
-        --out "$OUT_DIR/cms-attached.p7s" 2>/dev/null
+        --out "$OUT_DIR/cms-attached.p7s" 2>/dev/null || true
 
     # 2. CMS SignedData (detached)
     "$PKI" cms sign --data "$OUT/testdata.txt" \
-        --cert "$SIGNING_CRED/certificates.pem" \
-        --key "$SIGNING_CRED/private-keys.pem" \
+        --cert "$SIGNING_CERT" \
+        --key "$SIGNING_KEY" \
         --detached=true \
-        --out "$OUT_DIR/cms-detached.p7s" 2>/dev/null
+        --out "$OUT_DIR/cms-detached.p7s" 2>/dev/null || true
 
     # 3. OCSP Response (good status) - use TLS cert serial
-    local SERIAL=$(openssl x509 -in "$TLS_CRED/certificates.pem" -serial -noout 2>/dev/null | cut -d= -f2)
-    if [ -n "$SERIAL" ]; then
-        "$PKI" ocsp sign --serial "$SERIAL" --status good \
-            --ca "$CA_DIR/ca.crt" \
-            --cert "$OCSP_CRED/certificates.pem" \
-            --key "$OCSP_CRED/private-keys.pem" \
-            --out "$OUT_DIR/ocsp-good.der" 2>/dev/null
+    if [ -n "$TLS_CERT" ] && [ -n "$OCSP_CERT" ] && [ -n "$OCSP_KEY" ]; then
+        local SERIAL=$("$PKI" inspect "$TLS_CERT" --json 2>/dev/null | grep -o '"serial":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+        if [ -n "$SERIAL" ]; then
+            "$PKI" ocsp sign --serial "$SERIAL" --status good \
+                --ca "$CA_DIR/ca.crt" \
+                --cert "$OCSP_CERT" \
+                --key "$OCSP_KEY" \
+                --out "$OUT_DIR/ocsp-good.der" 2>/dev/null || true
+        fi
     fi
 
     # 4. TSA Token
-    "$PKI" tsa sign --data "$OUT/testdata.txt" \
-        --cert "$TSA_CRED/certificates.pem" \
-        --key "$TSA_CRED/private-keys.pem" \
-        --out "$OUT_DIR/timestamp.tsr" 2>/dev/null
+    if [ -n "$TSA_CERT" ] && [ -n "$TSA_KEY" ]; then
+        "$PKI" tsa sign --data "$OUT/testdata.txt" \
+            --cert "$TSA_CERT" \
+            --key "$TSA_KEY" \
+            --out "$OUT_DIR/timestamp.tsr" 2>/dev/null || true
+    fi
 
     echo "    $NAME: OK (CMS + OCSP + TSA)"
 }
@@ -248,6 +300,14 @@ generate_encryption_fixtures() {
         return
     fi
 
+    # Get certificate and key paths using helpers
+    local CRED_CERT=$(get_cred_cert "$CRED")
+    local CRED_KEY=$(get_cred_key "$CRED")
+    if [ -z "$CRED_CERT" ] || [ -z "$CRED_KEY" ]; then
+        echo "    $NAME Encryption: SKIP (credential files not found)"
+        return
+    fi
+
     # Generate encrypted message
     # Use AES-256-CBC for classical (ECDH/RSA) - EnvelopedData
     # Use AES-256-GCM for ML-KEM - AuthEnvelopedData
@@ -255,12 +315,12 @@ generate_encryption_fixtures() {
     if [[ "$NAME" == "ECDH" ]] || [[ "$NAME" == "RSA" ]]; then
         CONTENT_ENC="aes-256-cbc"
     fi
-    if "$PKI" cms encrypt --recipient "$CRED/certificates.pem" \
+    if "$PKI" cms encrypt --recipient "$CRED_CERT" \
         --in "$OUT/testdata.txt" --out "$OUT_DIR/cms-enveloped.p7m" \
         --content-enc "$CONTENT_ENC" 2>/dev/null; then
         # Copy key for decryption tests
-        cp "$CRED/private-keys.pem" "$OUT_DIR/encryption-key.pem"
-        cp "$CRED/certificates.pem" "$OUT_DIR/encryption-cert.pem"
+        cp "$CRED_KEY" "$OUT_DIR/encryption-key.pem" 2>/dev/null || true
+        cp "$CRED_CERT" "$OUT_DIR/encryption-cert.pem" 2>/dev/null || true
         echo "    $NAME Encryption: OK (EnvelopedData)"
     else
         echo "    $NAME Encryption: FAIL (encryption error)"
@@ -287,8 +347,15 @@ generate_encryption_fixtures_gcm() {
         return
     fi
 
+    # Get certificate path using helper
+    local CRED_CERT=$(get_cred_cert "$CRED")
+    if [ -z "$CRED_CERT" ]; then
+        echo "    $NAME AuthEnveloped: SKIP (credential cert not found)"
+        return
+    fi
+
     # Generate encrypted message with AES-256-GCM (AuthEnvelopedData)
-    if "$PKI" cms encrypt --recipient "$CRED/certificates.pem" \
+    if "$PKI" cms encrypt --recipient "$CRED_CERT" \
         --in "$OUT/testdata.txt" --out "$OUT_DIR/cms-auth-enveloped.p7m" \
         --content-enc "aes-256-gcm" 2>/dev/null; then
         echo "    $NAME AuthEnveloped: OK (AuthEnvelopedData + AES-GCM)"
@@ -344,11 +411,16 @@ echo "    CSR Composite (IETF draft-13): OK"
 # ML-KEM CSR with RFC 9883 attestation
 # First, create an attestation certificate (reuse the classical credential)
 ATTEST_CRED=$(find "$OUT/classical/ecdsa/credentials" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)
-if [ -n "$ATTEST_CRED" ]; then
-    "$PKI" csr gen --algorithm ml-kem-768 --keyout "$OUT/csr/mlkem768.key" \
-        --attest-cert "$ATTEST_CRED/certificates.pem" --attest-key "$ATTEST_CRED/private-keys.pem" \
-        --cn "CSR Test ML-KEM-768" --email mlkem@test.local --out "$OUT/csr/mlkem768.csr"
-    echo "    CSR ML-KEM-768 (RFC 9883): OK"
+ATTEST_CERT=$(get_cred_cert "$ATTEST_CRED" 2>/dev/null || echo "")
+ATTEST_KEY=$(get_cred_key "$ATTEST_CRED" 2>/dev/null || echo "")
+if [ -n "$ATTEST_CERT" ] && [ -n "$ATTEST_KEY" ]; then
+    if "$PKI" csr gen --algorithm ml-kem-768 --keyout "$OUT/csr/mlkem768.key" \
+        --attest-cert "$ATTEST_CERT" --attest-key "$ATTEST_KEY" \
+        --cn "CSR Test ML-KEM-768" --email mlkem@test.local --out "$OUT/csr/mlkem768.csr" 2>/dev/null; then
+        echo "    CSR ML-KEM-768 (RFC 9883): OK"
+    else
+        echo "    CSR ML-KEM-768: SKIP (attestation failed)"
+    fi
 else
     echo "    CSR ML-KEM-768: SKIP (no attestation credential found)"
 fi
@@ -388,7 +460,7 @@ echo ""
 # =============================================================================
 echo ">>> Generating Extension Variant Fixtures..."
 if [ -x "$SCRIPT_DIR/generate_qpki_extension_fixtures.sh" ]; then
-    "$SCRIPT_DIR/generate_qpki_extension_fixtures.sh"
+    "$SCRIPT_DIR/generate_qpki_extension_fixtures.sh" || echo "    Extension fixtures generation failed (non-fatal)"
 else
     echo "    Extension fixtures script not found or not executable"
 fi

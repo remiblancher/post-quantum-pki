@@ -8,17 +8,7 @@
       "US"
     ]
   },
-  "created": "2026-01-24T11:23:18.272633+01:00",
-  "keys": [
-    {
-      "id": "default",
-      "algorithm": "ml-dsa-87",
-      "storage": {
-        "type": "software",
-        "path": "keys/ca.ml-dsa-87.key"
-      }
-    }
-  ],
+  "created": "2026-02-14T12:27:39.656377+01:00",
   "active": "v1",
   "versions": {
     "v1": {
@@ -28,9 +18,8 @@
       "algos": [
         "ml-dsa-87"
       ],
-      "status": "active",
-      "created": "2026-01-24T11:23:18.272642+01:00",
-      "activated_at": "2026-01-24T11:23:18.272642+01:00"
+      "created": "2026-02-14T12:27:39.656389+01:00",
+      "activated_at": "2026-02-14T12:27:39.656389+01:00"
     }
   }
 }

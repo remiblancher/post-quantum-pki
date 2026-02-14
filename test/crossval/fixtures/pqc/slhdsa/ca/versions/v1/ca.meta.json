@@ -8,17 +8,7 @@
       "US"
     ]
   },
-  "created": "2026-01-24T11:23:18.727657+01:00",
-  "keys": [
-    {
-      "id": "default",
-      "algorithm": "slh-dsa-sha2-256f",
-      "storage": {
-        "type": "software",
-        "path": "keys/ca.slh-dsa-sha2-256f.key"
-      }
-    }
-  ],
+  "created": "2026-02-14T12:27:40.023846+01:00",
   "active": "v1",
   "versions": {
     "v1": {
@@ -28,9 +18,8 @@
       "algos": [
         "slh-dsa-sha2-256f"
       ],
-      "status": "active",
-      "created": "2026-01-24T11:23:18.727668+01:00",
-      "activated_at": "2026-01-24T11:23:18.727668+01:00"
+      "created": "2026-02-14T12:27:40.023857+01:00",
+      "activated_at": "2026-02-14T12:27:40.023857+01:00"
     }
   }
 }

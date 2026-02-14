@@ -8,17 +8,7 @@
       "US"
     ]
   },
-  "created": "2026-01-24T11:23:16.709653+01:00",
-  "keys": [
-    {
-      "id": "default",
-      "algorithm": "rsa-4096",
-      "storage": {
-        "type": "software",
-        "path": "versions/v1/keys/ca.rsa-4096.key"
-      }
-    }
-  ],
+  "created": "2026-02-14T12:27:37.953853+01:00",
   "active": "v1",
   "versions": {
     "v1": {
@@ -28,9 +18,18 @@
       "algos": [
         "rsa-4096"
       ],
-      "status": "active",
-      "created": "2026-01-24T11:23:16.709658+01:00",
-      "activated_at": "2026-01-24T11:23:16.709658+01:00"
+      "created": "2026-02-14T12:27:37.953856+01:00",
+      "activated_at": "2026-02-14T12:27:37.953856+01:00",
+      "keys": [
+        {
+          "id": "default",
+          "algorithm": "rsa-4096",
+          "storage": {
+            "type": "software",
+            "path": "versions/v1/keys/ca.rsa-4096.key"
+          }
+        }
+      ]
     }
   }
 }
