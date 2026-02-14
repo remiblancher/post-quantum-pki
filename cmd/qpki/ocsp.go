@@ -262,14 +262,14 @@ func runOCSPSign(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to load responder certificate: %w", err)
 		}
 
-		signer, err = loadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID)
+		signer, err = loadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID, responderCert)
 		if err != nil {
 			return err
 		}
 	} else {
 		// CA-signed mode: use CA certificate
 		responderCert = caCert
-		signer, err = loadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID)
+		signer, err = loadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID, responderCert)
 		if err != nil {
 			return err
 		}

@@ -220,6 +220,11 @@ func executeMultiProfileRotation(
 			return nil, nil, nil, err
 		}
 
+		// Add key references to root CAInfo
+		if err := addKeyRefsToVersionMulti(req.CADir, version.ID, prof, newCA); err != nil {
+			return nil, nil, nil, err
+		}
+
 		if crossCert, err := crossSignIfRequested(currentCAs, newCA, algoFamily, versionDir, req.CrossSign); err != nil {
 			return nil, nil, nil, err
 		} else if crossCert != nil {
@@ -429,4 +434,54 @@ func buildMultiProfileRotationSteps(versionID string, profiles []ProfileRotatePl
 	steps = append(steps, "Run 'pki ca activate' to activate the new version")
 
 	return steps
+}
+
+// addKeyRefsToVersionMulti adds key references to the root CAInfo for multi-profile rotation.
+func addKeyRefsToVersionMulti(caDir string, versionID string, prof *profile.Profile, newCA *CA) error {
+	// Load CAInfo from root CA directory
+	info, err := LoadCAInfo(caDir)
+	if err != nil || info == nil {
+		return fmt.Errorf("failed to load CA info: %w", err)
+	}
+
+	// If newCA has keyRefs (from HSM initialization), use those
+	if len(newCA.keyRefs) > 0 {
+		for _, keyRef := range newCA.keyRefs {
+			if err := info.AddVersionKey(versionID, keyRef); err != nil {
+				return fmt.Errorf("failed to add key reference: %w", err)
+			}
+		}
+	} else if prof.IsCatalyst() || prof.IsComposite() {
+		// Software keys for hybrid/composite - add key refs with file paths
+		classicalAlgoID := string(prof.Algorithms[0])
+		pqcAlgoID := string(prof.Algorithms[1])
+
+		if err := info.AddVersionKey(versionID, KeyRef{
+			ID:        "classical",
+			Algorithm: prof.Algorithms[0],
+			Storage:   CreateSoftwareKeyRef(fmt.Sprintf("versions/%s/keys/ca.%s.key", versionID, classicalAlgoID)),
+		}); err != nil {
+			return fmt.Errorf("failed to add classical key reference: %w", err)
+		}
+
+		if err := info.AddVersionKey(versionID, KeyRef{
+			ID:        "pqc",
+			Algorithm: prof.Algorithms[1],
+			Storage:   CreateSoftwareKeyRef(fmt.Sprintf("versions/%s/keys/ca.%s.key", versionID, pqcAlgoID)),
+		}); err != nil {
+			return fmt.Errorf("failed to add PQC key reference: %w", err)
+		}
+	} else {
+		// Single-algorithm CA - add single key ref
+		algoID := string(prof.GetAlgorithm())
+		if err := info.AddVersionKey(versionID, KeyRef{
+			ID:        "default",
+			Algorithm: prof.GetAlgorithm(),
+			Storage:   CreateSoftwareKeyRef(fmt.Sprintf("versions/%s/keys/ca.%s.key", versionID, algoID)),
+		}); err != nil {
+			return fmt.Errorf("failed to add key reference: %w", err)
+		}
+	}
+
+	return info.Save()
 }

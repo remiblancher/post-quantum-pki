@@ -156,7 +156,7 @@ func TestF_CMS_LoadSigningKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			signer, err := loadSigningKey(tt.hsmConfig, tt.keyPath, tt.passphrase, tt.keyLabel, tt.keyID)
+			signer, err := loadSigningKey(tt.hsmConfig, tt.keyPath, tt.passphrase, tt.keyLabel, tt.keyID, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("loadSigningKey() error = %v, wantErr %v", err, tt.wantErr)
 				return

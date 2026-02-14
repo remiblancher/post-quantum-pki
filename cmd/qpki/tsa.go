@@ -348,7 +348,7 @@ func runTSASign(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to load certificate: %w", err)
 		}
 
-		signer, err = loadSigningKey(tsaSignHSMConfig, tsaSignKey, tsaSignPassphrase, tsaSignKeyLabel, tsaSignKeyID)
+		signer, err = loadSigningKey(tsaSignHSMConfig, tsaSignKey, tsaSignPassphrase, tsaSignKeyLabel, tsaSignKeyID, cert)
 		if err != nil {
 			return fmt.Errorf("failed to load private key: %w", err)
 		}

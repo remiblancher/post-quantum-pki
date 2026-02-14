@@ -69,7 +69,7 @@ func (m *PKCS11KeyProvider) Generate(alg AlgorithmID, cfg KeyStorageConfig) (Sig
 	}
 
 	// Generate the key in the HSM
-	_, err := GenerateHSMKeyPair(GenerateHSMKeyPairConfig{
+	result, err := GenerateHSMKeyPair(GenerateHSMKeyPairConfig{
 		ModulePath: cfg.PKCS11Lib,
 		TokenLabel: cfg.PKCS11Token,
 		SlotID:     cfg.PKCS11Slot,
@@ -82,6 +82,10 @@ func (m *PKCS11KeyProvider) Generate(alg AlgorithmID, cfg KeyStorageConfig) (Sig
 		return nil, fmt.Errorf("failed to generate key in HSM: %w", err)
 	}
 
-	// Load and return the newly created signer
-	return m.Load(cfg)
+	// Load using both label AND key_id to uniquely identify the generated key.
+	// This is important for hybrid/composite where multiple keys share the same label
+	// but are distinguished by CKA_KEY_TYPE.
+	loadCfg := cfg
+	loadCfg.PKCS11KeyID = result.KeyID
+	return m.Load(loadCfg)
 }

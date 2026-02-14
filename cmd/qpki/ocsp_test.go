@@ -750,7 +750,7 @@ func TestU_LoadOCSPSigner_SoftwareMode(t *testing.T) {
 	_, keyPath := tc.setupSigningPair()
 
 	// Software mode with valid key
-	signer, err := loadOCSPSigner("", keyPath, "", "", "")
+	signer, err := loadOCSPSigner("", keyPath, "", "", "", nil)
 	if err != nil {
 		t.Errorf("loadOCSPSigner() error = %v", err)
 	}
@@ -761,7 +761,7 @@ func TestU_LoadOCSPSigner_SoftwareMode(t *testing.T) {
 
 func TestU_LoadOCSPSigner_MissingKey(t *testing.T) {
 	// Software mode without key path
-	_, err := loadOCSPSigner("", "", "", "", "")
+	_, err := loadOCSPSigner("", "", "", "", "", nil)
 	if err == nil {
 		t.Error("loadOCSPSigner() expected error for missing key path")
 	}
@@ -771,7 +771,7 @@ func TestU_LoadOCSPSigner_HSMMode_InvalidConfig(t *testing.T) {
 	tc := newTestContext(t)
 
 	// HSM mode with non-existent config file
-	_, err := loadOCSPSigner(tc.path("nonexistent.yaml"), "", "", "label", "")
+	_, err := loadOCSPSigner(tc.path("nonexistent.yaml"), "", "", "label", "", nil)
 	if err == nil {
 		t.Error("loadOCSPSigner() expected error for non-existent HSM config")
 	}
@@ -793,7 +793,7 @@ pkcs11:
 	t.Setenv("TEST_HSM_PIN", "1234")
 
 	// HSM mode without key-label or key-id should fail
-	_, err := loadOCSPSigner(hsmConfigPath, "", "", "", "")
+	_, err := loadOCSPSigner(hsmConfigPath, "", "", "", "", nil)
 	if err == nil {
 		t.Error("loadOCSPSigner() expected error for HSM mode without key-label or key-id")
 	}
@@ -806,7 +806,7 @@ func TestU_LoadOCSPSigner_SoftwareMode_KeyNotFound(t *testing.T) {
 	tc := newTestContext(t)
 
 	// Software mode with non-existent key file
-	_, err := loadOCSPSigner("", tc.path("nonexistent.key"), "", "", "")
+	_, err := loadOCSPSigner("", tc.path("nonexistent.key"), "", "", "", nil)
 	if err == nil {
 		t.Error("loadOCSPSigner() expected error for non-existent key file")
 	}
@@ -1131,7 +1131,7 @@ func TestU_BuildOCSPSignResponse_AllStatuses(t *testing.T) {
 	caCert, err := loadCertificate(certPath)
 	assertNoError(t, err)
 
-	signer, err := loadOCSPSigner("", keyPath, "", "", "")
+	signer, err := loadOCSPSigner("", keyPath, "", "", "", nil)
 	assertNoError(t, err)
 
 	statuses := []ocsp.CertStatus{
