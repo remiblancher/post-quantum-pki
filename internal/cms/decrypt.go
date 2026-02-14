@@ -425,26 +425,6 @@ func parseOriginatorPublicKey(originator asn1.RawValue, curve elliptic.Curve) (*
 	return ephPub, nil
 }
 
-// deriveKEKFromECDH computes the key encryption key using ECDH and KDF.
-func deriveKEKFromECDH(ecdsaPriv *ecdsa.PrivateKey, ephPub *ecdsa.PublicKey, kea pkix.AlgorithmIdentifier, kdfHash func() hash.Hash) ([]byte, error) {
-	sharedSecret, err := ecdhSharedSecretDecrypt(ecdsaPriv, ephPub)
-	if err != nil {
-		return nil, fmt.Errorf("ECDH failed: %w", err)
-	}
-
-	wrapAlgBytes := getWrapAlgBytes(kea)
-	sharedInfo, err := buildECCCMSSharedInfoDecryptRaw(wrapAlgBytes, 256)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build SharedInfo: %w", err)
-	}
-
-	kek, err := ansix963KDFDecrypt(sharedSecret, 32, sharedInfo, kdfHash)
-	if err != nil {
-		return nil, fmt.Errorf("KDF failed: %w", err)
-	}
-	return kek, nil
-}
-
 // getWrapAlgBytes extracts or builds the wrap algorithm bytes for SharedInfo.
 func getWrapAlgBytes(kea pkix.AlgorithmIdentifier) []byte {
 	if kea.Parameters.FullBytes != nil {
