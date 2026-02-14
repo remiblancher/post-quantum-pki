@@ -8,17 +8,7 @@
       ""
     ]
   },
-  "created": "2026-01-24T11:23:29.426042+01:00",
-  "keys": [
-    {
-      "id": "default",
-      "algorithm": "ecdsa-p256",
-      "storage": {
-        "type": "software",
-        "path": "versions/v1/keys/ca.ecdsa-p256.key"
-      }
-    }
-  ],
+  "created": "2026-02-14T12:27:50.422929+01:00",
   "active": "v1",
   "versions": {
     "v1": {
@@ -28,9 +18,18 @@
       "algos": [
         "ecdsa-p256"
       ],
-      "status": "active",
-      "created": "2026-01-24T11:23:29.426046+01:00",
-      "activated_at": "2026-01-24T11:23:29.426046+01:00"
+      "created": "2026-02-14T12:27:50.422931+01:00",
+      "activated_at": "2026-02-14T12:27:50.422931+01:00",
+      "keys": [
+        {
+          "id": "default",
+          "algorithm": "ecdsa-p256",
+          "storage": {
+            "type": "software",
+            "path": "versions/v1/keys/ca.ecdsa-p256.key"
+          }
+        }
+      ]
     }
   }
 }

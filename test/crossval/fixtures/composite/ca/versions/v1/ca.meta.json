@@ -8,25 +8,7 @@
       "US"
     ]
   },
-  "created": "2026-01-24T11:23:20.483995+01:00",
-  "keys": [
-    {
-      "id": "classical",
-      "algorithm": "ecdsa-p521",
-      "storage": {
-        "type": "software",
-        "path": "keys/ca.ecdsa-p521.key"
-      }
-    },
-    {
-      "id": "pqc",
-      "algorithm": "ml-dsa-87",
-      "storage": {
-        "type": "software",
-        "path": "keys/ca.ml-dsa-87.key"
-      }
-    }
-  ],
+  "created": "2026-02-14T12:27:41.788753+01:00",
   "active": "v1",
   "versions": {
     "v1": {
@@ -37,9 +19,8 @@
         "ecdsa-p521",
         "ml-dsa-87"
       ],
-      "status": "active",
-      "created": "2026-01-24T11:23:20.483999+01:00",
-      "activated_at": "2026-01-24T11:23:20.483999+01:00"
+      "created": "2026-02-14T12:27:41.788756+01:00",
+      "activated_at": "2026-02-14T12:27:41.788756+01:00"
     }
   }
 }

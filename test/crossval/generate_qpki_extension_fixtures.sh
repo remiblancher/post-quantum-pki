@@ -63,7 +63,7 @@ for profile in "$PROFILES_DIR"/*.yaml; do
         --ca-dir "$CA_DIR" 2>/dev/null; then
 
         # Export the certificate to a .crt file
-        "$PKI" ca export --ca-dir "$CA_DIR" --out "$OUT_DIR/$name.crt" 2>/dev/null
+        "$PKI" ca export --ca-dir "$CA_DIR" --out "$OUT_DIR/$name.crt" 2>/dev/null || true
         echo "OK"
         SUCCESS=$((SUCCESS + 1))
     else
