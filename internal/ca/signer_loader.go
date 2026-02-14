@@ -25,16 +25,29 @@ func (ca *CA) LoadSigner(passphrase string) error {
 
 			// Single key CA - use KeyRef (supports HSM and software keys)
 			defaultKey := ca.info.GetDefaultKey()
-			if defaultKey == nil {
-				return fmt.Errorf("no key reference found in CA metadata")
+			var keyCfg pkicrypto.KeyStorageConfig
+			var km pkicrypto.KeyProvider
+			var err error
+
+			if defaultKey != nil {
+				// Normal path: use KeyRef
+				keyCfg, err = defaultKey.BuildKeyStorageConfig(ca.info.BasePath(), passphrase)
+				if err != nil {
+					return fmt.Errorf("failed to build key storage config: %w", err)
+				}
+				km = pkicrypto.NewKeyProvider(keyCfg)
+			} else {
+				// Fallback: construct key config from algorithm (for CAs without explicit key refs)
+				algo := activeVer.Algos[0]
+				keyPath := ca.info.KeyPath(ca.info.Active, algo)
+				keyCfg = pkicrypto.KeyStorageConfig{
+					Type:       pkicrypto.KeyProviderTypeSoftware,
+					KeyPath:    keyPath,
+					Passphrase: passphrase,
+				}
+				km = pkicrypto.NewSoftwareKeyProvider()
 			}
 
-			keyCfg, err := defaultKey.BuildKeyStorageConfig(ca.info.BasePath(), passphrase)
-			if err != nil {
-				return fmt.Errorf("failed to build key storage config: %w", err)
-			}
-
-			km := pkicrypto.NewKeyProvider(keyCfg)
 			signer, err = km.Load(keyCfg)
 			if err != nil {
 				_ = audit.LogAuthFailed(ca.store.BasePath(), "invalid passphrase or key load error")
