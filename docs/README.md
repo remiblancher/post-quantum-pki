@@ -73,6 +73,15 @@ Welcome to the Post-Quantum PKI documentation. This guide will help you find the
 | [Testing](dev/TESTING.md) | Testing guide |
 | [Interoperability](dev/INTEROPERABILITY.md) | Interop testing |
 
+## Quality
+
+| Document | Description |
+|----------|-------------|
+| [Testing Strategy](quality/STRATEGY.md) | Testing philosophy and approach |
+| [Acceptance Tests](quality/TESTS-ACCEPTANCE.md) | 102 acceptance tests |
+| [Interop Tests](quality/TESTS-INTEROP.md) | OpenSSL/BouncyCastle validation |
+| [Compliance](quality/COMPLIANCE.md) | FIPS, RFC standards |
+
 ---
 
 ## Standards Compliance
@@ -132,9 +141,15 @@ docs/
 │   ├── TROUBLESHOOTING.md Common errors
 │   └── GLOSSARY.md        Terminology
 │
-└── dev/                   # Development
-    ├── ARCHITECTURE.md    System architecture
-    ├── CONTRIBUTING.md    Contribution guide
-    ├── TESTING.md         Testing guide
-    └── INTEROPERABILITY.md Interop testing
+├── dev/                   # Development
+│   ├── ARCHITECTURE.md    System architecture
+│   ├── CONTRIBUTING.md    Contribution guide
+│   ├── TESTING.md         Testing guide
+│   └── INTEROPERABILITY.md Interop testing
+│
+└── quality/               # Quality Assurance
+    ├── STRATEGY.md        Test philosophy
+    ├── TESTS-ACCEPTANCE.md 102 acceptance tests
+    ├── TESTS-INTEROP.md   OpenSSL/BC validation
+    └── COMPLIANCE.md      FIPS/RFC standards
 ```
