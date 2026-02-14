@@ -210,6 +210,20 @@ func TestU_KeyGen_HybridAlgorithms(t *testing.T) {
 	}
 }
 
+func TestU_KeyGen_HybridAlgorithms_Errors(t *testing.T) {
+	// Test non-hybrid algorithm
+	_, err := GenerateHybridKeyPair(AlgECDSAP256)
+	if err == nil {
+		t.Error("GenerateHybridKeyPair(ECDSA) should fail")
+	}
+
+	// Test X25519+ML-KEM hybrid (not implemented)
+	_, err = GenerateHybridKeyPair(AlgHybridX25519MLKEM768)
+	if err == nil {
+		t.Error("GenerateHybridKeyPair(X25519+MLKEM) should fail (not implemented)")
+	}
+}
+
 // TestSoftwareSigner_SignVerify tests signing and verification for all algorithms.
 func TestU_Crypto_SoftwareSigner_SignVerify(t *testing.T) {
 	signatureAlgs := []AlgorithmID{
@@ -1741,41 +1755,53 @@ func TestU_KeyPair_PublicKeyBytes_Ed25519(t *testing.T) {
 }
 
 func TestU_KeyPair_PublicKeyBytes_MLDSA(t *testing.T) {
-	kp, err := GenerateKeyPair(AlgMLDSA65)
-	if err != nil {
-		t.Fatalf("GenerateKeyPair() error = %v", err)
-	}
+	tests := []AlgorithmID{AlgMLDSA44, AlgMLDSA65, AlgMLDSA87}
 
-	pubBytes, err := kp.PublicKeyBytes()
-	if err != nil {
-		t.Fatalf("PublicKeyBytes() error = %v", err)
-	}
+	for _, alg := range tests {
+		t.Run(alg.String(), func(t *testing.T) {
+			kp, err := GenerateKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKeyPair() error = %v", err)
+			}
 
-	if len(pubBytes) == 0 {
-		t.Error("PublicKeyBytes() returned empty")
+			pubBytes, err := kp.PublicKeyBytes()
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("PublicKeyBytes() returned empty")
+			}
+		})
 	}
 }
 
 func TestU_KeyPair_PublicKeyBytes_MLKEM(t *testing.T) {
-	kemKp, err := GenerateKEMKeyPair(AlgMLKEM768)
-	if err != nil {
-		t.Fatalf("GenerateKEMKeyPair() error = %v", err)
-	}
+	tests := []AlgorithmID{AlgMLKEM512, AlgMLKEM768, AlgMLKEM1024}
 
-	// Wrap in a KeyPair to test
-	kp := &KeyPair{
-		Algorithm:  AlgMLKEM768,
-		PrivateKey: kemKp.PrivateKey,
-		PublicKey:  kemKp.PublicKey,
-	}
+	for _, alg := range tests {
+		t.Run(alg.String(), func(t *testing.T) {
+			kemKp, err := GenerateKEMKeyPair(alg)
+			if err != nil {
+				t.Fatalf("GenerateKEMKeyPair() error = %v", err)
+			}
 
-	pubBytes, err := kp.PublicKeyBytes()
-	if err != nil {
-		t.Fatalf("PublicKeyBytes() error = %v", err)
-	}
+			// Wrap in a KeyPair to test
+			kp := &KeyPair{
+				Algorithm:  alg,
+				PrivateKey: kemKp.PrivateKey,
+				PublicKey:  kemKp.PublicKey,
+			}
 
-	if len(pubBytes) == 0 {
-		t.Error("PublicKeyBytes() returned empty")
+			pubBytes, err := kp.PublicKeyBytes()
+			if err != nil {
+				t.Fatalf("PublicKeyBytes() error = %v", err)
+			}
+
+			if len(pubBytes) == 0 {
+				t.Error("PublicKeyBytes() returned empty")
+			}
+		})
 	}
 }
 
@@ -2469,12 +2495,28 @@ func TestU_AlgorithmToSLHDSAID_AllVariants(t *testing.T) {
 		alg      AlgorithmID
 		expected bool // whether ID should be non-zero
 	}{
+		// SHA2 variants (via aliases)
 		{AlgSLHDSA128s, true},
 		{AlgSLHDSA128f, true},
 		{AlgSLHDSA192s, true},
 		{AlgSLHDSA192f, true},
 		{AlgSLHDSA256s, true},
 		{AlgSLHDSA256f, true},
+		// SHA2 variants (explicit)
+		{AlgSLHDSASHA2128s, true},
+		{AlgSLHDSASHA2128f, true},
+		{AlgSLHDSASHA2192s, true},
+		{AlgSLHDSASHA2192f, true},
+		{AlgSLHDSASHA2256s, true},
+		{AlgSLHDSASHA2256f, true},
+		// SHAKE variants
+		{AlgSLHDSASHAKE128s, true},
+		{AlgSLHDSASHAKE128f, true},
+		{AlgSLHDSASHAKE192s, true},
+		{AlgSLHDSASHAKE192f, true},
+		{AlgSLHDSASHAKE256s, true},
+		{AlgSLHDSASHAKE256f, true},
+		// Invalid cases
 		{AlgECDSAP256, false}, // Should return 0
 		{"unknown", false},    // Should return 0
 	}

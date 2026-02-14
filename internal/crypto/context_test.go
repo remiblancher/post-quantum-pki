@@ -573,6 +573,34 @@ func TestU_Crypto_KEMContext_SignAndVerifyFail(t *testing.T) {
 	}
 }
 
+func TestU_Crypto_KEMContext_PublicKey(t *testing.T) {
+	tests := []AlgorithmID{AlgMLKEM512, AlgMLKEM768, AlgMLKEM1024}
+
+	for _, alg := range tests {
+		t.Run(alg.String(), func(t *testing.T) {
+			kp, err := GenerateKEMKeyPair(alg)
+			if err != nil {
+				t.Fatalf("Failed to generate KEM key pair: %v", err)
+			}
+
+			ctx, err := NewKEMContext(kp)
+			if err != nil {
+				t.Fatalf("NewKEMContext failed: %v", err)
+			}
+
+			pub := ctx.PublicKey()
+			if pub == nil {
+				t.Error("PublicKey() returned nil")
+			}
+
+			// Verify the returned public key matches the original
+			if pub != kp.PublicKey {
+				t.Error("PublicKey() did not return the expected public key")
+			}
+		})
+	}
+}
+
 // =============================================================================
 // NewContextFromCertificate Tests
 // =============================================================================
@@ -1032,6 +1060,43 @@ func TestAlgorithmFromPublicKey_SLHDSA_AllVariants(t *testing.T) {
 		t.Run(tt.alg.String(), func(t *testing.T) {
 			if tt.isSlow && testing.Short() {
 				t.Skip("Skipping slow SLH-DSA variant in short mode")
+			}
+
+			if !tt.isSlow {
+				t.Parallel()
+			}
+
+			signer, err := GenerateSoftwareSigner(tt.alg)
+			if err != nil {
+				t.Fatalf("Failed to generate %s signer: %v", tt.alg, err)
+			}
+
+			got := AlgorithmFromPublicKey(signer.Public())
+			if got != tt.alg {
+				t.Errorf("AlgorithmFromPublicKey(%s) = %s, want %s", tt.alg, got, tt.alg)
+			}
+		})
+	}
+}
+
+func TestAlgorithmFromPublicKey_SLHDSA_SHAKEVariants(t *testing.T) {
+	// Test all SHAKE SLH-DSA variants
+	tests := []struct {
+		alg    AlgorithmID
+		isSlow bool
+	}{
+		{AlgSLHDSASHAKE128f, false},
+		{AlgSLHDSASHAKE192f, false},
+		{AlgSLHDSASHAKE256f, false},
+		{AlgSLHDSASHAKE128s, true},
+		{AlgSLHDSASHAKE192s, true},
+		{AlgSLHDSASHAKE256s, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.alg.String(), func(t *testing.T) {
+			if tt.isSlow && testing.Short() {
+				t.Skip("Skipping slow SLH-DSA SHAKE variant in short mode")
 			}
 
 			if !tt.isSlow {

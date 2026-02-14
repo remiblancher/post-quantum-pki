@@ -723,3 +723,65 @@ func TestU_CA_DefaultKeyPath_NoActiveVersion(t *testing.T) {
 		t.Errorf("DefaultKeyPath() = %q, want empty string when no active version", keyPath)
 	}
 }
+
+// =============================================================================
+// CA.Close() Tests
+// =============================================================================
+
+func TestU_CA_Close_NilSigner(t *testing.T) {
+	ca := &CA{
+		signer: nil,
+	}
+
+	err := ca.Close()
+	if err != nil {
+		t.Errorf("Close() error = %v, want nil", err)
+	}
+}
+
+func TestU_CA_Close_SoftwareSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := Config{
+		CommonName:    "Test Root CA",
+		Algorithm:     crypto.AlgECDSAP256,
+		ValidityYears: 10,
+		PathLen:       1,
+	}
+
+	ca, err := Initialize(store, cfg)
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	// Software signer doesn't implement io.Closer, should return nil
+	err = ca.Close()
+	if err != nil {
+		t.Errorf("Close() error = %v, want nil", err)
+	}
+}
+
+func TestU_CA_Close_HybridSigner(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileStore(tmpDir)
+
+	cfg := HybridCAConfig{
+		CommonName:         "Test Hybrid CA",
+		ClassicalAlgorithm: crypto.AlgECDSAP384,
+		PQCAlgorithm:       crypto.AlgMLDSA65,
+		ValidityYears:      10,
+		PathLen:            1,
+	}
+
+	ca, err := InitializeHybridCA(store, cfg)
+	if err != nil {
+		t.Fatalf("InitializeHybridCA() error = %v", err)
+	}
+
+	// Hybrid signer with software sub-signers should close without error
+	err = ca.Close()
+	if err != nil {
+		t.Errorf("Close() error = %v, want nil", err)
+	}
+}

@@ -35,6 +35,10 @@ type testSoftHSM struct {
 func setupSoftHSM(t *testing.T) *testSoftHSM {
 	t.Helper()
 
+	// Close any existing pools to ensure clean state for this test
+	// This is necessary because each test creates its own temporary token directory
+	CloseAllPools()
+
 	// Check if softhsm2-util is available
 	if _, err := exec.LookPath("softhsm2-util"); err != nil {
 		t.Skip("softhsm2-util not found, skipping PKCS#11 tests")
