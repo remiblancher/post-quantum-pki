@@ -808,16 +808,8 @@ func TestU_CA_LoadCurrentCAsForCrossSigning_WithCrossSign(t *testing.T) {
 	tmpDir := setupVersionedCA(t)
 	versionStore := NewVersionStore(tmpDir)
 
-	// Create a version first
-	_, err := versionStore.CreateVersionWithID("v1", []string{"test-profile"})
-	if err != nil {
-		t.Fatalf("CreateVersionWithID() error = %v", err)
-	}
-
-	// Activate the version
-	if err := versionStore.Activate("v1"); err != nil {
-		t.Fatalf("Activate() error = %v", err)
-	}
+	// setupVersionedCA already creates and activates v1 via CreateInitialVersion
+	// No need to create/activate again
 
 	currentCerts := map[string]*CertRef{
 		"ec": {AlgorithmFamily: "ec", Subject: "CN=Test EC CA"},

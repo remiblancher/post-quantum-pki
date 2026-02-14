@@ -1094,3 +1094,66 @@ func TestU_CA_CAInfo_HybridCertPathForVersion(t *testing.T) {
 		t.Errorf("HybridCertPathForVersion() = %s, want %s", result, expected)
 	}
 }
+
+// =============================================================================
+// BuildVersionKeyStorageConfig Tests
+// =============================================================================
+
+func TestU_CA_CAInfo_BuildVersionKeyStorageConfig_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	info := NewCAInfo(Subject{CommonName: "Test CA"})
+	info.SetBasePath(tmpDir)
+	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256"})
+
+	// Add a key to the version
+	keyRef := KeyRef{
+		ID:        "default",
+		Algorithm: pkicrypto.AlgECDSAP256,
+		Storage: pkicrypto.StorageRef{
+			Type: "software",
+			Path: "keys/ca.key.pem",
+		},
+	}
+	err := info.AddVersionKey("v1", keyRef)
+	if err != nil {
+		t.Fatalf("AddVersionKey() error = %v", err)
+	}
+
+	// Build the key storage config
+	cfg, err := info.BuildVersionKeyStorageConfig("v1", "default", "test-passphrase")
+	if err != nil {
+		t.Fatalf("BuildVersionKeyStorageConfig() error = %v", err)
+	}
+
+	if cfg.Type != "software" {
+		t.Errorf("Type = %q, want %q", cfg.Type, "software")
+	}
+	if cfg.Passphrase != "test-passphrase" {
+		t.Errorf("Passphrase not set correctly")
+	}
+}
+
+func TestU_CA_CAInfo_BuildVersionKeyStorageConfig_KeyNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	info := NewCAInfo(Subject{CommonName: "Test CA"})
+	info.SetBasePath(tmpDir)
+	info.CreateInitialVersion([]string{"default"}, []string{"ecdsa-p256"})
+
+	// Try to get a non-existent key
+	_, err := info.BuildVersionKeyStorageConfig("v1", "nonexistent", "passphrase")
+	if err == nil {
+		t.Error("BuildVersionKeyStorageConfig() should return error for non-existent key")
+	}
+}
+
+func TestU_CA_CAInfo_BuildVersionKeyStorageConfig_VersionNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	info := NewCAInfo(Subject{CommonName: "Test CA"})
+	info.SetBasePath(tmpDir)
+
+	// Try to get a key from non-existent version (no versions created)
+	_, err := info.BuildVersionKeyStorageConfig("v99", "default", "passphrase")
+	if err == nil {
+		t.Error("BuildVersionKeyStorageConfig() should return error for non-existent version")
+	}
+}

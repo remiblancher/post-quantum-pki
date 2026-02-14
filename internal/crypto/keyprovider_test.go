@@ -777,6 +777,77 @@ func TestU_LoadPrivateKeysAsHybrid_InvalidPEM(t *testing.T) {
 	}
 }
 
+func TestU_LoadPrivateKeysAsHybrid_HybridKeys(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Generate and save classical key
+	classicalSigner, err := GenerateSoftwareSigner(AlgECDSAP256)
+	if err != nil {
+		t.Fatalf("failed to generate classical signer: %v", err)
+	}
+	classicalPath := filepath.Join(tmpDir, "classical.key")
+	if err := classicalSigner.SavePrivateKey(classicalPath, nil); err != nil {
+		t.Fatalf("failed to save classical key: %v", err)
+	}
+
+	// Generate and save PQC key
+	pqcSigner, err := GenerateSoftwareSigner(AlgMLDSA65)
+	if err != nil {
+		t.Fatalf("failed to generate PQC signer: %v", err)
+	}
+	pqcPath := filepath.Join(tmpDir, "pqc.key")
+	if err := pqcSigner.SavePrivateKey(pqcPath, nil); err != nil {
+		t.Fatalf("failed to save PQC key: %v", err)
+	}
+
+	// Combine both keys into a single file
+	classicalPEM, _ := os.ReadFile(classicalPath)
+	pqcPEM, _ := os.ReadFile(pqcPath)
+	hybridPath := filepath.Join(tmpDir, "hybrid.key")
+	combinedPEM := append(classicalPEM, pqcPEM...)
+	if err := os.WriteFile(hybridPath, combinedPEM, 0600); err != nil {
+		t.Fatalf("failed to write hybrid key: %v", err)
+	}
+
+	// Load as hybrid
+	signer, err := LoadPrivateKeysAsHybrid(hybridPath, nil)
+	if err != nil {
+		t.Fatalf("LoadPrivateKeysAsHybrid() failed: %v", err)
+	}
+
+	// Verify it's a HybridSigner
+	_, ok := signer.(*HybridSignerImpl)
+	if !ok {
+		t.Errorf("expected HybridSigner, got %T", signer)
+	}
+}
+
+func TestU_LoadPrivateKeysAsHybrid_TwoClassicalKeys(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Generate two classical keys
+	signer1, _ := GenerateSoftwareSigner(AlgECDSAP256)
+	signer2, _ := GenerateSoftwareSigner(AlgECDSAP384)
+
+	path1 := filepath.Join(tmpDir, "key1.key")
+	path2 := filepath.Join(tmpDir, "key2.key")
+
+	signer1.SavePrivateKey(path1, nil)
+	signer2.SavePrivateKey(path2, nil)
+
+	pem1, _ := os.ReadFile(path1)
+	pem2, _ := os.ReadFile(path2)
+
+	hybridPath := filepath.Join(tmpDir, "both.key")
+	os.WriteFile(hybridPath, append(pem1, pem2...), 0600)
+
+	// Should fail - two classical keys
+	_, err := LoadPrivateKeysAsHybrid(hybridPath, nil)
+	if err == nil {
+		t.Error("expected error for two classical keys")
+	}
+}
+
 // =============================================================================
 // [Unit] PrivateKey accessor Tests
 // =============================================================================

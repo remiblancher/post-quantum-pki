@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"testing"
 )
@@ -289,6 +290,95 @@ func TestU_Profile_Rfc5280RequiredEncoding(t *testing.T) {
 				t.Errorf("rfc5280RequiredEncoding(%q) = %q, want %q", tt.attr, got, tt.expected)
 			}
 		})
+	}
+}
+
+func TestU_Profile_MarshalPkixNameWithEncoding_NilConfig(t *testing.T) {
+	name := pkix.Name{
+		CommonName:   "test.example.com",
+		Organization: []string{"ACME Corp"},
+		Country:      []string{"US"},
+	}
+
+	// With nil config, should use Go's default encoding
+	der, err := MarshalPkixNameWithEncoding(name, nil)
+	if err != nil {
+		t.Fatalf("MarshalPkixNameWithEncoding failed: %v", err)
+	}
+
+	if len(der) == 0 {
+		t.Error("expected non-empty DER output")
+	}
+
+	// Verify it's valid ASN.1
+	var seq asn1.RawValue
+	_, err = asn1.Unmarshal(der, &seq)
+	if err != nil {
+		t.Fatalf("DER output is not valid ASN.1: %v", err)
+	}
+}
+
+func TestU_Profile_MarshalPkixNameWithEncoding_EmptyAttrs(t *testing.T) {
+	name := pkix.Name{
+		CommonName:   "test.example.com",
+		Organization: []string{"ACME Corp"},
+	}
+
+	cfg := &SubjectConfig{
+		Attrs: map[string]*SubjectAttribute{}, // Empty attrs
+	}
+
+	// With empty attrs, should use Go's default encoding
+	der, err := MarshalPkixNameWithEncoding(name, cfg)
+	if err != nil {
+		t.Fatalf("MarshalPkixNameWithEncoding failed: %v", err)
+	}
+
+	if len(der) == 0 {
+		t.Error("expected non-empty DER output")
+	}
+}
+
+func TestU_Profile_MarshalPkixNameWithEncoding_CustomEncoding(t *testing.T) {
+	name := pkix.Name{
+		CommonName:         "test.example.com",
+		Organization:       []string{"ACME Corp"},
+		Country:            []string{"US"},
+		Province:           []string{"California"},
+		Locality:           []string{"San Francisco"},
+		OrganizationalUnit: []string{"IT"},
+		SerialNumber:       "12345",
+		StreetAddress:      []string{"123 Main St"},
+		PostalCode:         []string{"94102"},
+	}
+
+	cfg := &SubjectConfig{
+		Attrs: map[string]*SubjectAttribute{
+			"cn": {Encoding: DNEncodingUTF8},
+			"o":  {Encoding: DNEncodingPrintable},
+			"c":  {Encoding: DNEncodingPrintable},
+		},
+	}
+
+	der, err := MarshalPkixNameWithEncoding(name, cfg)
+	if err != nil {
+		t.Fatalf("MarshalPkixNameWithEncoding failed: %v", err)
+	}
+
+	if len(der) == 0 {
+		t.Error("expected non-empty DER output")
+	}
+
+	// Verify it's valid ASN.1 RDN sequence
+	var seq asn1.RawValue
+	_, err = asn1.Unmarshal(der, &seq)
+	if err != nil {
+		t.Fatalf("DER output is not valid ASN.1: %v", err)
+	}
+
+	// The tag should be SEQUENCE (0x30)
+	if seq.Tag != asn1.TagSequence {
+		t.Errorf("expected SEQUENCE tag (0x30), got 0x%x", seq.Tag)
 	}
 }
 
