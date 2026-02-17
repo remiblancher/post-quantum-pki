@@ -178,7 +178,7 @@ generate_openssl_matrix() {
         return
     fi
 
-    for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
+    for artifact in CERT CRL CSR CMS CMSENC OCSP TSA COSE; do
         generate_interop_row "$OPENSSL_RESULTS" "$artifact" "TC-XOSL"
     done
 }
@@ -189,7 +189,7 @@ generate_bc_matrix() {
         return
     fi
 
-    for artifact in CERT CRL CSR CMS CMSENC OCSP TSA; do
+    for artifact in CERT CRL CSR CMS CMSENC OCSP TSA COSE; do
         generate_interop_row "$BC_RESULTS" "$artifact" "TC-XBC"
     done
 }
@@ -266,6 +266,8 @@ REPORT_CONTENT="$REPORT_CONTENT
 | RFC 5652 | ✅ | CMS |
 | RFC 6960 | ✅ | OCSP |
 | RFC 3161 | ✅ | TSA |
+| RFC 9052 | ✅ | COSE |
+| RFC 8392 | ✅ | CWT |
 | RFC 9882 | ✅ | ML-DSA in CMS |
 | RFC 9883 | ✅ | ML-KEM in CMS |"
 
@@ -310,6 +312,8 @@ cat > "${OUTPUT_FILE%.md}.json" << EOF
     "rfc5652": "implemented",
     "rfc6960": "implemented",
     "rfc3161": "implemented",
+    "rfc9052": "implemented",
+    "rfc8392": "implemented",
     "rfc9882": "implemented",
     "rfc9883": "implemented"
   }
