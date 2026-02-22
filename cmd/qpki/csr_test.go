@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/remiblancher/qpki/pkg/crypto"
+	"github.com/remiblancher/qpki/internal/crypto"
 )
 
 // resetCSRFlags resets all CSR command flags to their default values.

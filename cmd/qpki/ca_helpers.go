@@ -9,9 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/remiblancher/qpki/pkg/ca"
-	"github.com/remiblancher/qpki/pkg/crypto"
-	"github.com/remiblancher/qpki/pkg/profile"
+	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/remiblancher/qpki/internal/crypto"
+	"github.com/remiblancher/qpki/internal/profile"
 )
 
 // ctx is the default context for CA operations.

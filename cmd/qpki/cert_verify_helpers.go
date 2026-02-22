@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/remiblancher/qpki/pkg/ca"
+	"github.com/remiblancher/qpki/internal/ca"
 )
 
 // verifyResult holds the verification result.

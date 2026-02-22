@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/remiblancher/qpki/pkg/ca"
-	"github.com/remiblancher/qpki/pkg/credential"
+	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/remiblancher/qpki/internal/credential"
 )
 
 // validateExportFlags validates the format and bundle flags for export.

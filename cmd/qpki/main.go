@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/audit"
-	"github.com/remiblancher/qpki/pkg/crypto"
+	"github.com/remiblancher/qpki/internal/audit"
+	"github.com/remiblancher/qpki/internal/crypto"
 )
 
 // Build-time variables (injected by GoReleaser)

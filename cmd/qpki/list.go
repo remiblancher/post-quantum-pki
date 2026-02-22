@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/ca"
+	"github.com/remiblancher/qpki/internal/ca"
 )
 
 var listCmd = &cobra.Command{

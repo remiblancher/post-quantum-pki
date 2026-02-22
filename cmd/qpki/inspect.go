@@ -14,9 +14,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/cms"
-	"github.com/remiblancher/qpki/pkg/tsa"
-	"github.com/remiblancher/qpki/pkg/x509util"
+	"github.com/remiblancher/qpki/internal/cms"
+	"github.com/remiblancher/qpki/internal/tsa"
+	"github.com/remiblancher/qpki/internal/x509util"
 )
 
 var inspectCmd = &cobra.Command{

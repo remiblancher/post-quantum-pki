@@ -11,10 +11,10 @@ import (
 	"net"
 	"os"
 
-	"github.com/remiblancher/qpki/pkg/ca"
-	"github.com/remiblancher/qpki/pkg/crypto"
-	"github.com/remiblancher/qpki/pkg/profile"
-	"github.com/remiblancher/qpki/pkg/x509util"
+	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/remiblancher/qpki/internal/crypto"
+	"github.com/remiblancher/qpki/internal/profile"
+	"github.com/remiblancher/qpki/internal/x509util"
 )
 
 // parseIPStrings parses a slice of IP address strings into net.IP values.

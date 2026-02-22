@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	pkicrypto "github.com/remiblancher/qpki/pkg/crypto"
-	"github.com/remiblancher/qpki/pkg/x509util"
+	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/remiblancher/qpki/internal/x509util"
 )
 
 // loadSigningCert loads a certificate for CMS signing.

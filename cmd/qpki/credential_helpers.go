@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/remiblancher/qpki/pkg/ca"
-	"github.com/remiblancher/qpki/pkg/credential"
-	pkicrypto "github.com/remiblancher/qpki/pkg/crypto"
-	"github.com/remiblancher/qpki/pkg/profile"
+	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/remiblancher/qpki/internal/credential"
+	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/remiblancher/qpki/internal/profile"
 )
 
 // configureHSMKeyProvider configures the CA with an HSM key provider if HSM config is specified.

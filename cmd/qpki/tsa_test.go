@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/remiblancher/qpki/pkg/tsa"
+	"github.com/remiblancher/qpki/internal/tsa"
 )
 
 // resetTSAFlags resets all TSA command flags to their default values.

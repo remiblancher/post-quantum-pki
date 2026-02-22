@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/pkg/ca"
+	"github.com/remiblancher/qpki/internal/ca"
 )
 
 // =============================================================================

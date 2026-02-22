@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/audit"
+	"github.com/remiblancher/qpki/internal/audit"
 )
 
 var auditCmd = &cobra.Command{

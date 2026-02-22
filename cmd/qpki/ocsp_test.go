@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/pkg/ocsp"
+	"github.com/remiblancher/qpki/internal/ocsp"
 )
 
 // testTime returns the current time for tests.

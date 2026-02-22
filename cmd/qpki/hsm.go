@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/crypto"
+	"github.com/remiblancher/qpki/internal/crypto"
 )
 
 var hsmCmd = &cobra.Command{

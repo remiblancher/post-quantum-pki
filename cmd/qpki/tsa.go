@@ -22,10 +22,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/audit"
-	"github.com/remiblancher/qpki/pkg/credential"
-	pkicrypto "github.com/remiblancher/qpki/pkg/crypto"
-	"github.com/remiblancher/qpki/pkg/tsa"
+	"github.com/remiblancher/qpki/internal/audit"
+	"github.com/remiblancher/qpki/internal/credential"
+	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/remiblancher/qpki/internal/tsa"
 )
 
 var tsaCmd = &cobra.Command{

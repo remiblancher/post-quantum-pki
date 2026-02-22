@@ -15,9 +15,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/pkg/audit"
-	"github.com/remiblancher/qpki/pkg/ca"
-	"github.com/remiblancher/qpki/pkg/ocsp"
+	"github.com/remiblancher/qpki/internal/audit"
+	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/remiblancher/qpki/internal/ocsp"
 )
 
 var verifyCmd = &cobra.Command{
