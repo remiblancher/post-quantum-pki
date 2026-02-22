@@ -216,12 +216,12 @@ func (vs *VersionStore) migrateFromVersionsJSON() error {
 	// Parse old VersionIndex
 	var oldIndex struct {
 		Versions []struct {
-			ID           string            `json:"id"`
-			Profiles     []string          `json:"profiles"`
-			Certificates []VersionCertRef  `json:"certificates"`
-			Created      time.Time         `json:"created"`
-			ActivatedAt  *time.Time        `json:"activated_at,omitempty"`
-			ArchivedAt   *time.Time        `json:"archived_at,omitempty"`
+			ID           string           `json:"id"`
+			Profiles     []string         `json:"profiles"`
+			Certificates []VersionCertRef `json:"certificates"`
+			Created      time.Time        `json:"created"`
+			ActivatedAt  *time.Time       `json:"activated_at,omitempty"`
+			ArchivedAt   *time.Time       `json:"archived_at,omitempty"`
 		} `json:"versions"`
 		ActiveVersion string `json:"active_version"`
 		NextVersion   int    `json:"next_version"`

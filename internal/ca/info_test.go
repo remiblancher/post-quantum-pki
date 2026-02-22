@@ -380,9 +380,9 @@ func TestU_CA_CAMetadataJSON(t *testing.T) {
 	// Create a complete metadata structure with version keys
 	now := time.Now()
 	meta := &CAMetadata{
-		Subject:  Subject{CommonName: "Test CA"},
-		Created:  time.Date(2025, 1, 2, 10, 30, 0, 0, time.UTC),
-		Active:   "v1",
+		Subject: Subject{CommonName: "Test CA"},
+		Created: time.Date(2025, 1, 2, 10, 30, 0, 0, time.UTC),
+		Active:  "v1",
 		Versions: map[string]CAVersion{
 			"v1": {
 				Profiles:    []string{"default"},

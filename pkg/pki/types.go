@@ -10,19 +10,19 @@ type Algorithm string
 // Supported algorithms.
 const (
 	// Classical algorithms
-	AlgRSA2048       Algorithm = "rsa-2048"
-	AlgRSA3072       Algorithm = "rsa-3072"
-	AlgRSA4096       Algorithm = "rsa-4096"
-	AlgECDSAP256     Algorithm = "ecdsa-p256"
-	AlgECDSAP384     Algorithm = "ecdsa-p384"
-	AlgECDSAP521     Algorithm = "ecdsa-p521"
-	AlgEd25519       Algorithm = "ed25519"
-	AlgEd448         Algorithm = "ed448"
+	AlgRSA2048   Algorithm = "rsa-2048"
+	AlgRSA3072   Algorithm = "rsa-3072"
+	AlgRSA4096   Algorithm = "rsa-4096"
+	AlgECDSAP256 Algorithm = "ecdsa-p256"
+	AlgECDSAP384 Algorithm = "ecdsa-p384"
+	AlgECDSAP521 Algorithm = "ecdsa-p521"
+	AlgEd25519   Algorithm = "ed25519"
+	AlgEd448     Algorithm = "ed448"
 
 	// Post-quantum algorithms (FIPS 204)
-	AlgMLDSA44       Algorithm = "ml-dsa-44"
-	AlgMLDSA65       Algorithm = "ml-dsa-65"
-	AlgMLDSA87       Algorithm = "ml-dsa-87"
+	AlgMLDSA44 Algorithm = "ml-dsa-44"
+	AlgMLDSA65 Algorithm = "ml-dsa-65"
+	AlgMLDSA87 Algorithm = "ml-dsa-87"
 
 	// Post-quantum algorithms (FIPS 205)
 	AlgSLHDSASHA2128s Algorithm = "slh-dsa-sha2-128s"
@@ -80,9 +80,9 @@ func (r RevocationReason) String() string {
 
 // RevokedCertificate represents a revoked certificate entry for CRL generation.
 type RevokedCertificate struct {
-	Serial       []byte
-	RevokedAt    time.Time
-	Reason       RevocationReason
+	Serial    []byte
+	RevokedAt time.Time
+	Reason    RevocationReason
 }
 
 // CertificateFilter defines criteria for listing certificates.
@@ -130,10 +130,10 @@ type SubjectTemplate struct {
 
 // ExtensionSet defines certificate extensions.
 type ExtensionSet struct {
-	KeyUsage           []string
-	ExtKeyUsage        []string
-	BasicConstraints   *BasicConstraints
-	SubjectAltName     *SubjectAltName
+	KeyUsage         []string
+	ExtKeyUsage      []string
+	BasicConstraints *BasicConstraints
+	SubjectAltName   *SubjectAltName
 }
 
 // BasicConstraints defines CA/path length constraints.
@@ -160,15 +160,15 @@ type VariableDefinition struct {
 
 // AuditEvent represents a logged PKI operation.
 type AuditEvent struct {
-	Timestamp   time.Time
-	EventType   AuditEventType
-	Actor       string
-	Resource    string
-	Action      string
-	Result      string
-	Details     map[string]interface{}
-	PrevHash    string
-	Hash        string
+	Timestamp time.Time
+	EventType AuditEventType
+	Actor     string
+	Resource  string
+	Action    string
+	Result    string
+	Details   map[string]interface{}
+	PrevHash  string
+	Hash      string
 }
 
 // AuditEventType categorizes audit events.

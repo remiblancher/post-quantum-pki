@@ -20,9 +20,9 @@ type PKCS11SessionPool struct {
 	module    string
 	slotID    uint
 	pin       string
-	available []pkcs11.SessionHandle          // sessions available for use
-	inUse     map[pkcs11.SessionHandle]bool   // sessions currently in use
-	loginDone bool                            // whether login was performed
+	available []pkcs11.SessionHandle        // sessions available for use
+	inUse     map[pkcs11.SessionHandle]bool // sessions currently in use
+	loginDone bool                          // whether login was performed
 	closed    bool
 }
 

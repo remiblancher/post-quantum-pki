@@ -158,9 +158,9 @@ var (
 	coseSignCredDir      string
 
 	// cose verify flags
-	coseVerifyCert      string
-	coseVerifyCA        string
-	coseVerifyData      string
+	coseVerifyCert       string
+	coseVerifyCA         string
+	coseVerifyData       string
 	coseVerifyNoCheckExp bool
 
 	// cose info flags - none needed

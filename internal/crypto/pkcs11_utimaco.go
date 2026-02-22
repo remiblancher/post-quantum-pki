@@ -20,12 +20,12 @@ const (
 	utiMechVDMDigest = (0xD << 12) // 0xD000
 
 	// ML-DSA (FIPS 204) mechanisms
-	CKM_UTI_MLDSA_GENKEY      = utiMechMLVDM | utiMechVDMGen | 1      // 0xCA500001
-	CKM_UTI_MLDSA_SIGN        = utiMechMLVDM | utiMechVDMSign | 1     // 0xCA503001
-	CKM_UTI_MLDSA_EXTMU_SIGN  = utiMechMLVDM | utiMechVDMSign | 5     // 0xCA503005
-	CKM_UTI_MLDSA_VERIFY      = utiMechMLVDM | utiMechVDMVerify | 1   // 0xCA504001
-	CKM_UTI_MLDSA_EXTMU_VERIFY = utiMechMLVDM | utiMechVDMVerify | 5  // 0xCA504005
-	CKM_UTI_MLDSA_SHAKE256    = utiMechMLVDM | utiMechVDMDigest | 1   // 0xCA50D001
+	CKM_UTI_MLDSA_GENKEY       = utiMechMLVDM | utiMechVDMGen | 1    // 0xCA500001
+	CKM_UTI_MLDSA_SIGN         = utiMechMLVDM | utiMechVDMSign | 1   // 0xCA503001
+	CKM_UTI_MLDSA_EXTMU_SIGN   = utiMechMLVDM | utiMechVDMSign | 5   // 0xCA503005
+	CKM_UTI_MLDSA_VERIFY       = utiMechMLVDM | utiMechVDMVerify | 1 // 0xCA504001
+	CKM_UTI_MLDSA_EXTMU_VERIFY = utiMechMLVDM | utiMechVDMVerify | 5 // 0xCA504005
+	CKM_UTI_MLDSA_SHAKE256     = utiMechMLVDM | utiMechVDMDigest | 1 // 0xCA50D001
 
 	// ML-KEM (FIPS 203) mechanisms
 	CKM_UTI_MLKEM_GENKEY = utiMechMLVDM | utiMechVDMGen | 2    // 0xCA500002

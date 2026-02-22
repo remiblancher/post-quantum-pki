@@ -8,9 +8,9 @@ import (
 // Sentinel errors for common PKI operations.
 var (
 	// CA errors
-	ErrCANotInitialized   = errors.New("CA not initialized")
-	ErrCAAlreadyExists    = errors.New("CA already exists")
-	ErrCAKeyNotFound      = errors.New("CA key not found")
+	ErrCANotInitialized = errors.New("CA not initialized")
+	ErrCAAlreadyExists  = errors.New("CA already exists")
+	ErrCAKeyNotFound    = errors.New("CA key not found")
 
 	// Certificate errors
 	ErrCertNotFound       = errors.New("certificate not found")
@@ -19,14 +19,14 @@ var (
 	ErrInvalidCSR         = errors.New("invalid CSR")
 
 	// Profile errors
-	ErrProfileNotFound    = errors.New("profile not found")
-	ErrInvalidProfile     = errors.New("invalid profile")
-	ErrMissingVariable    = errors.New("missing required variable")
+	ErrProfileNotFound = errors.New("profile not found")
+	ErrInvalidProfile  = errors.New("invalid profile")
+	ErrMissingVariable = errors.New("missing required variable")
 
 	// Key errors
-	ErrKeyNotFound        = errors.New("key not found")
-	ErrInvalidAlgorithm   = errors.New("invalid algorithm")
-	ErrHSMNotAvailable    = errors.New("HSM not available")
+	ErrKeyNotFound      = errors.New("key not found")
+	ErrInvalidAlgorithm = errors.New("invalid algorithm")
+	ErrHSMNotAvailable  = errors.New("HSM not available")
 
 	// Store errors
 	ErrStoreNotInitialized = errors.New("store not initialized")

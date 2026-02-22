@@ -67,8 +67,8 @@ func VerifySign(data []byte, config *VerifyConfig) (*VerifyResult, error) {
 // verifyMessage performs signature verification on a parsed message.
 func verifyMessage(data []byte, msg *Message, config *VerifyConfig) (*VerifyResult, error) {
 	result := &VerifyResult{
-		Valid:     true,
-		Mode:      msg.Mode,
+		Valid:      true,
+		Mode:       msg.Mode,
 		Algorithms: make([]gocose.Algorithm, 0, len(msg.Signatures)),
 	}
 
