@@ -324,7 +324,7 @@ func TestU_LoadCredentialVersionCerts(t *testing.T) {
 
 func TestU_LoadCredentialVersionCerts_MultipleAlgorithms(t *testing.T) {
 	t.Run("[Unit] LoadCredentialVersionCerts: loads from multiple old algo dirs", func(t *testing.T) {
-		credPath, versionStore, credStore := setupTestCredential(t)
+		credPath, _, credStore := setupTestCredential(t)
 
 		// Update metadata to have multiple algos
 		now := time.Now()
@@ -346,13 +346,19 @@ func TestU_LoadCredentialVersionCerts_MultipleAlgorithms(t *testing.T) {
 		}
 
 		metaJSON, _ := json.MarshalIndent(credMeta, "", "  ")
-		os.WriteFile(filepath.Join(credPath, "credential.meta.json"), metaJSON, 0644)
+		if err := os.WriteFile(filepath.Join(credPath, "credential.meta.json"), metaJSON, 0644); err != nil {
+			t.Fatalf("Failed to write metadata: %v", err)
+		}
 
 		// Create old structure with multiple algo directories
 		ecDir := filepath.Join(credPath, "versions", "v1", "ec")
 		mldsaDir := filepath.Join(credPath, "versions", "v1", "ml-dsa")
-		os.MkdirAll(ecDir, 0755)
-		os.MkdirAll(mldsaDir, 0755)
+		if err := os.MkdirAll(ecDir, 0755); err != nil {
+			t.Fatalf("Failed to create ec dir: %v", err)
+		}
+		if err := os.MkdirAll(mldsaDir, 0755); err != nil {
+			t.Fatalf("Failed to create ml-dsa dir: %v", err)
+		}
 
 		ecCert := generateTestCertificate(t, "EC Cert")
 		mldsaCert := generateTestCertificate(t, "ML-DSA Cert")
@@ -360,7 +366,7 @@ func TestU_LoadCredentialVersionCerts_MultipleAlgorithms(t *testing.T) {
 		writeCertificatePEM(t, filepath.Join(mldsaDir, "certificates.pem"), mldsaCert)
 
 		// Reload version store to pick up metadata changes
-		versionStore = credential.NewVersionStore(credPath)
+		versionStore := credential.NewVersionStore(credPath)
 
 		// Load certificates
 		certs, err := LoadCredentialVersionCerts("test-credential", "v1", versionStore, credStore)

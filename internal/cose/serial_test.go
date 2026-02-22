@@ -70,7 +70,7 @@ func TestU_DefaultSerialGenerator(t *testing.T) {
 	})
 
 	t.Run("[Unit] DefaultSerialGenerator: implements SerialGenerator", func(t *testing.T) {
-		var _ SerialGenerator = DefaultSerialGenerator
+		_ = DefaultSerialGenerator // Verify it implements SerialGenerator interface
 	})
 
 	t.Run("[Unit] DefaultSerialGenerator: can generate serial", func(t *testing.T) {
