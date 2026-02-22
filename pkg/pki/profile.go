@@ -35,6 +35,9 @@ type (
 	// SubjectAltNameConfig holds SAN configuration.
 	SubjectAltNameConfig = profile.SubjectAltNameConfig
 
+	// Variable represents a profile variable definition.
+	Variable = profile.Variable
+
 	// ProfileError wraps profile errors.
 	ProfileError = profile.ProfileError
 
