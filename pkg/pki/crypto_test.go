@@ -148,7 +148,7 @@ func TestU_GenerateKeyPair(t *testing.T) {
 			t.Fatalf("GenerateKeyPair() error = %v", err)
 		}
 		if kp == nil {
-			t.Error("GenerateKeyPair() returned nil key pair")
+			t.Fatal("GenerateKeyPair() returned nil key pair")
 		}
 		if kp.PrivateKey == nil {
 			t.Error("GenerateKeyPair() returned nil private key")

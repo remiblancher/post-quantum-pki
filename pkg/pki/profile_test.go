@@ -16,7 +16,7 @@ func TestU_LoadProfile(t *testing.T) {
 			t.Fatalf("LoadProfile() error = %v", err)
 		}
 		if prof == nil {
-			t.Error("LoadProfile() returned nil profile")
+			t.Fatal("LoadProfile() returned nil profile")
 		}
 		if prof.Name != "ec/tls-server" {
 			t.Errorf("LoadProfile() name = %s, want ec/tls-server", prof.Name)

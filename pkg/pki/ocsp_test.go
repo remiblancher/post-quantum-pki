@@ -153,23 +153,17 @@ func TestU_OCSPRevocationReasonConstants(t *testing.T) {
 func TestU_OCSPTypes(t *testing.T) {
 	t.Run("[Unit] OCSPTypes: OCSPResponderConfig can be instantiated", func(t *testing.T) {
 		cfg := &OCSPResponderConfig{}
-		if cfg == nil {
-			t.Error("OCSPResponderConfig should be instantiable")
-		}
+		_ = cfg // verify it compiles
 	})
 
 	t.Run("[Unit] OCSPTypes: OCSPVerifyConfig can be instantiated", func(t *testing.T) {
 		cfg := &OCSPVerifyConfig{}
-		if cfg == nil {
-			t.Error("OCSPVerifyConfig should be instantiable")
-		}
+		_ = cfg // verify it compiles
 	})
 
 	t.Run("[Unit] OCSPTypes: OCSPStatusInfo can be instantiated", func(t *testing.T) {
 		info := &OCSPStatusInfo{}
-		if info == nil {
-			t.Error("OCSPStatusInfo should be instantiable")
-		}
+		_ = info // verify it compiles
 	})
 }
 
