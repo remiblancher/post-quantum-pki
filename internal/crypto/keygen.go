@@ -325,9 +325,15 @@ func GenerateHybridKeyPairWithRand(random io.Reader, alg AlgorithmID) (*HybridKe
 	}, nil
 }
 
-// ParsePublicKey parses raw public key bytes into a crypto.PublicKey.
-// This is the inverse of KeyPair.PublicKeyBytes().
-func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
+// ecdsaCurveMap maps ECDSA algorithm IDs to their corresponding elliptic curves.
+var ecdsaCurveMap = map[AlgorithmID]elliptic.Curve{
+	AlgECDSAP256: elliptic.P256(),
+	AlgECDSAP384: elliptic.P384(),
+	AlgECDSAP521: elliptic.P521(),
+}
+
+// parseMLDSAPublicKey parses raw bytes into an ML-DSA public key.
+func parseMLDSAPublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
 	switch alg {
 	case AlgMLDSA44:
 		var pub mldsa44.PublicKey
@@ -335,53 +341,62 @@ func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
 			return nil, fmt.Errorf("failed to parse ML-DSA-44 public key: %w", err)
 		}
 		return &pub, nil
-
 	case AlgMLDSA65:
 		var pub mldsa65.PublicKey
 		if err := pub.UnmarshalBinary(data); err != nil {
 			return nil, fmt.Errorf("failed to parse ML-DSA-65 public key: %w", err)
 		}
 		return &pub, nil
-
 	case AlgMLDSA87:
 		var pub mldsa87.PublicKey
 		if err := pub.UnmarshalBinary(data); err != nil {
 			return nil, fmt.Errorf("failed to parse ML-DSA-87 public key: %w", err)
 		}
 		return &pub, nil
+	default:
+		return nil, fmt.Errorf("not an ML-DSA algorithm: %s", alg)
+	}
+}
+
+// parseSLHDSAPublicKey parses raw bytes into an SLH-DSA public key.
+func parseSLHDSAPublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
+	var pub slhdsa.PublicKey
+	pub.ID = algorithmToSLHDSAID(alg)
+	if err := pub.UnmarshalBinary(data); err != nil {
+		return nil, fmt.Errorf("failed to parse %s public key: %w", alg, err)
+	}
+	return &pub, nil
+}
+
+// parseECDSAPublicKey parses raw bytes into an ECDSA public key for the given algorithm.
+func parseECDSAPublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
+	curve, ok := ecdsaCurveMap[alg]
+	if !ok {
+		return nil, fmt.Errorf("not an ECDSA algorithm: %s", alg)
+	}
+	// Note: elliptic.Unmarshal is deprecated since Go 1.21 in favor of crypto/ecdh,
+	// but crypto/ecdh is for ECDH key agreement, not ECDSA signing. There's no
+	// direct replacement for parsing raw ECDSA public keys from uncompressed points.
+	x, y := elliptic.Unmarshal(curve, data) //nolint:staticcheck // No ECDSA alternative
+	if x == nil {
+		return nil, fmt.Errorf("failed to parse %s public key", alg)
+	}
+	return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
+}
+
+// ParsePublicKey parses raw public key bytes into a crypto.PublicKey.
+// This is the inverse of KeyPair.PublicKeyBytes().
+func ParsePublicKey(alg AlgorithmID, data []byte) (crypto.PublicKey, error) {
+	switch alg {
+	case AlgMLDSA44, AlgMLDSA65, AlgMLDSA87:
+		return parseMLDSAPublicKey(alg, data)
 
 	case AlgSLHDSASHA2128s, AlgSLHDSASHA2128f, AlgSLHDSASHA2192s, AlgSLHDSASHA2192f, AlgSLHDSASHA2256s, AlgSLHDSASHA2256f,
 		AlgSLHDSASHAKE128s, AlgSLHDSASHAKE128f, AlgSLHDSASHAKE192s, AlgSLHDSASHAKE192f, AlgSLHDSASHAKE256s, AlgSLHDSASHAKE256f:
-		var pub slhdsa.PublicKey
-		pub.ID = algorithmToSLHDSAID(alg)
-		if err := pub.UnmarshalBinary(data); err != nil {
-			return nil, fmt.Errorf("failed to parse %s public key: %w", alg, err)
-		}
-		return &pub, nil
+		return parseSLHDSAPublicKey(alg, data)
 
-	case AlgECDSAP256:
-		// Note: elliptic.Unmarshal is deprecated since Go 1.21 in favor of crypto/ecdh,
-		// but crypto/ecdh is for ECDH key agreement, not ECDSA signing. There's no
-		// direct replacement for parsing raw ECDSA public keys from uncompressed points.
-		x, y := elliptic.Unmarshal(elliptic.P256(), data) //nolint:staticcheck // No ECDSA alternative
-		if x == nil {
-			return nil, fmt.Errorf("failed to parse P-256 public key")
-		}
-		return &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}, nil
-
-	case AlgECDSAP384:
-		x, y := elliptic.Unmarshal(elliptic.P384(), data) //nolint:staticcheck // No ECDSA alternative
-		if x == nil {
-			return nil, fmt.Errorf("failed to parse P-384 public key")
-		}
-		return &ecdsa.PublicKey{Curve: elliptic.P384(), X: x, Y: y}, nil
-
-	case AlgECDSAP521:
-		x, y := elliptic.Unmarshal(elliptic.P521(), data) //nolint:staticcheck // No ECDSA alternative
-		if x == nil {
-			return nil, fmt.Errorf("failed to parse P-521 public key")
-		}
-		return &ecdsa.PublicKey{Curve: elliptic.P521(), X: x, Y: y}, nil
+	case AlgECDSAP256, AlgECDSAP384, AlgECDSAP521:
+		return parseECDSAPublicKey(alg, data)
 
 	case AlgEd25519:
 		if len(data) != ed25519.PublicKeySize {

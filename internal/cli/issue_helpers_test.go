@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/remiblancher/qpki/internal/profile"
@@ -321,4 +322,104 @@ func TestU_LoadAndRenderIssueVariables(t *testing.T) {
 			t.Error("LoadAndRenderIssueVariables() should fail for non-existent var file")
 		}
 	})
+}
+
+// =============================================================================
+// ParseClassicalCSR Tests
+// =============================================================================
+
+func TestU_ParseClassicalCSR_Valid(t *testing.T) {
+	csrPEM, _ := generateTestCSR(t, "test.example.com", []string{"test.example.com", "www.example.com"})
+
+	// Parse the PEM to get the CSR object
+	block, _ := pem.Decode(csrPEM)
+	if block == nil {
+		t.Fatal("failed to decode CSR PEM")
+	}
+
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse CSR: %v", err)
+	}
+
+	result, err := ParseClassicalCSR(csr, block.Bytes, "")
+	if err != nil {
+		t.Fatalf("ParseClassicalCSR() error = %v", err)
+	}
+
+	if result.PublicKey == nil {
+		t.Error("ParseClassicalCSR() PublicKey should not be nil")
+	}
+
+	if result.Template.Subject.CommonName != "test.example.com" {
+		t.Errorf("ParseClassicalCSR() CN = %s, want test.example.com", result.Template.Subject.CommonName)
+	}
+
+	if len(result.Template.DNSNames) != 2 {
+		t.Errorf("ParseClassicalCSR() DNSNames count = %d, want 2", len(result.Template.DNSNames))
+	}
+}
+
+// =============================================================================
+// ParseCSRFromFile Extended Tests
+// =============================================================================
+
+func TestU_ParseCSRFromFile_ValidClassicalCSR(t *testing.T) {
+	csrPEM, _ := generateTestCSR(t, "file-test.example.com", []string{"file-test.example.com"})
+
+	tmpDir := t.TempDir()
+	csrPath := filepath.Join(tmpDir, "test.csr")
+	if err := os.WriteFile(csrPath, csrPEM, 0644); err != nil {
+		t.Fatalf("failed to write CSR file: %v", err)
+	}
+
+	result, err := ParseCSRFromFile(csrPath, "")
+	if err != nil {
+		t.Fatalf("ParseCSRFromFile() error = %v", err)
+	}
+
+	if result.PublicKey == nil {
+		t.Error("ParseCSRFromFile() PublicKey should not be nil")
+	}
+
+	if result.Template.Subject.CommonName != "file-test.example.com" {
+		t.Errorf("ParseCSRFromFile() CN = %s, want file-test.example.com", result.Template.Subject.CommonName)
+	}
+}
+
+// =============================================================================
+// LoadAndRenderIssueVariables Extended Tests
+// =============================================================================
+
+func TestU_LoadAndRenderIssueVariables_WithCSRValues(t *testing.T) {
+	prof := &profile.Profile{
+		Name:      "test-profile",
+		Variables: nil,
+	}
+	csrTemplate := &x509.Certificate{
+		Subject: pkix.Name{
+			CommonName: "csr.example.com",
+		},
+		DNSNames:    []string{"csr.example.com", "alt.example.com"},
+		IPAddresses: []net.IP{net.ParseIP("10.0.0.1")},
+	}
+
+	result, err := LoadAndRenderIssueVariables(prof, "", nil, csrTemplate)
+	if err != nil {
+		t.Fatalf("LoadAndRenderIssueVariables() error = %v", err)
+	}
+
+	if result["cn"] != "csr.example.com" {
+		t.Errorf("cn = %v, want csr.example.com", result["cn"])
+	}
+
+	dnsNames, ok := result["dns_names"].([]string)
+	if !ok || len(dnsNames) != 2 {
+		t.Errorf("dns_names = %v, want [csr.example.com alt.example.com]", result["dns_names"])
+	}
+
+	ipAddrs, ok := result["ip_addresses"].([]string)
+	if !ok || len(ipAddrs) != 1 {
+		t.Errorf("ip_addresses = %v, want [10.0.0.1]", result["ip_addresses"])
+	}
 }

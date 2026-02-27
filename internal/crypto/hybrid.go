@@ -351,6 +351,32 @@ func privateKeyToPEMBlock(priv crypto.PrivateKey, alg AlgorithmID, passphrase []
 	return block, nil
 }
 
+// parseMLDSAPEMBlock parses an ML-DSA private key from a PEM block.
+func parseMLDSAPEMBlock(pemType string, keyBytes []byte) (crypto.PrivateKey, crypto.PublicKey, AlgorithmID, error) {
+	switch pemType {
+	case "ML-DSA-44 PRIVATE KEY":
+		var mlPriv mldsa44.PrivateKey
+		if err := mlPriv.UnmarshalBinary(keyBytes); err != nil {
+			return nil, nil, "", fmt.Errorf("failed to parse ML-DSA-44 key: %w", err)
+		}
+		return &mlPriv, mlPriv.Public(), AlgMLDSA44, nil
+	case "ML-DSA-65 PRIVATE KEY":
+		var mlPriv mldsa65.PrivateKey
+		if err := mlPriv.UnmarshalBinary(keyBytes); err != nil {
+			return nil, nil, "", fmt.Errorf("failed to parse ML-DSA-65 key: %w", err)
+		}
+		return &mlPriv, mlPriv.Public(), AlgMLDSA65, nil
+	case "ML-DSA-87 PRIVATE KEY":
+		var mlPriv mldsa87.PrivateKey
+		if err := mlPriv.UnmarshalBinary(keyBytes); err != nil {
+			return nil, nil, "", fmt.Errorf("failed to parse ML-DSA-87 key: %w", err)
+		}
+		return &mlPriv, mlPriv.Public(), AlgMLDSA87, nil
+	default:
+		return nil, nil, "", fmt.Errorf("unknown ML-DSA PEM type: %s", pemType)
+	}
+}
+
 // parsePEMBlockToSigner parses a PEM block into a SoftwareSigner.
 func parsePEMBlockToSigner(block *pem.Block, passphrase []byte) (*SoftwareSigner, error) {
 	keyBytes := block.Bytes
@@ -394,32 +420,11 @@ func parsePEMBlockToSigner(block *pem.Block, passphrase []byte) (*SoftwareSigner
 		}
 		alg, pub = classicalKeyInfo(priv)
 
-	case "ML-DSA-44 PRIVATE KEY":
-		var mlPriv mldsa44.PrivateKey
-		if err := mlPriv.UnmarshalBinary(keyBytes); err != nil {
-			return nil, fmt.Errorf("failed to parse ML-DSA-44 key: %w", err)
+	case "ML-DSA-44 PRIVATE KEY", "ML-DSA-65 PRIVATE KEY", "ML-DSA-87 PRIVATE KEY":
+		priv, pub, alg, err = parseMLDSAPEMBlock(block.Type, keyBytes)
+		if err != nil {
+			return nil, err
 		}
-		priv = &mlPriv
-		pub = mlPriv.Public()
-		alg = AlgMLDSA44
-
-	case "ML-DSA-65 PRIVATE KEY":
-		var mlPriv mldsa65.PrivateKey
-		if err := mlPriv.UnmarshalBinary(keyBytes); err != nil {
-			return nil, fmt.Errorf("failed to parse ML-DSA-65 key: %w", err)
-		}
-		priv = &mlPriv
-		pub = mlPriv.Public()
-		alg = AlgMLDSA65
-
-	case "ML-DSA-87 PRIVATE KEY":
-		var mlPriv mldsa87.PrivateKey
-		if err := mlPriv.UnmarshalBinary(keyBytes); err != nil {
-			return nil, fmt.Errorf("failed to parse ML-DSA-87 key: %w", err)
-		}
-		priv = &mlPriv
-		pub = mlPriv.Public()
-		alg = AlgMLDSA87
 
 	default:
 		// Check for SLH-DSA key types

@@ -51,61 +51,53 @@ func LoadSigner(ctx context.Context, store Store, credID string, passphrase []by
 	return matchSignerToCertificate(certs, signers)
 }
 
-// matchSignerToCertificate finds the appropriate certificate and signer pair.
-// For hybrid credentials (2 signers: classical + PQC), it creates a HybridSigner.
-// For single-key credentials, it returns the first signing certificate and its signer.
-// For PQC-only signers where x509 doesn't support the key type natively,
-// it falls back to returning the first certificate with the PQC signer.
-func matchSignerToCertificate(certs []*x509.Certificate, signers []pkicrypto.Signer) (*x509.Certificate, pkicrypto.Signer, error) {
-	// Case 1: Single signer - find matching certificate
-	if len(signers) == 1 {
-		cert, err := findCertificateForSigner(certs, signers[0])
+// matchSingleSigner finds the certificate matching a single signer.
+// Falls back to the first certificate for PQC signers where x509 can't contain the key directly.
+func matchSingleSigner(certs []*x509.Certificate, signer pkicrypto.Signer) (*x509.Certificate, pkicrypto.Signer, error) {
+	cert, err := findCertificateForSigner(certs, signer)
+	if err != nil {
+		if signer.Algorithm().IsPQC() && len(certs) > 0 {
+			return certs[0], signer, nil
+		}
+		return nil, nil, err
+	}
+	return cert, signer, nil
+}
+
+// matchHybridSigners handles the two-signer case (classical + PQC) by creating a HybridSigner.
+func matchHybridSigners(certs []*x509.Certificate, signers []pkicrypto.Signer) (*x509.Certificate, pkicrypto.Signer, error) {
+	var classical, pqc pkicrypto.Signer
+	for _, s := range signers {
+		if s.Algorithm().IsPQC() {
+			pqc = s
+		} else {
+			classical = s
+		}
+	}
+
+	if classical != nil && pqc != nil {
+		hybridSigner, err := pkicrypto.NewHybridSigner(classical, pqc)
 		if err != nil {
-			// For PQC signers, x509 certificates can't contain PQC public keys directly.
-			// In this case, we use a placeholder certificate (typically ECDSA) and
-			// fall back to returning the first certificate with the PQC signer.
-			if signers[0].Algorithm().IsPQC() && len(certs) > 0 {
-				return certs[0], signers[0], nil
-			}
+			return nil, nil, fmt.Errorf("failed to create hybrid signer: %w", err)
+		}
+		cert, err := findCertificateForSigner(certs, classical)
+		if err != nil {
 			return nil, nil, err
 		}
-		return cert, signers[0], nil
+		return cert, hybridSigner, nil
 	}
 
-	// Case 2: Two signers - check if hybrid (classical + PQC)
-	if len(signers) == 2 {
-		var classical, pqc pkicrypto.Signer
-		for _, s := range signers {
-			if s.Algorithm().IsPQC() {
-				pqc = s
-			} else {
-				classical = s
-			}
-		}
-
-		// If we have both classical and PQC, create hybrid signer
-		if classical != nil && pqc != nil {
-			hybridSigner, err := pkicrypto.NewHybridSigner(classical, pqc)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to create hybrid signer: %w", err)
-			}
-
-			// For hybrid, use the classical certificate (it contains the primary key)
-			cert, err := findCertificateForSigner(certs, classical)
-			if err != nil {
-				return nil, nil, err
-			}
-			return cert, hybridSigner, nil
-		}
-
-		// Two PQC signers (non-hybrid) - use first cert with first signer
-		if pqc != nil && classical == nil && len(certs) > 0 {
-			return certs[0], signers[0], nil
-		}
+	// Two PQC signers (non-hybrid) - use first cert with first signer
+	if pqc != nil && classical == nil && len(certs) > 0 {
+		return certs[0], signers[0], nil
 	}
 
-	// Case 3: Multiple signers but not hybrid - use the first signing certificate
-	// Find first certificate that has a matching signer
+	// Two classical signers (non-hybrid) - fall back to matching by public key
+	return matchMultipleSigners(certs, signers)
+}
+
+// matchMultipleSigners finds the first certificate-signer pair with matching public keys.
+func matchMultipleSigners(certs []*x509.Certificate, signers []pkicrypto.Signer) (*x509.Certificate, pkicrypto.Signer, error) {
 	for _, cert := range certs {
 		for _, signer := range signers {
 			if publicKeysMatch(cert.PublicKey, signer.Public()) {
@@ -114,19 +106,38 @@ func matchSignerToCertificate(certs []*x509.Certificate, signers []pkicrypto.Sig
 		}
 	}
 
-	// Fallback for multiple PQC signers with no matching certs
-	allPQC := true
-	for _, s := range signers {
-		if !s.Algorithm().IsPQC() {
-			allPQC = false
-			break
-		}
-	}
-	if allPQC && len(certs) > 0 {
+	// Fallback for all-PQC signers with no matching certs
+	if allSignersPQC(signers) && len(certs) > 0 {
 		return certs[0], signers[0], nil
 	}
 
 	return nil, nil, fmt.Errorf("no matching certificate found for any signer")
+}
+
+// allSignersPQC returns true if all signers use PQC algorithms.
+func allSignersPQC(signers []pkicrypto.Signer) bool {
+	for _, s := range signers {
+		if !s.Algorithm().IsPQC() {
+			return false
+		}
+	}
+	return true
+}
+
+// matchSignerToCertificate finds the appropriate certificate and signer pair.
+// For hybrid credentials (2 signers: classical + PQC), it creates a HybridSigner.
+// For single-key credentials, it returns the first signing certificate and its signer.
+// For PQC-only signers where x509 doesn't support the key type natively,
+// it falls back to returning the first certificate with the PQC signer.
+func matchSignerToCertificate(certs []*x509.Certificate, signers []pkicrypto.Signer) (*x509.Certificate, pkicrypto.Signer, error) {
+	switch len(signers) {
+	case 1:
+		return matchSingleSigner(certs, signers[0])
+	case 2:
+		return matchHybridSigners(certs, signers)
+	default:
+		return matchMultipleSigners(certs, signers)
+	}
 }
 
 // findCertificateForSigner finds the certificate whose public key matches the signer.

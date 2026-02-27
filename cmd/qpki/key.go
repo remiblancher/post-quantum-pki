@@ -467,52 +467,38 @@ func isKEMKeyFile(path string) (bool, error) {
 	return false, nil
 }
 
+// pqcPublicKeyPEMTypes maps PQC algorithm IDs to their PEM block type names.
+var pqcPublicKeyPEMTypes = map[crypto.AlgorithmID]string{
+	// ML-DSA (signature)
+	crypto.AlgMLDSA44: "ML-DSA-44 PUBLIC KEY",
+	crypto.AlgMLDSA65: "ML-DSA-65 PUBLIC KEY",
+	crypto.AlgMLDSA87: "ML-DSA-87 PUBLIC KEY",
+	// SLH-DSA SHA2 variants (signature)
+	crypto.AlgSLHDSASHA2128s: "SLH-DSA-SHA2-128s PUBLIC KEY",
+	crypto.AlgSLHDSASHA2128f: "SLH-DSA-SHA2-128f PUBLIC KEY",
+	crypto.AlgSLHDSASHA2192s: "SLH-DSA-SHA2-192s PUBLIC KEY",
+	crypto.AlgSLHDSASHA2192f: "SLH-DSA-SHA2-192f PUBLIC KEY",
+	crypto.AlgSLHDSASHA2256s: "SLH-DSA-SHA2-256s PUBLIC KEY",
+	crypto.AlgSLHDSASHA2256f: "SLH-DSA-SHA2-256f PUBLIC KEY",
+	// SLH-DSA SHAKE variants (signature)
+	crypto.AlgSLHDSASHAKE128s: "SLH-DSA-SHAKE-128s PUBLIC KEY",
+	crypto.AlgSLHDSASHAKE128f: "SLH-DSA-SHAKE-128f PUBLIC KEY",
+	crypto.AlgSLHDSASHAKE192s: "SLH-DSA-SHAKE-192s PUBLIC KEY",
+	crypto.AlgSLHDSASHAKE192f: "SLH-DSA-SHAKE-192f PUBLIC KEY",
+	crypto.AlgSLHDSASHAKE256s: "SLH-DSA-SHAKE-256s PUBLIC KEY",
+	crypto.AlgSLHDSASHAKE256f: "SLH-DSA-SHAKE-256f PUBLIC KEY",
+	// ML-KEM (encryption)
+	crypto.AlgMLKEM512:  "ML-KEM-512 PUBLIC KEY",
+	crypto.AlgMLKEM768:  "ML-KEM-768 PUBLIC KEY",
+	crypto.AlgMLKEM1024: "ML-KEM-1024 PUBLIC KEY",
+}
+
 // pqcPublicKeyPEMType returns the PEM type for a PQC public key.
 func pqcPublicKeyPEMType(alg crypto.AlgorithmID) string {
-	switch alg {
-	// ML-DSA (signature)
-	case crypto.AlgMLDSA44:
-		return "ML-DSA-44 PUBLIC KEY"
-	case crypto.AlgMLDSA65:
-		return "ML-DSA-65 PUBLIC KEY"
-	case crypto.AlgMLDSA87:
-		return "ML-DSA-87 PUBLIC KEY"
-	// SLH-DSA SHA2 variants (signature)
-	case crypto.AlgSLHDSASHA2128s:
-		return "SLH-DSA-SHA2-128s PUBLIC KEY"
-	case crypto.AlgSLHDSASHA2128f:
-		return "SLH-DSA-SHA2-128f PUBLIC KEY"
-	case crypto.AlgSLHDSASHA2192s:
-		return "SLH-DSA-SHA2-192s PUBLIC KEY"
-	case crypto.AlgSLHDSASHA2192f:
-		return "SLH-DSA-SHA2-192f PUBLIC KEY"
-	case crypto.AlgSLHDSASHA2256s:
-		return "SLH-DSA-SHA2-256s PUBLIC KEY"
-	case crypto.AlgSLHDSASHA2256f:
-		return "SLH-DSA-SHA2-256f PUBLIC KEY"
-	// SLH-DSA SHAKE variants (signature)
-	case crypto.AlgSLHDSASHAKE128s:
-		return "SLH-DSA-SHAKE-128s PUBLIC KEY"
-	case crypto.AlgSLHDSASHAKE128f:
-		return "SLH-DSA-SHAKE-128f PUBLIC KEY"
-	case crypto.AlgSLHDSASHAKE192s:
-		return "SLH-DSA-SHAKE-192s PUBLIC KEY"
-	case crypto.AlgSLHDSASHAKE192f:
-		return "SLH-DSA-SHAKE-192f PUBLIC KEY"
-	case crypto.AlgSLHDSASHAKE256s:
-		return "SLH-DSA-SHAKE-256s PUBLIC KEY"
-	case crypto.AlgSLHDSASHAKE256f:
-		return "SLH-DSA-SHAKE-256f PUBLIC KEY"
-	// ML-KEM (encryption)
-	case crypto.AlgMLKEM512:
-		return "ML-KEM-512 PUBLIC KEY"
-	case crypto.AlgMLKEM768:
-		return "ML-KEM-768 PUBLIC KEY"
-	case crypto.AlgMLKEM1024:
-		return "ML-KEM-1024 PUBLIC KEY"
-	default:
-		return "PUBLIC KEY"
+	if pemType, ok := pqcPublicKeyPEMTypes[alg]; ok {
+		return pemType
 	}
+	return "PUBLIC KEY"
 }
 
 func runKeyList(cmd *cobra.Command, args []string) error {

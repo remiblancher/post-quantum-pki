@@ -80,6 +80,36 @@ type RotateCAResult struct {
 	CrossSignedCert *x509.Certificate
 }
 
+// resolveRotationProfile determines and loads the profile for rotation.
+func resolveRotationProfile(profileName string, store *FileStore, caDir string) (string, *profile.Profile, error) {
+	profileStore := profile.NewProfileStore(caDir)
+	if err := profileStore.Load(); err != nil {
+		return "", nil, fmt.Errorf("failed to load profiles: %w", err)
+	}
+
+	if profileName == "" {
+		profileName = determineCurrentProfile(store)
+		if profileName == "" {
+			return "", nil, fmt.Errorf("no profile specified and cannot determine current profile; use --profile")
+		}
+	}
+
+	// Support both profile names and file paths
+	if strings.Contains(profileName, string(os.PathSeparator)) || strings.HasSuffix(profileName, ".yaml") || strings.HasSuffix(profileName, ".yml") {
+		prof, err := profile.LoadProfile(profileName)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to load profile from path %s: %w", profileName, err)
+		}
+		return profileName, prof, nil
+	}
+
+	prof, ok := profileStore.Get(profileName)
+	if !ok {
+		return "", nil, fmt.Errorf("profile not found: %s", profileName)
+	}
+	return profileName, prof, nil
+}
+
 // RotateCA rotates a CA, creating a new version with new keys.
 func RotateCA(req RotateCARequest) (*RotateCAResult, error) {
 	store := NewFileStore(req.CADir)
@@ -93,37 +123,10 @@ func RotateCA(req RotateCARequest) (*RotateCAResult, error) {
 		return nil, fmt.Errorf("failed to load current CA: %w", err)
 	}
 
-	// Load profile store
-	profileStore := profile.NewProfileStore(req.CADir)
-	if err := profileStore.Load(); err != nil {
-		return nil, fmt.Errorf("failed to load profiles: %w", err)
-	}
-
-	// Determine which profile to use
-	profileName := req.Profile
-	if profileName == "" {
-		// Try to determine from existing CA metadata or use default
-		profileName = determineCurrentProfile(store)
-		if profileName == "" {
-			return nil, fmt.Errorf("no profile specified and cannot determine current profile; use --profile")
-		}
-	}
-
-	// Support both profile names and file paths
-	var prof *profile.Profile
-	if strings.Contains(profileName, string(os.PathSeparator)) || strings.HasSuffix(profileName, ".yaml") || strings.HasSuffix(profileName, ".yml") {
-		// Load as file path
-		var err error
-		prof, err = profile.LoadProfile(profileName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load profile from path %s: %w", profileName, err)
-		}
-	} else {
-		var ok bool
-		prof, ok = profileStore.Get(profileName)
-		if !ok {
-			return nil, fmt.Errorf("profile not found: %s", profileName)
-		}
+	// Resolve profile
+	profileName, prof, err := resolveRotationProfile(req.Profile, store, req.CADir)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get algorithm for display (show both for hybrid profiles)
@@ -284,35 +287,27 @@ func initializeRotationCatalyst(newStore, rootStore *FileStore, currentCA *CA, p
 	return newCA, nil
 }
 
-// initializeRotationCatalystHSM initializes a catalyst CA for rotation with HSM keys.
-func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *FileStore, currentCA *CA, prof *profile.Profile, versionID string) (*CA, error) {
-	// Determine HSM config path
+// resolveHSMConfigPath resolves the HSM config path from the request or current CA.
+func resolveHSMConfigPath(req RotateCARequest, currentCA *CA) (string, error) {
 	hsmConfigPath := req.HSMConfig
 	if hsmConfigPath == "" && currentCA.info != nil {
-		// Try to get from current CA's active version - check any key (not just "classical")
-		// For single-key CAs, the key ID is "default"; for hybrid CAs, it's "classical"/"pqc"
 		if defaultKey := currentCA.info.GetDefaultKey(); defaultKey != nil && defaultKey.Storage.Type == "pkcs11" {
 			hsmConfigPath = defaultKey.Storage.Config
-			// Resolve relative path to absolute using CA base path
 			if !filepath.IsAbs(hsmConfigPath) {
 				hsmConfigPath = filepath.Join(currentCA.info.BasePath(), hsmConfigPath)
 			}
 		}
 	}
 	if hsmConfigPath == "" {
-		return nil, fmt.Errorf("HSM config required for HSM-based rotation")
+		return "", fmt.Errorf("HSM config required for HSM-based rotation")
 	}
+	return hsmConfigPath, nil
+}
 
-	// Load HSM config
-	hsmCfg, err := pkicrypto.LoadHSMConfig(hsmConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load HSM config: %w", err)
-	}
-
-	// Determine key label (versioned)
+// resolveVersionedKeyLabel determines the versioned key label for HSM key generation.
+func resolveVersionedKeyLabel(req RotateCARequest, currentCA *CA, versionID string) string {
 	baseLabel := req.KeyLabel
 	if baseLabel == "" && currentCA.info != nil {
-		// Try to get base label from existing key's label (strip version suffix if present)
 		if defaultKey := currentCA.info.GetDefaultKey(); defaultKey != nil && defaultKey.Storage.Label != "" {
 			baseLabel = defaultKey.Storage.Label
 			// Strip existing version suffix (e.g., "ca-key-abc123-v1" -> "ca-key-abc123")
@@ -324,22 +319,13 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 		}
 	}
 	if baseLabel == "" {
-		// Fallback to CN-based label with timestamp for uniqueness
 		baseLabel = fmt.Sprintf("%s-%d", currentCA.cert.Subject.CommonName, time.Now().Unix())
 	}
-	keyLabel := fmt.Sprintf("%s-%s", baseLabel, versionID)
+	return fmt.Sprintf("%s-%s", baseLabel, versionID)
+}
 
-	// Get algorithms from profile
-	classicalAlg := prof.Algorithms[0]
-	pqcAlg := prof.Algorithms[1]
-
-	// Generate HSM keys
-	pin, err := hsmCfg.GetPIN()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get HSM PIN: %w", err)
-	}
-
-	// Generate classical key
+// generateCatalystHSMKeys generates the classical and PQC key pairs on the HSM.
+func generateCatalystHSMKeys(hsmCfg *pkicrypto.HSMConfig, pin string, keyLabel string, classicalAlg, pqcAlg pkicrypto.AlgorithmID) (*pkicrypto.GenerateHSMKeyPairResult, *pkicrypto.GenerateHSMKeyPairResult, *pkicrypto.PKCS11HybridSigner, error) {
 	classicalGenCfg := pkicrypto.GenerateHSMKeyPairConfig{
 		ModulePath: hsmCfg.PKCS11.Lib,
 		TokenLabel: hsmCfg.PKCS11.Token,
@@ -349,10 +335,9 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 	}
 	classicalResult, err := pkicrypto.GenerateHSMKeyPair(classicalGenCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate classical HSM key: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to generate classical HSM key: %w", err)
 	}
 
-	// Generate PQC key
 	pqcGenCfg := pkicrypto.GenerateHSMKeyPairConfig{
 		ModulePath: hsmCfg.PKCS11.Lib,
 		TokenLabel: hsmCfg.PKCS11.Token,
@@ -362,10 +347,9 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 	}
 	pqcResult, err := pkicrypto.GenerateHSMKeyPair(pqcGenCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate PQC HSM key: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to generate PQC HSM key: %w", err)
 	}
 
-	// Create hybrid signer from HSM
 	pkcs11Cfg := pkicrypto.PKCS11Config{
 		ModulePath: hsmCfg.PKCS11.Lib,
 		TokenLabel: hsmCfg.PKCS11.Token,
@@ -374,16 +358,19 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 	}
 	hybridSigner, err := pkicrypto.NewPKCS11HybridSigner(pkcs11Cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create HSM hybrid signer: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to create HSM hybrid signer: %w", err)
 	}
 
-	// Create certs directory
+	return classicalResult, pqcResult, hybridSigner, nil
+}
+
+// buildAndSignCatalystCert builds and signs the Catalyst certificate for HSM rotation.
+func buildAndSignCatalystCert(newStore, rootStore *FileStore, currentCA *CA, prof *profile.Profile, classicalAlg, pqcAlg pkicrypto.AlgorithmID, hybridSigner *pkicrypto.PKCS11HybridSigner) (*x509.Certificate, error) {
 	certsDir := filepath.Join(newStore.BasePath(), "certs")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create certs directory: %w", err)
 	}
 
-	// Build certificate template
 	hybridCfg := HybridCAConfig{
 		CommonName:         currentCA.cert.Subject.CommonName,
 		Organization:       firstOrEmpty(currentCA.cert.Subject.Organization),
@@ -403,7 +390,6 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 		return nil, err
 	}
 
-	// Get PQC public key bytes
 	pqcPubBytes, err := pkicrypto.PublicKeyBytes(hybridSigner.PQCSigner().Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PQC public key bytes: %w", err)
@@ -413,19 +399,51 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 		return nil, err
 	}
 
-	// Create Catalyst certificate
 	cert, err := createCatalystSelfSignedCert(template, hybridSigner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Catalyst certificate: %w", err)
 	}
 
-	// Save certificate
 	certPath := HybridCertPath(newStore.BasePath(), HybridCertCatalyst, classicalAlg, pqcAlg, false)
 	if err := saveCertToPath(certPath, cert); err != nil {
 		return nil, fmt.Errorf("failed to save CA certificate: %w", err)
 	}
 
-	// Store key references in the version (will be added by caller via CAInfo)
+	return cert, nil
+}
+
+// initializeRotationCatalystHSM initializes a catalyst CA for rotation with HSM keys.
+func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *FileStore, currentCA *CA, prof *profile.Profile, versionID string) (*CA, error) {
+	hsmConfigPath, err := resolveHSMConfigPath(req, currentCA)
+	if err != nil {
+		return nil, err
+	}
+
+	hsmCfg, err := pkicrypto.LoadHSMConfig(hsmConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load HSM config: %w", err)
+	}
+
+	keyLabel := resolveVersionedKeyLabel(req, currentCA, versionID)
+
+	classicalAlg := prof.Algorithms[0]
+	pqcAlg := prof.Algorithms[1]
+
+	pin, err := hsmCfg.GetPIN()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get HSM PIN: %w", err)
+	}
+
+	classicalResult, pqcResult, hybridSigner, err := generateCatalystHSMKeys(hsmCfg, pin, keyLabel, classicalAlg, pqcAlg)
+	if err != nil {
+		return nil, err
+	}
+
+	cert, err := buildAndSignCatalystCert(newStore, rootStore, currentCA, prof, classicalAlg, pqcAlg, hybridSigner)
+	if err != nil {
+		return nil, err
+	}
+
 	keyRefs := []KeyRef{
 		{
 			ID:        "classical",
@@ -443,7 +461,7 @@ func initializeRotationCatalystHSM(req RotateCARequest, newStore, rootStore *Fil
 		store:   newStore,
 		cert:    cert,
 		signer:  hybridSigner,
-		keyRefs: keyRefs, // Store for later use by caller
+		keyRefs: keyRefs,
 	}, nil
 }
 

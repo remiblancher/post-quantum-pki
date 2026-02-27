@@ -1,6 +1,10 @@
 package cli
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/pem"
 	"os"
 	"path/filepath"
@@ -150,4 +154,121 @@ func TestU_LoadDecryptionKey(t *testing.T) {
 			t.Error("LoadDecryptionKey() should fail for invalid PEM")
 		}
 	})
+
+	t.Run("[Unit] LoadDecryptionKey: valid EC key", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		keyPath := filepath.Join(tmpDir, "ec.key")
+
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatalf("failed to generate key: %v", err)
+		}
+		saveKeyPEM(t, keyPath, key)
+
+		result, err := LoadDecryptionKey(keyPath, "")
+		if err != nil {
+			t.Fatalf("LoadDecryptionKey() error = %v", err)
+		}
+
+		if result == nil {
+			t.Error("LoadDecryptionKey() should return non-nil key")
+		}
+	})
+}
+
+// =============================================================================
+// LoadSigningKey Tests
+// =============================================================================
+
+func TestU_LoadSigningKey_NoKeyPath(t *testing.T) {
+	_, err := LoadSigningKey("", "", "", "", "", nil)
+	if err == nil {
+		t.Error("LoadSigningKey() should fail when no key path and no HSM config")
+	}
+}
+
+func TestU_LoadSigningKey_ValidSoftwareKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	keyPath := filepath.Join(tmpDir, "signing.key")
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	saveKeyPEM(t, keyPath, key)
+
+	signer, err := LoadSigningKey("", keyPath, "", "", "", nil)
+	if err != nil {
+		t.Fatalf("LoadSigningKey() error = %v", err)
+	}
+
+	if signer == nil {
+		t.Error("LoadSigningKey() should return non-nil signer")
+	}
+}
+
+// =============================================================================
+// LoadStandardKey Tests
+// =============================================================================
+
+func TestU_LoadStandardKey_ValidECKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	keyPath := filepath.Join(tmpDir, "standard.key")
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	saveKeyPEM(t, keyPath, key)
+
+	result, err := LoadStandardKey(keyPath, "")
+	if err != nil {
+		t.Fatalf("LoadStandardKey() error = %v", err)
+	}
+
+	if result == nil {
+		t.Error("LoadStandardKey() should return non-nil key")
+	}
+}
+
+func TestU_LoadStandardKey_InvalidPath(t *testing.T) {
+	_, err := LoadStandardKey("/nonexistent/path/key.pem", "")
+	if err == nil {
+		t.Error("LoadStandardKey() should fail for non-existent file")
+	}
+}
+
+// =============================================================================
+// LoadPKCS8Key Tests
+// =============================================================================
+
+func TestU_LoadPKCS8Key_FallbackToStandard(t *testing.T) {
+	tmpDir := t.TempDir()
+	keyPath := filepath.Join(tmpDir, "pkcs8.key")
+
+	// Write a PKCS#8 encoded key
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("failed to marshal PKCS#8 key: %v", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: keyDER,
+	})
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		t.Fatalf("failed to write key: %v", err)
+	}
+
+	result, err := LoadPKCS8Key(keyPath, "")
+	if err != nil {
+		t.Fatalf("LoadPKCS8Key() error = %v", err)
+	}
+
+	if result == nil {
+		t.Error("LoadPKCS8Key() should return non-nil key")
+	}
 }

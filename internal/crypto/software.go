@@ -137,81 +137,95 @@ func VerifySignature(pub crypto.PublicKey, alg AlgorithmID, message, signature [
 	return nil
 }
 
-// VerifyWithOpts verifies a signature with explicit options.
-// If opts is nil, defaults are used based on the algorithm.
-func VerifyWithOpts(alg AlgorithmID, pub crypto.PublicKey, message, signature []byte, opts *SignerOptsConfig) bool {
-	switch alg {
-	case AlgECDSAP256, AlgECDSAP384, AlgECDSAP521, AlgECP256, AlgECP384, AlgECP521:
-		ecPub, ok := pub.(*ecdsa.PublicKey)
-		if !ok {
-			return false
-		}
-		return ecdsa.VerifyASN1(ecPub, message, signature)
+// verifyECDSA verifies an ECDSA signature.
+func verifyECDSA(pub crypto.PublicKey, message, signature []byte) bool {
+	ecPub, ok := pub.(*ecdsa.PublicKey)
+	if !ok {
+		return false
+	}
+	return ecdsa.VerifyASN1(ecPub, message, signature)
+}
 
-	case AlgEd25519:
-		edPub, ok := pub.(ed25519.PublicKey)
-		if !ok {
-			return false
-		}
-		return ed25519.Verify(edPub, message, signature)
-
-	case AlgEd448:
-		ed448Pub, ok := pub.(ed448.PublicKey)
-		if !ok {
-			return false
-		}
-		return ed448.Verify(ed448Pub, message, signature, "")
-
-	case AlgRSA2048, AlgRSA4096:
-		rsaPub, ok := pub.(*rsa.PublicKey)
-		if !ok {
-			return false
-		}
-
-		// Use PSS if opts specify it
-		if opts != nil && opts.UsePSS {
-			err := rsa.VerifyPSS(rsaPub, opts.Hash, message, signature, opts.PSSOptions)
-			return err == nil
-		}
-
-		// Default to PKCS#1 v1.5 for backwards compatibility
-		hash := crypto.SHA256
-		if opts != nil {
-			hash = opts.Hash
-		}
-		err := rsa.VerifyPKCS1v15(rsaPub, hash, message, signature)
+// verifyRSA verifies an RSA signature using PSS or PKCS#1 v1.5.
+func verifyRSA(pub crypto.PublicKey, message, signature []byte, opts *SignerOptsConfig) bool {
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return false
+	}
+	if opts != nil && opts.UsePSS {
+		err := rsa.VerifyPSS(rsaPub, opts.Hash, message, signature, opts.PSSOptions)
 		return err == nil
+	}
+	// Default to PKCS#1 v1.5 for backwards compatibility
+	hash := crypto.SHA256
+	if opts != nil {
+		hash = opts.Hash
+	}
+	err := rsa.VerifyPKCS1v15(rsaPub, hash, message, signature)
+	return err == nil
+}
 
+// verifyMLDSA verifies an ML-DSA signature.
+func verifyMLDSA(alg AlgorithmID, pub crypto.PublicKey, message, signature []byte) bool {
+	switch alg {
 	case AlgMLDSA44:
 		mlPub, ok := pub.(*mldsa44.PublicKey)
 		if !ok {
 			return false
 		}
 		return mldsa44.Verify(mlPub, message, nil, signature)
-
 	case AlgMLDSA65:
 		mlPub, ok := pub.(*mldsa65.PublicKey)
 		if !ok {
 			return false
 		}
 		return mldsa65.Verify(mlPub, message, nil, signature)
-
 	case AlgMLDSA87:
 		mlPub, ok := pub.(*mldsa87.PublicKey)
 		if !ok {
 			return false
 		}
 		return mldsa87.Verify(mlPub, message, nil, signature)
+	default:
+		return false
+	}
+}
 
-	case AlgSLHDSASHA2128s, AlgSLHDSASHA2128f, AlgSLHDSASHA2192s, AlgSLHDSASHA2192f, AlgSLHDSASHA2256s, AlgSLHDSASHA2256f,
-		AlgSLHDSASHAKE128s, AlgSLHDSASHAKE128f, AlgSLHDSASHAKE192s, AlgSLHDSASHAKE192f, AlgSLHDSASHAKE256s, AlgSLHDSASHAKE256f:
-		slhPub, ok := pub.(*slhdsa.PublicKey)
+// verifySLHDSA verifies an SLH-DSA signature.
+func verifySLHDSA(pub crypto.PublicKey, message, signature []byte) bool {
+	slhPub, ok := pub.(*slhdsa.PublicKey)
+	if !ok {
+		return false
+	}
+	msg := slhdsa.NewMessage(message)
+	return slhdsa.Verify(slhPub, msg, signature, nil)
+}
+
+// VerifyWithOpts verifies a signature with explicit options.
+// If opts is nil, defaults are used based on the algorithm.
+func VerifyWithOpts(alg AlgorithmID, pub crypto.PublicKey, message, signature []byte, opts *SignerOptsConfig) bool {
+	switch alg {
+	case AlgECDSAP256, AlgECDSAP384, AlgECDSAP521, AlgECP256, AlgECP384, AlgECP521:
+		return verifyECDSA(pub, message, signature)
+	case AlgEd25519:
+		edPub, ok := pub.(ed25519.PublicKey)
 		if !ok {
 			return false
 		}
-		msg := slhdsa.NewMessage(message)
-		return slhdsa.Verify(slhPub, msg, signature, nil)
-
+		return ed25519.Verify(edPub, message, signature)
+	case AlgEd448:
+		ed448Pub, ok := pub.(ed448.PublicKey)
+		if !ok {
+			return false
+		}
+		return ed448.Verify(ed448Pub, message, signature, "")
+	case AlgRSA2048, AlgRSA4096:
+		return verifyRSA(pub, message, signature, opts)
+	case AlgMLDSA44, AlgMLDSA65, AlgMLDSA87:
+		return verifyMLDSA(alg, pub, message, signature)
+	case AlgSLHDSASHA2128s, AlgSLHDSASHA2128f, AlgSLHDSASHA2192s, AlgSLHDSASHA2192f, AlgSLHDSASHA2256s, AlgSLHDSASHA2256f,
+		AlgSLHDSASHAKE128s, AlgSLHDSASHAKE128f, AlgSLHDSASHAKE192s, AlgSLHDSASHAKE192f, AlgSLHDSASHAKE256s, AlgSLHDSASHAKE256f:
+		return verifySLHDSA(pub, message, signature)
 	default:
 		return false
 	}

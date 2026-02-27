@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -168,6 +170,128 @@ func TestU_CheckRevocationStatus_NoCRLOrOCSP(t *testing.T) {
 
 	// Suppress unused variable warning
 	_ = key
+}
+
+// =============================================================================
+// Integration test for verify flow
+// =============================================================================
+
+// =============================================================================
+// VerifyCertificateSignature Tests
+// =============================================================================
+
+func TestU_VerifyCertificateSignature_SelfSigned(t *testing.T) {
+	caCert, _ := generateTestCAAndKey(t)
+
+	err := VerifyCertificateSignature(caCert, caCert, nil)
+	if err != nil {
+		t.Errorf("VerifyCertificateSignature() should succeed for self-signed CA, got %v", err)
+	}
+}
+
+func TestU_VerifyCertificateSignature_IssuedCert(t *testing.T) {
+	caCert, caKey := generateTestCAAndKey(t)
+	cert, _ := createIssuedCert(t, caCert, caKey, "test.example.com")
+
+	err := VerifyCertificateSignature(cert, caCert, nil)
+	if err != nil {
+		t.Errorf("VerifyCertificateSignature() should succeed for issued cert, got %v", err)
+	}
+}
+
+func TestU_VerifyCertificateSignature_WrongIssuer(t *testing.T) {
+	caCertA, caKeyA := generateTestCAAndKey(t)
+	caCertB, _ := generateTestCAAndKey(t)
+	cert, _ := createIssuedCert(t, caCertA, caKeyA, "test.example.com")
+
+	err := VerifyCertificateSignature(cert, caCertB, nil)
+	if err == nil {
+		t.Error("VerifyCertificateSignature() should fail when verifying with wrong issuer")
+	}
+}
+
+func TestU_VerifyCertificateSignature_WithIntermediates(t *testing.T) {
+	// Create root CA
+	rootCert, rootKey := generateTestCAAndKey(t)
+
+	// Create sub-CA signed by root
+	subKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	subTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(10),
+		Subject: pkix.Name{
+			CommonName: "Test Sub CA",
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(5 * 365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            0,
+	}
+	subCertDER, err := x509.CreateCertificate(rand.Reader, subTemplate, rootCert, &subKey.PublicKey, rootKey)
+	if err != nil {
+		t.Fatalf("failed to create sub-CA: %v", err)
+	}
+	subCert, _ := x509.ParseCertificate(subCertDER)
+
+	// Create end-entity signed by sub-CA
+	endCert, _ := createIssuedCert(t, subCert, subKey, "leaf.example.com")
+
+	// Verify with intermediates
+	err = VerifyCertificateSignature(endCert, rootCert, []*x509.Certificate{subCert})
+	if err != nil {
+		t.Errorf("VerifyCertificateSignature() with intermediates should succeed, got %v", err)
+	}
+}
+
+func TestU_CheckRevocationStatus_WithCRL_NotRevoked(t *testing.T) {
+	caCert, caKey := generateTestCAAndKey(t)
+	cert, _ := createIssuedCert(t, caCert, caKey, "test.example.com")
+
+	// Create CRL without the cert's serial
+	crlDER := createTestCRL(t, caCert, caKey, []*big.Int{big.NewInt(999)})
+
+	tmpDir := t.TempDir()
+	crlPath := filepath.Join(tmpDir, "test.crl")
+	if err := os.WriteFile(crlPath, crlDER, 0644); err != nil {
+		t.Fatalf("failed to write CRL: %v", err)
+	}
+
+	revoked, info, err := CheckRevocationStatus(cert, caCert, crlPath, "")
+	if err != nil {
+		t.Fatalf("CheckRevocationStatus() error = %v", err)
+	}
+	if revoked {
+		t.Error("CheckRevocationStatus() should return false for non-revoked cert")
+	}
+	if info == "" {
+		t.Error("CheckRevocationStatus() should return info message")
+	}
+}
+
+func TestU_CheckRevocationStatus_WithCRL_Revoked(t *testing.T) {
+	caCert, caKey := generateTestCAAndKey(t)
+	cert, _ := createIssuedCert(t, caCert, caKey, "revoked.example.com")
+
+	// Create CRL containing the cert's serial
+	crlDER := createTestCRL(t, caCert, caKey, []*big.Int{cert.SerialNumber})
+
+	tmpDir := t.TempDir()
+	crlPath := filepath.Join(tmpDir, "test.crl")
+	if err := os.WriteFile(crlPath, crlDER, 0644); err != nil {
+		t.Fatalf("failed to write CRL: %v", err)
+	}
+
+	revoked, info, err := CheckRevocationStatus(cert, caCert, crlPath, "")
+	if err != nil {
+		t.Fatalf("CheckRevocationStatus() error = %v", err)
+	}
+	if !revoked {
+		t.Error("CheckRevocationStatus() should return true for revoked cert")
+	}
+	if info == "" {
+		t.Error("CheckRevocationStatus() should return revocation info")
+	}
 }
 
 // =============================================================================
