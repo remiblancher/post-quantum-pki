@@ -311,12 +311,6 @@ func AlgorithmName(oid asn1.ObjectIdentifier) string {
 // It parses the TBS to extract the signatureAlgorithm OID and checks against known PQC OIDs.
 func IsPQCSignatureAlgorithmOID(rawTBS []byte) bool {
 	// Parse TBS structure to extract signatureAlgorithm
-	// TBSCertificate ::= SEQUENCE {
-	//   version         [0] EXPLICIT Version DEFAULT v1,
-	//   serialNumber    CertificateSerialNumber,
-	//   signature       AlgorithmIdentifier,
-	//   ...
-	// }
 	var tbs struct {
 		Raw          asn1.RawContent
 		Version      int `asn1:"optional,explicit,default:0,tag:0"`
@@ -328,25 +322,7 @@ func IsPQCSignatureAlgorithmOID(rawTBS []byte) bool {
 	if _, err := asn1.Unmarshal(rawTBS, &tbs); err != nil {
 		return false
 	}
-
-	// Check if the signature algorithm OID is a known PQC algorithm
-	return OIDEqual(tbs.SigAlg.Algorithm, OIDMLDSA44) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDMLDSA65) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDMLDSA87) ||
-		// SLH-DSA SHA2 variants
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA128s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA128f) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA192s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA192f) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSA256f) ||
-		// SLH-DSA SHAKE variants (RFC 9814)
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE128s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE128f) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE192s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE192f) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE256s) ||
-		OIDEqual(tbs.SigAlg.Algorithm, OIDSLHDSASHAKE256f)
+	return IsPQCOID(tbs.SigAlg.Algorithm)
 }
 
 // ExtractSignatureAlgorithmOID extracts the signature algorithm OID from certificate raw bytes.

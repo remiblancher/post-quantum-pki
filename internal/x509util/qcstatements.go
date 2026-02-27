@@ -219,51 +219,71 @@ func DecodeQCStatements(ext pkix.Extension) (*QCStatementsInfo, error) {
 		switch {
 		case OIDEqual(stmt.StatementID, OIDQcCompliance):
 			info.QcCompliance = true
-
 		case OIDEqual(stmt.StatementID, OIDQcSSCD):
 			info.QcSSCD = true
-
 		case OIDEqual(stmt.StatementID, OIDQcType):
-			if len(stmt.StatementInfo.FullBytes) > 0 {
-				var typeOIDs []asn1.ObjectIdentifier
-				if _, err := asn1.Unmarshal(stmt.StatementInfo.FullBytes, &typeOIDs); err != nil {
-					return nil, fmt.Errorf("failed to parse QcType: %w", err)
-				}
-				for _, oid := range typeOIDs {
-					switch {
-					case OIDEqual(oid, OIDQcTypeESign):
-						info.QcType = append(info.QcType, QcTypeESign)
-					case OIDEqual(oid, OIDQcTypeESeal):
-						info.QcType = append(info.QcType, QcTypeESeal)
-					case OIDEqual(oid, OIDQcTypeWeb):
-						info.QcType = append(info.QcType, QcTypeWeb)
-					}
-				}
+			if err := decodeQcTypeStatement(stmt, info); err != nil {
+				return nil, err
 			}
-
 		case OIDEqual(stmt.StatementID, OIDQcRetentionPeriod):
-			if len(stmt.StatementInfo.FullBytes) > 0 {
-				var years int
-				if _, err := asn1.Unmarshal(stmt.StatementInfo.FullBytes, &years); err != nil {
-					return nil, fmt.Errorf("failed to parse QcRetentionPeriod: %w", err)
-				}
-				info.QcRetentionPeriod = &years
+			if err := decodeQcRetentionPeriod(stmt, info); err != nil {
+				return nil, err
 			}
-
 		case OIDEqual(stmt.StatementID, OIDQcPDS):
-			if len(stmt.StatementInfo.FullBytes) > 0 {
-				var pdsLocs []pdsLocation
-				if _, err := asn1.Unmarshal(stmt.StatementInfo.FullBytes, &pdsLocs); err != nil {
-					return nil, fmt.Errorf("failed to parse QcPDS: %w", err)
-				}
-				for _, loc := range pdsLocs {
-					info.QcPDS = append(info.QcPDS, PDSLocation(loc))
-				}
+			if err := decodeQcPDS(stmt, info); err != nil {
+				return nil, err
 			}
 		}
 	}
 
 	return info, nil
+}
+
+func decodeQcTypeStatement(stmt qcStatement, info *QCStatementsInfo) error {
+	if len(stmt.StatementInfo.FullBytes) == 0 {
+		return nil
+	}
+	var typeOIDs []asn1.ObjectIdentifier
+	if _, err := asn1.Unmarshal(stmt.StatementInfo.FullBytes, &typeOIDs); err != nil {
+		return fmt.Errorf("failed to parse QcType: %w", err)
+	}
+	for _, oid := range typeOIDs {
+		switch {
+		case OIDEqual(oid, OIDQcTypeESign):
+			info.QcType = append(info.QcType, QcTypeESign)
+		case OIDEqual(oid, OIDQcTypeESeal):
+			info.QcType = append(info.QcType, QcTypeESeal)
+		case OIDEqual(oid, OIDQcTypeWeb):
+			info.QcType = append(info.QcType, QcTypeWeb)
+		}
+	}
+	return nil
+}
+
+func decodeQcRetentionPeriod(stmt qcStatement, info *QCStatementsInfo) error {
+	if len(stmt.StatementInfo.FullBytes) == 0 {
+		return nil
+	}
+	var years int
+	if _, err := asn1.Unmarshal(stmt.StatementInfo.FullBytes, &years); err != nil {
+		return fmt.Errorf("failed to parse QcRetentionPeriod: %w", err)
+	}
+	info.QcRetentionPeriod = &years
+	return nil
+}
+
+func decodeQcPDS(stmt qcStatement, info *QCStatementsInfo) error {
+	if len(stmt.StatementInfo.FullBytes) == 0 {
+		return nil
+	}
+	var pdsLocs []pdsLocation
+	if _, err := asn1.Unmarshal(stmt.StatementInfo.FullBytes, &pdsLocs); err != nil {
+		return fmt.Errorf("failed to parse QcPDS: %w", err)
+	}
+	for _, loc := range pdsLocs {
+		info.QcPDS = append(info.QcPDS, PDSLocation(loc))
+	}
+	return nil
 }
 
 // FindQCStatements searches for the QCStatements extension in a list of extensions.

@@ -1231,6 +1231,75 @@ func (e *ExtensionsConfig) DeepCopy() *ExtensionsConfig {
 	return result
 }
 
+// substituteSANVariables substitutes variables in SubjectAltName fields.
+// RFC 5280 compliance: returns nil SAN if all fields are empty after substitution.
+func substituteSANVariables(san *SubjectAltNameConfig, vars map[string][]string, varDefs map[string]*Variable) (*SubjectAltNameConfig, error) {
+	var err error
+
+	san.DNS, err = substituteStringSliceWithValidation(san.DNS, vars, varDefs)
+	if err != nil {
+		return nil, err
+	}
+	san.Email, err = substituteStringSliceWithValidation(san.Email, vars, varDefs)
+	if err != nil {
+		return nil, err
+	}
+	san.IP, err = substituteStringSliceWithValidation(san.IP, vars, varDefs)
+	if err != nil {
+		return nil, err
+	}
+	san.URI, err = substituteStringSliceWithValidation(san.URI, vars, varDefs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle dns_include_cn: automatically add CN to DNS SANs if flag is true
+	if san.DNSIncludeCN {
+		if cn, ok := vars["cn"]; ok && len(cn) > 0 && cn[0] != "" {
+			cnValue := cn[0]
+			if !sliceContainsString(san.DNS, cnValue) {
+				san.DNS = append(san.DNS, cnValue)
+			}
+		}
+	}
+
+	// RFC 5280: SAN must have at least one entry if present
+	if len(san.DNS) == 0 && len(san.Email) == 0 && len(san.IP) == 0 && len(san.URI) == 0 {
+		return nil, nil
+	}
+	return san, nil
+}
+
+// substituteCertPoliciesVariables substitutes variables in Certificate Policies CPS URLs.
+func substituteCertPoliciesVariables(policies *CertificatePoliciesConfig, vars map[string][]string, varDefs map[string]*Variable) error {
+	for i, policy := range policies.Policies {
+		if policy.CPS != "" {
+			var err error
+			policies.Policies[i].CPS, err = substituteStringWithValidation(policy.CPS, vars, varDefs)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// substituteQCStatementsVariables substitutes variables in QCStatements QcPDS entries.
+func substituteQCStatementsVariables(qc *QCStatementsConfig, vars map[string][]string, varDefs map[string]*Variable) error {
+	for i, pds := range qc.QcPDS {
+		var err error
+		qc.QcPDS[i].URL, err = substituteStringWithValidation(pds.URL, vars, varDefs)
+		if err != nil {
+			return err
+		}
+		qc.QcPDS[i].Language, err = substituteStringWithValidation(pds.Language, vars, varDefs)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // SubstituteVariablesWithValidation replaces template variables ({{ variable }}) with actual values.
 // When varDefs is provided, validates that required variables are provided.
 // Returns an error if a required variable is referenced but not provided.
@@ -1244,52 +1313,13 @@ func (e *ExtensionsConfig) SubstituteVariablesWithValidation(vars map[string][]s
 	result := e.DeepCopy()
 	var err error
 
-	// Substitute variables in SubjectAltName
 	if result.SubjectAltName != nil {
-		// DNS
-		result.SubjectAltName.DNS, err = substituteStringSliceWithValidation(result.SubjectAltName.DNS, vars, varDefs)
+		result.SubjectAltName, err = substituteSANVariables(result.SubjectAltName, vars, varDefs)
 		if err != nil {
 			return nil, err
-		}
-
-		// Email
-		result.SubjectAltName.Email, err = substituteStringSliceWithValidation(result.SubjectAltName.Email, vars, varDefs)
-		if err != nil {
-			return nil, err
-		}
-
-		// IP
-		result.SubjectAltName.IP, err = substituteStringSliceWithValidation(result.SubjectAltName.IP, vars, varDefs)
-		if err != nil {
-			return nil, err
-		}
-
-		// URI
-		result.SubjectAltName.URI, err = substituteStringSliceWithValidation(result.SubjectAltName.URI, vars, varDefs)
-		if err != nil {
-			return nil, err
-		}
-
-		// Handle dns_include_cn: automatically add CN to DNS SANs if flag is true
-		if result.SubjectAltName.DNSIncludeCN {
-			if cn, ok := vars["cn"]; ok && len(cn) > 0 && cn[0] != "" {
-				cnValue := cn[0]
-				if !sliceContainsString(result.SubjectAltName.DNS, cnValue) {
-					result.SubjectAltName.DNS = append(result.SubjectAltName.DNS, cnValue)
-				}
-			}
-		}
-
-		// RFC 5280: SAN must have at least one entry if present
-		if len(result.SubjectAltName.DNS) == 0 &&
-			len(result.SubjectAltName.Email) == 0 &&
-			len(result.SubjectAltName.IP) == 0 &&
-			len(result.SubjectAltName.URI) == 0 {
-			result.SubjectAltName = nil
 		}
 	}
 
-	// Substitute variables in CRL Distribution Points
 	if result.CRLDistributionPoints != nil {
 		result.CRLDistributionPoints.URLs, err = substituteStringSliceWithValidation(result.CRLDistributionPoints.URLs, vars, varDefs)
 		if err != nil {
@@ -1297,7 +1327,6 @@ func (e *ExtensionsConfig) SubstituteVariablesWithValidation(vars map[string][]s
 		}
 	}
 
-	// Substitute variables in Authority Info Access
 	if result.AuthorityInfoAccess != nil {
 		result.AuthorityInfoAccess.CAIssuers, err = substituteStringSliceWithValidation(result.AuthorityInfoAccess.CAIssuers, vars, varDefs)
 		if err != nil {
@@ -1309,29 +1338,15 @@ func (e *ExtensionsConfig) SubstituteVariablesWithValidation(vars map[string][]s
 		}
 	}
 
-	// Substitute variables in Certificate Policies
 	if result.CertificatePolicies != nil {
-		for i, policy := range result.CertificatePolicies.Policies {
-			if policy.CPS != "" {
-				result.CertificatePolicies.Policies[i].CPS, err = substituteStringWithValidation(policy.CPS, vars, varDefs)
-				if err != nil {
-					return nil, err
-				}
-			}
+		if err := substituteCertPoliciesVariables(result.CertificatePolicies, vars, varDefs); err != nil {
+			return nil, err
 		}
 	}
 
-	// Substitute variables in QCStatements
 	if result.QCStatements != nil && len(result.QCStatements.QcPDS) > 0 {
-		for i, pds := range result.QCStatements.QcPDS {
-			result.QCStatements.QcPDS[i].URL, err = substituteStringWithValidation(pds.URL, vars, varDefs)
-			if err != nil {
-				return nil, err
-			}
-			result.QCStatements.QcPDS[i].Language, err = substituteStringWithValidation(pds.Language, vars, varDefs)
-			if err != nil {
-				return nil, err
-			}
+		if err := substituteQCStatementsVariables(result.QCStatements, vars, varDefs); err != nil {
+			return nil, err
 		}
 	}
 

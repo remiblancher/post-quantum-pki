@@ -1,7 +1,12 @@
 package cli
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"math/big"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -244,5 +249,93 @@ func TestU_OCSPSignParams_Structure(t *testing.T) {
 
 	if params.Validity != 24*time.Hour {
 		t.Errorf("OCSPSignParams.Validity = %v, want 24h", params.Validity)
+	}
+}
+
+// =============================================================================
+// LoadOCSPSigner Tests
+// =============================================================================
+
+func TestU_LoadOCSPSigner_NoKeyPath(t *testing.T) {
+	_, err := LoadOCSPSigner("", "", "", "", "", nil)
+	if err == nil {
+		t.Error("LoadOCSPSigner() should fail when no key path and no HSM config")
+	}
+}
+
+func TestU_LoadOCSPSigner_InvalidKeyPath(t *testing.T) {
+	_, err := LoadOCSPSigner("", "/nonexistent/key.pem", "", "", "", nil)
+	if err == nil {
+		t.Error("LoadOCSPSigner() should fail for non-existent key file")
+	}
+}
+
+func TestU_LoadOCSPSigner_SoftwareMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	keyPath := filepath.Join(tmpDir, "ocsp.key")
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	saveKeyPEM(t, keyPath, key)
+
+	signer, err := LoadOCSPSigner("", keyPath, "", "", "", nil)
+	if err != nil {
+		t.Fatalf("LoadOCSPSigner() error = %v", err)
+	}
+
+	if signer == nil {
+		t.Error("LoadOCSPSigner() should return non-nil signer")
+	}
+}
+
+// =============================================================================
+// BuildOCSPSignResponse Tests
+// =============================================================================
+
+func TestU_BuildOCSPSignResponse_Good(t *testing.T) {
+	caCert, caKey := generateTestCAAndKey(t)
+
+	params := &OCSPSignParams{
+		Serial:        big.NewInt(12345),
+		CertStatus:    ocsp.CertStatusGood,
+		CACert:        caCert,
+		ResponderCert: caCert,
+		Signer:        crypto.Signer(caKey),
+		Validity:      24 * time.Hour,
+	}
+
+	response, err := BuildOCSPSignResponse(params)
+	if err != nil {
+		t.Fatalf("BuildOCSPSignResponse() error = %v", err)
+	}
+
+	if len(response) == 0 {
+		t.Error("BuildOCSPSignResponse() should return non-empty response")
+	}
+}
+
+func TestU_BuildOCSPSignResponse_Revoked(t *testing.T) {
+	caCert, caKey := generateTestCAAndKey(t)
+
+	params := &OCSPSignParams{
+		Serial:           big.NewInt(12345),
+		CertStatus:       ocsp.CertStatusRevoked,
+		RevocationTime:   time.Now().Add(-1 * time.Hour),
+		RevocationReason: 1, // keyCompromise
+		CACert:           caCert,
+		ResponderCert:    caCert,
+		Signer:           crypto.Signer(caKey),
+		Validity:         24 * time.Hour,
+	}
+
+	response, err := BuildOCSPSignResponse(params)
+	if err != nil {
+		t.Fatalf("BuildOCSPSignResponse() error = %v", err)
+	}
+
+	if len(response) == 0 {
+		t.Error("BuildOCSPSignResponse() should return non-empty response")
 	}
 }

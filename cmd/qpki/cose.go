@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
@@ -201,6 +202,132 @@ func init() {
 	coseCmd.AddCommand(coseInfoCmd)
 }
 
+// coseSigningContext holds the loaded credentials for COSE signing.
+type coseSigningContext struct {
+	cert      *x509.Certificate
+	signer    crypto.Signer
+	pqcCert   *x509.Certificate
+	pqcSigner crypto.Signer
+}
+
+// loadCOSESigningCredentials loads signing credentials from credential store or files.
+func loadCOSESigningCredentials(ctx context.Context) (*coseSigningContext, error) {
+	sc := &coseSigningContext{}
+	var err error
+
+	if coseSignCredential != "" {
+		credDir, err := filepath.Abs(coseSignCredDir)
+		if err != nil {
+			return nil, fmt.Errorf("invalid credentials directory: %w", err)
+		}
+		store := credential.NewFileStore(credDir)
+		passphrase := []byte(coseSignPassphrase)
+
+		sc.cert, sc.signer, err = credential.LoadSigner(ctx, store, coseSignCredential, passphrase)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load credential %s: %w", coseSignCredential, err)
+		}
+	} else if coseSignCert != "" {
+		sc.cert, err = loadCertificate(coseSignCert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load certificate: %w", err)
+		}
+		sc.signer, err = cli.LoadSigningKey(coseSignHSMConfig, coseSignKey, coseSignPassphrase, coseSignKeyLabel, coseSignKeyID, sc.cert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load private key: %w", err)
+		}
+	}
+
+	if coseSignPQCCert != "" {
+		sc.pqcCert, err = loadCertificate(coseSignPQCCert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load PQC certificate: %w", err)
+		}
+	}
+	if coseSignPQCKey != "" {
+		sc.pqcSigner, err = cli.LoadSigningKey("", coseSignPQCKey, coseSignPassphrase, "", "", sc.pqcCert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load PQC private key: %w", err)
+		}
+	}
+
+	if sc.signer == nil && sc.pqcSigner == nil {
+		return nil, fmt.Errorf("either --cert/--key, --credential, or --pqc-cert/--pqc-key is required")
+	}
+	return sc, nil
+}
+
+// buildCWTOutput builds a CWT message and returns the serialized output.
+func buildCWTOutput(ctx context.Context, sc *coseSigningContext, msgType cose.MessageType) ([]byte, error) {
+	claims := cose.NewClaims()
+	claims.Issuer = coseSignIss
+	claims.Subject = coseSignSub
+	claims.Audience = coseSignAud
+
+	if coseSignExp != "" {
+		exp, err := time.ParseDuration(coseSignExp)
+		if err != nil {
+			return nil, fmt.Errorf("invalid expiration duration: %w", err)
+		}
+		claims.SetExpiration(exp)
+	}
+
+	for _, claimStr := range coseSignClaims {
+		parts := strings.SplitN(claimStr, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid claim format: %s (use key=value)", claimStr)
+		}
+		key, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid claim key: %s (must be integer)", parts[0])
+		}
+		if err := claims.SetCustom(key, parts[1]); err != nil {
+			return nil, fmt.Errorf("failed to set claim: %w", err)
+		}
+	}
+
+	config := &cose.CWTConfig{
+		MessageConfig: cose.MessageConfig{
+			Type:             msgType,
+			Certificate:      sc.cert,
+			Signer:           sc.signer,
+			PQCCertificate:   sc.pqcCert,
+			PQCSigner:        sc.pqcSigner,
+			IncludeCertChain: coseSignIncludeCerts,
+		},
+		Claims:       claims,
+		AutoIssuedAt: true,
+		AutoCWTID:    true,
+	}
+
+	return cose.IssueCWT(ctx, config)
+}
+
+// buildSignOutput builds a Sign1 or Sign COSE message.
+func buildSignOutput(ctx context.Context, sc *coseSigningContext, msgType cose.MessageType) ([]byte, error) {
+	if coseSignData == "" {
+		return nil, fmt.Errorf("--data is required for sign1/sign message types")
+	}
+	data, err := os.ReadFile(coseSignData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data file: %w", err)
+	}
+
+	config := &cose.MessageConfig{
+		Type:             msgType,
+		Certificate:      sc.cert,
+		Signer:           sc.signer,
+		PQCCertificate:   sc.pqcCert,
+		PQCSigner:        sc.pqcSigner,
+		IncludeCertChain: coseSignIncludeCerts,
+	}
+
+	if msgType == cose.TypeSign || (sc.signer != nil && sc.pqcSigner != nil) {
+		return cose.IssueSign(ctx, data, config)
+	}
+	return cose.IssueSign1(ctx, data, config)
+}
+
 func runCOSESign(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
@@ -217,149 +344,33 @@ func runCOSESign(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid message type: %s (use cwt, sign1, or sign)", coseSignType)
 	}
 
-	// Load certificate and key
-	var cert *x509.Certificate
-	var signer crypto.Signer
-	var pqcCert *x509.Certificate
-	var pqcSigner crypto.Signer
-	var err error
-
-	// Load from credential or from files
-	if coseSignCredential != "" {
-		credDir, err := filepath.Abs(coseSignCredDir)
-		if err != nil {
-			return fmt.Errorf("invalid credentials directory: %w", err)
-		}
-		store := credential.NewFileStore(credDir)
-		passphrase := []byte(coseSignPassphrase)
-
-		cert, signer, err = credential.LoadSigner(ctx, store, coseSignCredential, passphrase)
-		if err != nil {
-			return fmt.Errorf("failed to load credential %s: %w", coseSignCredential, err)
-		}
-	} else if coseSignCert != "" {
-		cert, err = loadCertificate(coseSignCert)
-		if err != nil {
-			return fmt.Errorf("failed to load certificate: %w", err)
-		}
-
-		signer, err = cli.LoadSigningKey(coseSignHSMConfig, coseSignKey, coseSignPassphrase, coseSignKeyLabel, coseSignKeyID, cert)
-		if err != nil {
-			return fmt.Errorf("failed to load private key: %w", err)
-		}
-	}
-
-	// Load PQC key pair for hybrid mode
-	if coseSignPQCCert != "" {
-		pqcCert, err = loadCertificate(coseSignPQCCert)
-		if err != nil {
-			return fmt.Errorf("failed to load PQC certificate: %w", err)
-		}
-	}
-	if coseSignPQCKey != "" {
-		pqcSigner, err = cli.LoadSigningKey("", coseSignPQCKey, coseSignPassphrase, "", "", pqcCert)
-		if err != nil {
-			return fmt.Errorf("failed to load PQC private key: %w", err)
-		}
-	}
-
-	// Require at least one signer
-	if signer == nil && pqcSigner == nil {
-		return fmt.Errorf("either --cert/--key, --credential, or --pqc-cert/--pqc-key is required")
+	sc, err := loadCOSESigningCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	var output []byte
-
 	switch msgType {
 	case cose.TypeCWT:
-		// Build claims
-		claims := cose.NewClaims()
-		claims.Issuer = coseSignIss
-		claims.Subject = coseSignSub
-		claims.Audience = coseSignAud
-
-		// Parse expiration
-		if coseSignExp != "" {
-			exp, err := time.ParseDuration(coseSignExp)
-			if err != nil {
-				return fmt.Errorf("invalid expiration duration: %w", err)
-			}
-			claims.SetExpiration(exp)
-		}
-
-		// Parse custom claims
-		for _, claimStr := range coseSignClaims {
-			parts := strings.SplitN(claimStr, "=", 2)
-			if len(parts) != 2 {
-				return fmt.Errorf("invalid claim format: %s (use key=value)", claimStr)
-			}
-			key, err := strconv.ParseInt(parts[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid claim key: %s (must be integer)", parts[0])
-			}
-			if err := claims.SetCustom(key, parts[1]); err != nil {
-				return fmt.Errorf("failed to set claim: %w", err)
-			}
-		}
-
-		config := &cose.CWTConfig{
-			MessageConfig: cose.MessageConfig{
-				Type:             msgType,
-				Certificate:      cert,
-				Signer:           signer,
-				PQCCertificate:   pqcCert,
-				PQCSigner:        pqcSigner,
-				IncludeCertChain: coseSignIncludeCerts,
-			},
-			Claims:       claims,
-			AutoIssuedAt: true,
-			AutoCWTID:    true,
-		}
-
-		output, err = cose.IssueCWT(ctx, config)
+		output, err = buildCWTOutput(ctx, sc, msgType)
 		if err != nil {
 			return fmt.Errorf("failed to create CWT: %w", err)
 		}
-
 	case cose.TypeSign1, cose.TypeSign:
-		// Read data to sign
-		if coseSignData == "" {
-			return fmt.Errorf("--data is required for sign1/sign message types")
-		}
-		data, err := os.ReadFile(coseSignData)
-		if err != nil {
-			return fmt.Errorf("failed to read data file: %w", err)
-		}
-
-		config := &cose.MessageConfig{
-			Type:             msgType,
-			Certificate:      cert,
-			Signer:           signer,
-			PQCCertificate:   pqcCert,
-			PQCSigner:        pqcSigner,
-			IncludeCertChain: coseSignIncludeCerts,
-		}
-
-		if msgType == cose.TypeSign || (signer != nil && pqcSigner != nil) {
-			output, err = cose.IssueSign(ctx, data, config)
-		} else {
-			output, err = cose.IssueSign1(ctx, data, config)
-		}
+		output, err = buildSignOutput(ctx, sc, msgType)
 		if err != nil {
 			return fmt.Errorf("failed to create COSE message: %w", err)
 		}
 	}
 
-	// Write output
 	if err := os.WriteFile(coseSignOutput, output, 0644); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}
 
-	// Audit log
 	mode := "classical"
-	if signer != nil && pqcSigner != nil {
+	if sc.signer != nil && sc.pqcSigner != nil {
 		mode = "hybrid"
-	} else if pqcSigner != nil {
+	} else if sc.pqcSigner != nil {
 		mode = "pqc"
 	}
 	_ = audit.Log(audit.NewEvent(audit.EventCOSESign, audit.ResultSuccess).
@@ -367,6 +378,45 @@ func runCOSESign(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Created %s message: %s\n", msgType, coseSignOutput)
 	return nil
+}
+
+// printCOSEVerificationResult prints the verification result to stdout.
+func printCOSEVerificationResult(result *cose.VerifyResult) {
+	if result.Valid {
+		fmt.Println("Verification: VALID")
+	} else {
+		fmt.Println("Verification: INVALID")
+		for _, w := range result.Warnings {
+			fmt.Printf("  - %s\n", w)
+		}
+	}
+
+	fmt.Printf("Mode: %s\n", result.Mode)
+	fmt.Printf("Algorithms: ")
+	for i, alg := range result.Algorithms {
+		if i > 0 {
+			fmt.Print(", ")
+		}
+		fmt.Print(cose.AlgorithmName(alg))
+	}
+	fmt.Println()
+
+	if result.Claims != nil {
+		fmt.Println("\nCWT Claims:")
+		if result.Claims.Issuer != "" {
+			fmt.Printf("  Issuer:  %s\n", result.Claims.Issuer)
+		}
+		if result.Claims.Subject != "" {
+			fmt.Printf("  Subject: %s\n", result.Claims.Subject)
+		}
+		if !result.Claims.Expiration.IsZero() {
+			status := ""
+			if result.Claims.IsExpired() {
+				status = " [EXPIRED]"
+			}
+			fmt.Printf("  Expires: %s%s\n", result.Claims.Expiration.Format(time.RFC3339), status)
+		}
+	}
 }
 
 func runCOSEVerify(cmd *cobra.Command, args []string) error {
@@ -419,41 +469,7 @@ func runCOSEVerify(cmd *cobra.Command, args []string) error {
 	}
 
 	// Print result
-	if result.Valid {
-		fmt.Println("Verification: VALID")
-	} else {
-		fmt.Println("Verification: INVALID")
-		for _, w := range result.Warnings {
-			fmt.Printf("  - %s\n", w)
-		}
-	}
-
-	fmt.Printf("Mode: %s\n", result.Mode)
-	fmt.Printf("Algorithms: ")
-	for i, alg := range result.Algorithms {
-		if i > 0 {
-			fmt.Print(", ")
-		}
-		fmt.Print(cose.AlgorithmName(alg))
-	}
-	fmt.Println()
-
-	if result.Claims != nil {
-		fmt.Println("\nCWT Claims:")
-		if result.Claims.Issuer != "" {
-			fmt.Printf("  Issuer:  %s\n", result.Claims.Issuer)
-		}
-		if result.Claims.Subject != "" {
-			fmt.Printf("  Subject: %s\n", result.Claims.Subject)
-		}
-		if !result.Claims.Expiration.IsZero() {
-			status := ""
-			if result.Claims.IsExpired() {
-				status = " [EXPIRED]"
-			}
-			fmt.Printf("  Expires: %s%s\n", result.Claims.Expiration.Format(time.RFC3339), status)
-		}
-	}
+	printCOSEVerificationResult(result)
 
 	// Audit log
 	auditResult := audit.ResultSuccess

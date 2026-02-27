@@ -352,16 +352,87 @@ func (vs *VersionStore) hasRootFiles() bool {
 	return false
 }
 
+// hasOldAlgoDirStructure checks if a version directory contains old-style algo family directories
+// (with certificates.pem or private-keys.pem files inside).
+func (vs *VersionStore) hasOldAlgoDirStructure(versionDir string, algos []string) bool {
+	families := algos
+	if len(families) == 0 {
+		families = knownAlgorithmFamilies
+	}
+	for _, algoFamily := range families {
+		algoDirPath := filepath.Join(versionDir, algoFamily)
+		if vs.exists(algoDirPath) {
+			if vs.exists(filepath.Join(algoDirPath, "certificates.pem")) ||
+				vs.exists(filepath.Join(algoDirPath, "private-keys.pem")) {
+				return true
+			}
+		}
+	}
+	// Also check known families if algos was non-empty (might have missed some)
+	if len(algos) > 0 {
+		for _, algoFamily := range knownAlgorithmFamilies {
+			algoDirPath := filepath.Join(versionDir, algoFamily)
+			if vs.exists(algoDirPath) {
+				if vs.exists(filepath.Join(algoDirPath, "certificates.pem")) ||
+					vs.exists(filepath.Join(algoDirPath, "private-keys.pem")) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// migrateVersionAlgoFamilies migrates all algo family directories in a version
+// from old structure to new keys/certs structure.
+func (vs *VersionStore) migrateVersionAlgoFamilies(versionID string) ([]string, error) {
+	keysDir := vs.KeysDir(versionID)
+	certsDir := vs.CertsDir(versionID)
+	if err := os.MkdirAll(keysDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create keys directory: %w", err)
+	}
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create certs directory: %w", err)
+	}
+
+	versionDir := vs.VersionDir(versionID)
+	var migratedAlgos []string
+	for _, algoFamily := range knownAlgorithmFamilies {
+		algoDirPath := filepath.Join(versionDir, algoFamily)
+		if !vs.exists(algoDirPath) {
+			continue
+		}
+
+		oldCertPath := filepath.Join(algoDirPath, "certificates.pem")
+		if vs.exists(oldCertPath) {
+			newCertPath := vs.CertPath(versionID, algoFamily)
+			if err := os.Rename(oldCertPath, newCertPath); err != nil {
+				return nil, fmt.Errorf("failed to migrate certificate for %s: %w", algoFamily, err)
+			}
+		}
+
+		oldKeyPath := filepath.Join(algoDirPath, "private-keys.pem")
+		if vs.exists(oldKeyPath) {
+			newKeyPath := vs.KeyPath(versionID, algoFamily)
+			if err := os.Rename(oldKeyPath, newKeyPath); err != nil {
+				return nil, fmt.Errorf("failed to migrate key for %s: %w", algoFamily, err)
+			}
+		}
+
+		_ = os.Remove(algoDirPath)
+		migratedAlgos = append(migratedAlgos, algoFamily)
+	}
+	return migratedAlgos, nil
+}
+
 // migrateToKeysAndCertsStructure migrates from old algo-dir structure to new keys/certs structure.
 // Old: versions/v1/ec/certificates.pem, versions/v1/ec/private-keys.pem
 // New: versions/v1/certs/credential.ec.pem, versions/v1/keys/credential.ec.key
 func (vs *VersionStore) migrateToKeysAndCertsStructure() error {
-	// Check if versioned
 	if !vs.IsVersioned() {
 		return nil
 	}
 
-	// Load credential
 	if err := vs.loadCredential(); err != nil {
 		return err
 	}
@@ -369,85 +440,18 @@ func (vs *VersionStore) migrateToKeysAndCertsStructure() error {
 		return nil
 	}
 
-	// Check each version for old structure
 	for versionID, ver := range vs.cred.Versions {
 		versionDir := vs.VersionDir(versionID)
 
-		// Check if old structure exists (algo family dirs like ec/, ml-dsa/)
-		hasOldStructure := false
-		for _, algoFamily := range ver.Algos {
-			algoDirPath := filepath.Join(versionDir, algoFamily)
-			if vs.exists(algoDirPath) {
-				// Check for certificates.pem or private-keys.pem inside
-				if vs.exists(filepath.Join(algoDirPath, "certificates.pem")) ||
-					vs.exists(filepath.Join(algoDirPath, "private-keys.pem")) {
-					hasOldStructure = true
-					break
-				}
-			}
+		if !vs.hasOldAlgoDirStructure(versionDir, ver.Algos) {
+			continue
 		}
 
-		if !hasOldStructure {
-			// Also check known families in case Algos is empty
-			for _, algoFamily := range knownAlgorithmFamilies {
-				algoDirPath := filepath.Join(versionDir, algoFamily)
-				if vs.exists(algoDirPath) {
-					if vs.exists(filepath.Join(algoDirPath, "certificates.pem")) ||
-						vs.exists(filepath.Join(algoDirPath, "private-keys.pem")) {
-						hasOldStructure = true
-						break
-					}
-				}
-			}
+		migratedAlgos, err := vs.migrateVersionAlgoFamilies(versionID)
+		if err != nil {
+			return err
 		}
 
-		if !hasOldStructure {
-			continue // Already migrated or new structure
-		}
-
-		// Create new directories
-		keysDir := vs.KeysDir(versionID)
-		certsDir := vs.CertsDir(versionID)
-		if err := os.MkdirAll(keysDir, 0700); err != nil {
-			return fmt.Errorf("failed to create keys directory: %w", err)
-		}
-		if err := os.MkdirAll(certsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create certs directory: %w", err)
-		}
-
-		// Migrate each algo family
-		migratedAlgos := []string{}
-		for _, algoFamily := range knownAlgorithmFamilies {
-			algoDirPath := filepath.Join(versionDir, algoFamily)
-			if !vs.exists(algoDirPath) {
-				continue
-			}
-
-			// Migrate certificates.pem -> certs/credential.{algo}.pem
-			oldCertPath := filepath.Join(algoDirPath, "certificates.pem")
-			if vs.exists(oldCertPath) {
-				newCertPath := vs.CertPath(versionID, algoFamily)
-				if err := os.Rename(oldCertPath, newCertPath); err != nil {
-					return fmt.Errorf("failed to migrate certificate for %s: %w", algoFamily, err)
-				}
-			}
-
-			// Migrate private-keys.pem -> keys/credential.{algo}.key
-			oldKeyPath := filepath.Join(algoDirPath, "private-keys.pem")
-			if vs.exists(oldKeyPath) {
-				newKeyPath := vs.KeyPath(versionID, algoFamily)
-				if err := os.Rename(oldKeyPath, newKeyPath); err != nil {
-					return fmt.Errorf("failed to migrate key for %s: %w", algoFamily, err)
-				}
-			}
-
-			// Remove old algo directory (should be empty now)
-			_ = os.Remove(algoDirPath)
-
-			migratedAlgos = append(migratedAlgos, algoFamily)
-		}
-
-		// Update algos in version if we found new ones
 		if len(migratedAlgos) > 0 && len(ver.Algos) == 0 {
 			ver.Algos = migratedAlgos
 			vs.cred.Versions[versionID] = ver

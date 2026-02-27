@@ -53,111 +53,88 @@ const (
 	AlgSLHDSASHAKE256f gocose.Algorithm = -70031
 )
 
+// pkiToCOSEMap maps pkicrypto.AlgorithmID to COSE Algorithm.
+// Using a map reduces cyclomatic complexity compared to a switch statement.
+var pkiToCOSEMap = map[pkicrypto.AlgorithmID]gocose.Algorithm{
+	// ECDSA
+	pkicrypto.AlgECDSAP256: AlgES256,
+	pkicrypto.AlgECP256:    AlgES256,
+	pkicrypto.AlgECDSAP384: AlgES384,
+	pkicrypto.AlgECP384:    AlgES384,
+	pkicrypto.AlgECDSAP521: AlgES512,
+	pkicrypto.AlgECP521:    AlgES512,
+	// EdDSA
+	pkicrypto.AlgEd25519: AlgEdDSA,
+	pkicrypto.AlgEd448:   AlgEdDSA,
+	// RSA
+	pkicrypto.AlgRSA2048: AlgPS256,
+	pkicrypto.AlgRSA4096: AlgPS256,
+	// ML-DSA
+	pkicrypto.AlgMLDSA44: AlgMLDSA44,
+	pkicrypto.AlgMLDSA65: AlgMLDSA65,
+	pkicrypto.AlgMLDSA87: AlgMLDSA87,
+	// SLH-DSA SHA2
+	pkicrypto.AlgSLHDSASHA2128s: AlgSLHDSASHA2128s,
+	pkicrypto.AlgSLHDSASHA2128f: AlgSLHDSASHA2128f,
+	pkicrypto.AlgSLHDSASHA2192s: AlgSLHDSASHA2192s,
+	pkicrypto.AlgSLHDSASHA2192f: AlgSLHDSASHA2192f,
+	pkicrypto.AlgSLHDSASHA2256s: AlgSLHDSASHA2256s,
+	pkicrypto.AlgSLHDSASHA2256f: AlgSLHDSASHA2256f,
+	// SLH-DSA SHAKE
+	pkicrypto.AlgSLHDSASHAKE128s: AlgSLHDSASHAKE128s,
+	pkicrypto.AlgSLHDSASHAKE128f: AlgSLHDSASHAKE128f,
+	pkicrypto.AlgSLHDSASHAKE192s: AlgSLHDSASHAKE192s,
+	pkicrypto.AlgSLHDSASHAKE192f: AlgSLHDSASHAKE192f,
+	pkicrypto.AlgSLHDSASHAKE256s: AlgSLHDSASHAKE256s,
+	pkicrypto.AlgSLHDSASHAKE256f: AlgSLHDSASHAKE256f,
+}
+
 // COSEAlgorithmFromPKI converts a pkicrypto.AlgorithmID to a COSE Algorithm.
 func COSEAlgorithmFromPKI(alg pkicrypto.AlgorithmID) (gocose.Algorithm, error) {
-	switch alg {
-	// ECDSA
-	case pkicrypto.AlgECDSAP256, pkicrypto.AlgECP256:
-		return AlgES256, nil
-	case pkicrypto.AlgECDSAP384, pkicrypto.AlgECP384:
-		return AlgES384, nil
-	case pkicrypto.AlgECDSAP521, pkicrypto.AlgECP521:
-		return AlgES512, nil
-	// EdDSA
-	case pkicrypto.AlgEd25519, pkicrypto.AlgEd448:
-		return AlgEdDSA, nil
-	// RSA
-	case pkicrypto.AlgRSA2048, pkicrypto.AlgRSA4096:
-		return AlgPS256, nil
-	// ML-DSA
-	case pkicrypto.AlgMLDSA44:
-		return AlgMLDSA44, nil
-	case pkicrypto.AlgMLDSA65:
-		return AlgMLDSA65, nil
-	case pkicrypto.AlgMLDSA87:
-		return AlgMLDSA87, nil
-	// SLH-DSA SHA2
-	case pkicrypto.AlgSLHDSASHA2128s:
-		return AlgSLHDSASHA2128s, nil
-	case pkicrypto.AlgSLHDSASHA2128f:
-		return AlgSLHDSASHA2128f, nil
-	case pkicrypto.AlgSLHDSASHA2192s:
-		return AlgSLHDSASHA2192s, nil
-	case pkicrypto.AlgSLHDSASHA2192f:
-		return AlgSLHDSASHA2192f, nil
-	case pkicrypto.AlgSLHDSASHA2256s:
-		return AlgSLHDSASHA2256s, nil
-	case pkicrypto.AlgSLHDSASHA2256f:
-		return AlgSLHDSASHA2256f, nil
-	// SLH-DSA SHAKE
-	case pkicrypto.AlgSLHDSASHAKE128s:
-		return AlgSLHDSASHAKE128s, nil
-	case pkicrypto.AlgSLHDSASHAKE128f:
-		return AlgSLHDSASHAKE128f, nil
-	case pkicrypto.AlgSLHDSASHAKE192s:
-		return AlgSLHDSASHAKE192s, nil
-	case pkicrypto.AlgSLHDSASHAKE192f:
-		return AlgSLHDSASHAKE192f, nil
-	case pkicrypto.AlgSLHDSASHAKE256s:
-		return AlgSLHDSASHAKE256s, nil
-	case pkicrypto.AlgSLHDSASHAKE256f:
-		return AlgSLHDSASHAKE256f, nil
-	default:
-		return 0, fmt.Errorf("unsupported algorithm for COSE: %s", alg)
+	if coseAlg, ok := pkiToCOSEMap[alg]; ok {
+		return coseAlg, nil
 	}
+	return 0, fmt.Errorf("unsupported algorithm for COSE: %s", alg)
+}
+
+// coseToPKIMap maps COSE Algorithm to pkicrypto.AlgorithmID.
+// Note: Some COSE algorithms map to a default PKI variant (e.g., EdDSA -> Ed25519, PS* -> RSA-4096).
+var coseToPKIMap = map[gocose.Algorithm]pkicrypto.AlgorithmID{
+	// Classical
+	AlgES256: pkicrypto.AlgECDSAP256,
+	AlgES384: pkicrypto.AlgECDSAP384,
+	AlgES512: pkicrypto.AlgECDSAP521,
+	AlgEdDSA: pkicrypto.AlgEd25519, // Default to Ed25519
+	AlgPS256: pkicrypto.AlgRSA4096, // Default to RSA-4096
+	AlgPS384: pkicrypto.AlgRSA4096,
+	AlgPS512: pkicrypto.AlgRSA4096,
+	// ML-DSA
+	AlgMLDSA44: pkicrypto.AlgMLDSA44,
+	AlgMLDSA65: pkicrypto.AlgMLDSA65,
+	AlgMLDSA87: pkicrypto.AlgMLDSA87,
+	// SLH-DSA SHA2
+	AlgSLHDSASHA2128s: pkicrypto.AlgSLHDSASHA2128s,
+	AlgSLHDSASHA2128f: pkicrypto.AlgSLHDSASHA2128f,
+	AlgSLHDSASHA2192s: pkicrypto.AlgSLHDSASHA2192s,
+	AlgSLHDSASHA2192f: pkicrypto.AlgSLHDSASHA2192f,
+	AlgSLHDSASHA2256s: pkicrypto.AlgSLHDSASHA2256s,
+	AlgSLHDSASHA2256f: pkicrypto.AlgSLHDSASHA2256f,
+	// SLH-DSA SHAKE
+	AlgSLHDSASHAKE128s: pkicrypto.AlgSLHDSASHAKE128s,
+	AlgSLHDSASHAKE128f: pkicrypto.AlgSLHDSASHAKE128f,
+	AlgSLHDSASHAKE192s: pkicrypto.AlgSLHDSASHAKE192s,
+	AlgSLHDSASHAKE192f: pkicrypto.AlgSLHDSASHAKE192f,
+	AlgSLHDSASHAKE256s: pkicrypto.AlgSLHDSASHAKE256s,
+	AlgSLHDSASHAKE256f: pkicrypto.AlgSLHDSASHAKE256f,
 }
 
 // PKIAlgorithmFromCOSE converts a COSE Algorithm to a pkicrypto.AlgorithmID.
 // Note: This may return a default variant when multiple PKI algorithms map to the same COSE algorithm.
 func PKIAlgorithmFromCOSE(alg gocose.Algorithm) (pkicrypto.AlgorithmID, error) {
-	switch alg {
-	// Classical
-	case AlgES256:
-		return pkicrypto.AlgECDSAP256, nil
-	case AlgES384:
-		return pkicrypto.AlgECDSAP384, nil
-	case AlgES512:
-		return pkicrypto.AlgECDSAP521, nil
-	case AlgEdDSA:
-		return pkicrypto.AlgEd25519, nil // Default to Ed25519
-	case AlgPS256, AlgPS384, AlgPS512:
-		return pkicrypto.AlgRSA4096, nil // Default to RSA-4096
-	// ML-DSA
-	case AlgMLDSA44:
-		return pkicrypto.AlgMLDSA44, nil
-	case AlgMLDSA65:
-		return pkicrypto.AlgMLDSA65, nil
-	case AlgMLDSA87:
-		return pkicrypto.AlgMLDSA87, nil
-	// SLH-DSA SHA2
-	case AlgSLHDSASHA2128s:
-		return pkicrypto.AlgSLHDSASHA2128s, nil
-	case AlgSLHDSASHA2128f:
-		return pkicrypto.AlgSLHDSASHA2128f, nil
-	case AlgSLHDSASHA2192s:
-		return pkicrypto.AlgSLHDSASHA2192s, nil
-	case AlgSLHDSASHA2192f:
-		return pkicrypto.AlgSLHDSASHA2192f, nil
-	case AlgSLHDSASHA2256s:
-		return pkicrypto.AlgSLHDSASHA2256s, nil
-	case AlgSLHDSASHA2256f:
-		return pkicrypto.AlgSLHDSASHA2256f, nil
-	// SLH-DSA SHAKE
-	case AlgSLHDSASHAKE128s:
-		return pkicrypto.AlgSLHDSASHAKE128s, nil
-	case AlgSLHDSASHAKE128f:
-		return pkicrypto.AlgSLHDSASHAKE128f, nil
-	case AlgSLHDSASHAKE192s:
-		return pkicrypto.AlgSLHDSASHAKE192s, nil
-	case AlgSLHDSASHAKE192f:
-		return pkicrypto.AlgSLHDSASHAKE192f, nil
-	case AlgSLHDSASHAKE256s:
-		return pkicrypto.AlgSLHDSASHAKE256s, nil
-	case AlgSLHDSASHAKE256f:
-		return pkicrypto.AlgSLHDSASHAKE256f, nil
-	default:
-		return "", fmt.Errorf("unsupported COSE algorithm: %d", alg)
+	if pkiAlg, ok := coseToPKIMap[alg]; ok {
+		return pkiAlg, nil
 	}
+	return "", fmt.Errorf("unsupported COSE algorithm: %d", alg)
 }
 
 // COSEAlgorithmFromKey determines the COSE algorithm from a public key.
@@ -231,56 +208,38 @@ func algorithmFromSLHDSAKey(key *slhdsa.PublicKey) (gocose.Algorithm, error) {
 	}
 }
 
+// algorithmNameMap maps COSE Algorithm IDs to human-readable names.
+var algorithmNameMap = map[gocose.Algorithm]string{
+	AlgES256:           "ES256",
+	AlgES384:           "ES384",
+	AlgES512:           "ES512",
+	AlgEdDSA:           "EdDSA",
+	AlgPS256:           "PS256",
+	AlgPS384:           "PS384",
+	AlgPS512:           "PS512",
+	AlgMLDSA44:         "ML-DSA-44",
+	AlgMLDSA65:         "ML-DSA-65",
+	AlgMLDSA87:         "ML-DSA-87",
+	AlgSLHDSASHA2128s:  "SLH-DSA-SHA2-128s",
+	AlgSLHDSASHA2128f:  "SLH-DSA-SHA2-128f",
+	AlgSLHDSASHA2192s:  "SLH-DSA-SHA2-192s",
+	AlgSLHDSASHA2192f:  "SLH-DSA-SHA2-192f",
+	AlgSLHDSASHA2256s:  "SLH-DSA-SHA2-256s",
+	AlgSLHDSASHA2256f:  "SLH-DSA-SHA2-256f",
+	AlgSLHDSASHAKE128s: "SLH-DSA-SHAKE-128s",
+	AlgSLHDSASHAKE128f: "SLH-DSA-SHAKE-128f",
+	AlgSLHDSASHAKE192s: "SLH-DSA-SHAKE-192s",
+	AlgSLHDSASHAKE192f: "SLH-DSA-SHAKE-192f",
+	AlgSLHDSASHAKE256s: "SLH-DSA-SHAKE-256s",
+	AlgSLHDSASHAKE256f: "SLH-DSA-SHAKE-256f",
+}
+
 // AlgorithmName returns a human-readable name for a COSE algorithm.
 func AlgorithmName(alg gocose.Algorithm) string {
-	switch alg {
-	case AlgES256:
-		return "ES256"
-	case AlgES384:
-		return "ES384"
-	case AlgES512:
-		return "ES512"
-	case AlgEdDSA:
-		return "EdDSA"
-	case AlgPS256:
-		return "PS256"
-	case AlgPS384:
-		return "PS384"
-	case AlgPS512:
-		return "PS512"
-	case AlgMLDSA44:
-		return "ML-DSA-44"
-	case AlgMLDSA65:
-		return "ML-DSA-65"
-	case AlgMLDSA87:
-		return "ML-DSA-87"
-	case AlgSLHDSASHA2128s:
-		return "SLH-DSA-SHA2-128s"
-	case AlgSLHDSASHA2128f:
-		return "SLH-DSA-SHA2-128f"
-	case AlgSLHDSASHA2192s:
-		return "SLH-DSA-SHA2-192s"
-	case AlgSLHDSASHA2192f:
-		return "SLH-DSA-SHA2-192f"
-	case AlgSLHDSASHA2256s:
-		return "SLH-DSA-SHA2-256s"
-	case AlgSLHDSASHA2256f:
-		return "SLH-DSA-SHA2-256f"
-	case AlgSLHDSASHAKE128s:
-		return "SLH-DSA-SHAKE-128s"
-	case AlgSLHDSASHAKE128f:
-		return "SLH-DSA-SHAKE-128f"
-	case AlgSLHDSASHAKE192s:
-		return "SLH-DSA-SHAKE-192s"
-	case AlgSLHDSASHAKE192f:
-		return "SLH-DSA-SHAKE-192f"
-	case AlgSLHDSASHAKE256s:
-		return "SLH-DSA-SHAKE-256s"
-	case AlgSLHDSASHAKE256f:
-		return "SLH-DSA-SHAKE-256f"
-	default:
-		return fmt.Sprintf("Unknown(%d)", alg)
+	if name, ok := algorithmNameMap[alg]; ok {
+		return name
 	}
+	return fmt.Sprintf("Unknown(%d)", alg)
 }
 
 // IsPQCAlgorithm returns true if the COSE algorithm is post-quantum.

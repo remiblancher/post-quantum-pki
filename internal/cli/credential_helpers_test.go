@@ -201,11 +201,55 @@ func TestU_ValidateEnrollVariables(t *testing.T) {
 }
 
 // =============================================================================
-// Integration notes for remaining credential helpers
+// PrepareEnrollVariablesAndProfiles Tests
 // =============================================================================
 
-// The following functions require full CA setup and are better tested
-// through integration/acceptance tests:
-// - ExecuteEnrollment (requires ca.CA with signer loaded)
-// - PrintEnrollmentSuccess (mainly prints output)
-// - PrepareEnrollVariablesAndProfiles (combines multiple operations)
+func TestU_PrepareEnrollVariablesAndProfiles_InvalidProfile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	_, _, err := PrepareEnrollVariablesAndProfiles(tmpDir, []string{"nonexistent/profile"}, "", nil)
+	if err == nil {
+		t.Error("PrepareEnrollVariablesAndProfiles() should fail for non-existent profile")
+	}
+}
+
+func TestU_PrepareEnrollVariablesAndProfiles_BuiltinProfile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	profiles, subject, err := PrepareEnrollVariablesAndProfiles(tmpDir, []string{"ec/tls-server"}, "", []string{"cn=test.example.com"})
+	if err != nil {
+		t.Fatalf("PrepareEnrollVariablesAndProfiles() error = %v", err)
+	}
+
+	if len(profiles) != 1 {
+		t.Errorf("PrepareEnrollVariablesAndProfiles() returned %d profiles, want 1", len(profiles))
+	}
+
+	if subject.CommonName != "test.example.com" {
+		t.Errorf("PrepareEnrollVariablesAndProfiles() subject CN = %s, want test.example.com", subject.CommonName)
+	}
+}
+
+// =============================================================================
+// ResolveProfilesTemplates Extended Tests
+// =============================================================================
+
+func TestU_ResolveProfilesTemplates_PreservesUnmodifiedProfile(t *testing.T) {
+	prof := &profile.Profile{
+		Name:      "test-profile",
+		Algorithm: "ecdsa-p256",
+	}
+
+	result, err := ResolveProfilesTemplates([]*profile.Profile{prof}, profile.VariableValues{"key": "value"})
+	if err != nil {
+		t.Fatalf("ResolveProfilesTemplates() error = %v", err)
+	}
+
+	if len(result) != 1 {
+		t.Fatalf("ResolveProfilesTemplates() returned %d profiles, want 1", len(result))
+	}
+
+	if result[0].Name != "test-profile" {
+		t.Errorf("ResolveProfilesTemplates() profile name = %s, want test-profile", result[0].Name)
+	}
+}

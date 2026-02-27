@@ -287,18 +287,25 @@ func AlgorithmFromPublicKey(pub crypto.PublicKey) AlgorithmID {
 	return detectAlgorithmFromPublicKey(pub)
 }
 
+// detectECDSAAlgorithm determines the ECDSA algorithm from curve bit size.
+func detectECDSAAlgorithm(k *ecdsa.PublicKey) AlgorithmID {
+	switch k.Curve.Params().BitSize {
+	case 256:
+		return AlgECDSAP256
+	case 384:
+		return AlgECDSAP384
+	case 521:
+		return AlgECDSAP521
+	default:
+		return AlgUnknown
+	}
+}
+
 // detectAlgorithmFromPublicKey infers the algorithm from a public key type.
 func detectAlgorithmFromPublicKey(pub crypto.PublicKey) AlgorithmID {
 	switch k := pub.(type) {
 	case *ecdsa.PublicKey:
-		switch k.Curve.Params().BitSize {
-		case 256:
-			return AlgECDSAP256
-		case 384:
-			return AlgECDSAP384
-		case 521:
-			return AlgECDSAP521
-		}
+		return detectECDSAAlgorithm(k)
 	case ed25519.PublicKey:
 		return AlgEd25519
 	case ed448.PublicKey:

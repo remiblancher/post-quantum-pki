@@ -20,34 +20,34 @@ func ExtractSPKIAlgorithmOID(rawSPKI []byte) (asn1.ObjectIdentifier, error) {
 	return spki.Algorithm.Algorithm, nil
 }
 
+// pqcOIDSet contains string representations of all known pure PQC signature algorithm OIDs.
+// Using a map reduces cyclomatic complexity compared to chained OIDEqual calls.
+var pqcOIDSet = map[string]struct{}{
+	// ML-DSA (FIPS 204)
+	OIDMLDSA44.String(): {},
+	OIDMLDSA65.String(): {},
+	OIDMLDSA87.String(): {},
+	// SLH-DSA SHA2 variants (FIPS 205)
+	OIDSLHDSA128s.String(): {},
+	OIDSLHDSA128f.String(): {},
+	OIDSLHDSA192s.String(): {},
+	OIDSLHDSA192f.String(): {},
+	OIDSLHDSA256s.String(): {},
+	OIDSLHDSA256f.String(): {},
+	// SLH-DSA SHAKE variants (RFC 9814)
+	OIDSLHDSASHAKE128s.String(): {},
+	OIDSLHDSASHAKE128f.String(): {},
+	OIDSLHDSASHAKE192s.String(): {},
+	OIDSLHDSASHAKE192f.String(): {},
+	OIDSLHDSASHAKE256s.String(): {},
+	OIDSLHDSASHAKE256f.String(): {},
+}
+
 // IsPQCOID checks if an OID is a pure PQC signature algorithm (ML-DSA or SLH-DSA).
 // This does NOT include Composite algorithms.
 func IsPQCOID(oid asn1.ObjectIdentifier) bool {
-	// ML-DSA (FIPS 204)
-	if OIDEqual(oid, OIDMLDSA44) ||
-		OIDEqual(oid, OIDMLDSA65) ||
-		OIDEqual(oid, OIDMLDSA87) {
-		return true
-	}
-	// SLH-DSA SHA2 variants (FIPS 205)
-	if OIDEqual(oid, OIDSLHDSA128s) ||
-		OIDEqual(oid, OIDSLHDSA128f) ||
-		OIDEqual(oid, OIDSLHDSA192s) ||
-		OIDEqual(oid, OIDSLHDSA192f) ||
-		OIDEqual(oid, OIDSLHDSA256s) ||
-		OIDEqual(oid, OIDSLHDSA256f) {
-		return true
-	}
-	// SLH-DSA SHAKE variants (RFC 9814)
-	if OIDEqual(oid, OIDSLHDSASHAKE128s) ||
-		OIDEqual(oid, OIDSLHDSASHAKE128f) ||
-		OIDEqual(oid, OIDSLHDSASHAKE192s) ||
-		OIDEqual(oid, OIDSLHDSASHAKE192f) ||
-		OIDEqual(oid, OIDSLHDSASHAKE256s) ||
-		OIDEqual(oid, OIDSLHDSASHAKE256f) {
-		return true
-	}
-	return false
+	_, ok := pqcOIDSet[oid.String()]
+	return ok
 }
 
 // IsCompositeCertificate checks if a certificate uses a Composite public key algorithm.

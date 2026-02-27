@@ -208,6 +208,47 @@ func init() {
 	ocspCmd.AddCommand(ocspServeCmd)
 }
 
+// loadOCSPSignResponderCredentials loads the responder certificate and signer
+// from credential store, cert/key files, or CA-signed mode.
+func loadOCSPSignResponderCredentials(cmd *cobra.Command, caCert *x509.Certificate) (*x509.Certificate, crypto.Signer, error) {
+	if ocspSignCredential != "" {
+		credDir, err := filepath.Abs(ocspSignCredDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid credentials directory: %w", err)
+		}
+		store := credential.NewFileStore(credDir)
+		passphrase := []byte(ocspSignPassphrase)
+
+		responderCert, signer, err := credential.LoadSigner(cmd.Context(), store, ocspSignCredential, passphrase)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load credential %s: %w", ocspSignCredential, err)
+		}
+		if err := credential.ValidateForOCSP(responderCert); err != nil {
+			return nil, nil, fmt.Errorf("credential %s: %w", ocspSignCredential, err)
+		}
+		return responderCert, signer, nil
+	}
+
+	if ocspSignCert != "" {
+		responderCert, err := loadCertificate(ocspSignCert)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load responder certificate: %w", err)
+		}
+		signer, err := cli.LoadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID, responderCert)
+		if err != nil {
+			return nil, nil, err
+		}
+		return responderCert, signer, nil
+	}
+
+	// CA-signed mode
+	signer, err := cli.LoadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID, caCert)
+	if err != nil {
+		return nil, nil, err
+	}
+	return caCert, signer, nil
+}
+
 func runOCSPSign(cmd *cobra.Command, args []string) error {
 	// Parse inputs
 	serial, err := cli.ParseOCSPSerial(ocspSignSerial)
@@ -234,46 +275,9 @@ func runOCSPSign(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load CA certificate: %w", err)
 	}
 
-	var responderCert *x509.Certificate
-	var signer crypto.Signer
-
-	// Load responder certificate and key from credential or from files
-	if ocspSignCredential != "" {
-		// Use credential store
-		credDir, err := filepath.Abs(ocspSignCredDir)
-		if err != nil {
-			return fmt.Errorf("invalid credentials directory: %w", err)
-		}
-		store := credential.NewFileStore(credDir)
-		passphrase := []byte(ocspSignPassphrase)
-
-		responderCert, signer, err = credential.LoadSigner(cmd.Context(), store, ocspSignCredential, passphrase)
-		if err != nil {
-			return fmt.Errorf("failed to load credential %s: %w", ocspSignCredential, err)
-		}
-
-		// Validate certificate has OCSP signing EKU
-		if err := credential.ValidateForOCSP(responderCert); err != nil {
-			return fmt.Errorf("credential %s: %w", ocspSignCredential, err)
-		}
-	} else if ocspSignCert != "" {
-		// Use certificate and key files
-		responderCert, err = loadCertificate(ocspSignCert)
-		if err != nil {
-			return fmt.Errorf("failed to load responder certificate: %w", err)
-		}
-
-		signer, err = cli.LoadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID, responderCert)
-		if err != nil {
-			return err
-		}
-	} else {
-		// CA-signed mode: use CA certificate
-		responderCert = caCert
-		signer, err = cli.LoadOCSPSigner(ocspSignHSMConfig, ocspSignKey, ocspSignPassphrase, ocspSignKeyLabel, ocspSignKeyID, responderCert)
-		if err != nil {
-			return err
-		}
+	responderCert, signer, err := loadOCSPSignResponderCredentials(cmd, caCert)
+	if err != nil {
+		return err
 	}
 
 	// Parse validity
@@ -401,6 +405,83 @@ func runOCSPVerify(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// loadOCSPServeResponderCredentials loads the OCSP responder credentials
+// from credential store, cert+key files (HSM or software), or CA-signed mode.
+func loadOCSPServeResponderCredentials(cmd *cobra.Command, caCert *x509.Certificate) (*x509.Certificate, crypto.Signer, error) {
+	if ocspServeCredential != "" {
+		credDir, err := filepath.Abs(ocspServeCredDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid credentials directory: %w", err)
+		}
+		credStore := credential.NewFileStore(credDir)
+		passphrase := []byte(ocspServePassphrase)
+
+		responderCert, signer, err := credential.LoadSigner(cmd.Context(), credStore, ocspServeCredential, passphrase)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load credential %s: %w", ocspServeCredential, err)
+		}
+		if err := credential.ValidateForOCSP(responderCert); err != nil {
+			return nil, nil, fmt.Errorf("credential %s: %w", ocspServeCredential, err)
+		}
+		return responderCert, signer, nil
+	}
+
+	if ocspServeCert != "" && (ocspServeKey != "" || ocspServeHSMConfig != "") {
+		responderCert, err := loadCertificate(ocspServeCert)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load responder certificate: %w", err)
+		}
+		var keyCfg pkicrypto.KeyStorageConfig
+		if ocspServeHSMConfig != "" {
+			hsmCfg, err := pkicrypto.LoadHSMConfig(ocspServeHSMConfig)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to load HSM config: %w", err)
+			}
+			pin, err := hsmCfg.GetPIN()
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get HSM PIN: %w", err)
+			}
+			keyCfg = pkicrypto.KeyStorageConfig{
+				Type:           pkicrypto.KeyProviderTypePKCS11,
+				PKCS11Lib:      hsmCfg.PKCS11.Lib,
+				PKCS11Token:    hsmCfg.PKCS11.Token,
+				PKCS11Pin:      pin,
+				PKCS11KeyLabel: ocspServeKeyLabel,
+				PKCS11KeyID:    ocspServeKeyID,
+			}
+			if keyCfg.PKCS11KeyLabel == "" && keyCfg.PKCS11KeyID == "" {
+				return nil, nil, fmt.Errorf("--key-label or --key-id required with --hsm-config")
+			}
+		} else {
+			keyCfg = pkicrypto.KeyStorageConfig{
+				Type:       pkicrypto.KeyProviderTypeSoftware,
+				KeyPath:    ocspServeKey,
+				Passphrase: ocspServePassphrase,
+			}
+		}
+		km := pkicrypto.NewKeyProvider(keyCfg)
+		signer, err := km.Load(keyCfg)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load responder key: %w", err)
+		}
+		return responderCert, signer, nil
+	}
+
+	// CA-signed mode
+	caKeyPath := ocspServeCADir + "/ca.key"
+	keyCfg := pkicrypto.KeyStorageConfig{
+		Type:       pkicrypto.KeyProviderTypeSoftware,
+		KeyPath:    caKeyPath,
+		Passphrase: ocspServePassphrase,
+	}
+	km := pkicrypto.NewKeyProvider(keyCfg)
+	signer, err := km.Load(keyCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load CA key: %w", err)
+	}
+	return caCert, signer, nil
+}
+
 func runOCSPServe(cmd *cobra.Command, args []string) error {
 	// Load CA store
 	store := ca.NewFileStore(ocspServeCADir)
@@ -413,83 +494,9 @@ func runOCSPServe(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load responder certificate and key
-	var responderCert *x509.Certificate
-	var signer crypto.Signer
-
-	if ocspServeCredential != "" {
-		// Use credential store
-		credDir, err := filepath.Abs(ocspServeCredDir)
-		if err != nil {
-			return fmt.Errorf("invalid credentials directory: %w", err)
-		}
-		credStore := credential.NewFileStore(credDir)
-		passphrase := []byte(ocspServePassphrase)
-
-		responderCert, signer, err = credential.LoadSigner(cmd.Context(), credStore, ocspServeCredential, passphrase)
-		if err != nil {
-			return fmt.Errorf("failed to load credential %s: %w", ocspServeCredential, err)
-		}
-
-		// Validate certificate has OCSP signing EKU
-		if err := credential.ValidateForOCSP(responderCert); err != nil {
-			return fmt.Errorf("credential %s: %w", ocspServeCredential, err)
-		}
-	} else if ocspServeCert != "" && (ocspServeKey != "" || ocspServeHSMConfig != "") {
-		// Delegated responder mode
-		responderCert, err = loadCertificate(ocspServeCert)
-		if err != nil {
-			return fmt.Errorf("failed to load responder certificate: %w", err)
-		}
-
-		var keyCfg pkicrypto.KeyStorageConfig
-		if ocspServeHSMConfig != "" {
-			// HSM mode
-			hsmCfg, err := pkicrypto.LoadHSMConfig(ocspServeHSMConfig)
-			if err != nil {
-				return fmt.Errorf("failed to load HSM config: %w", err)
-			}
-			pin, err := hsmCfg.GetPIN()
-			if err != nil {
-				return fmt.Errorf("failed to get HSM PIN: %w", err)
-			}
-			keyCfg = pkicrypto.KeyStorageConfig{
-				Type:           pkicrypto.KeyProviderTypePKCS11,
-				PKCS11Lib:      hsmCfg.PKCS11.Lib,
-				PKCS11Token:    hsmCfg.PKCS11.Token,
-				PKCS11Pin:      pin,
-				PKCS11KeyLabel: ocspServeKeyLabel,
-				PKCS11KeyID:    ocspServeKeyID,
-			}
-			if keyCfg.PKCS11KeyLabel == "" && keyCfg.PKCS11KeyID == "" {
-				return fmt.Errorf("--key-label or --key-id required with --hsm-config")
-			}
-		} else {
-			// Software mode
-			keyCfg = pkicrypto.KeyStorageConfig{
-				Type:       pkicrypto.KeyProviderTypeSoftware,
-				KeyPath:    ocspServeKey,
-				Passphrase: ocspServePassphrase,
-			}
-		}
-		km := pkicrypto.NewKeyProvider(keyCfg)
-		signer, err = km.Load(keyCfg)
-		if err != nil {
-			return fmt.Errorf("failed to load responder key: %w", err)
-		}
-	} else {
-		// CA-signed mode
-		responderCert = caCert
-		caKeyPath := ocspServeCADir + "/ca.key"
-		keyCfg := pkicrypto.KeyStorageConfig{
-			Type:       pkicrypto.KeyProviderTypeSoftware,
-			KeyPath:    caKeyPath,
-			Passphrase: ocspServePassphrase,
-		}
-		km := pkicrypto.NewKeyProvider(keyCfg)
-		signer, err = km.Load(keyCfg)
-		if err != nil {
-			return fmt.Errorf("failed to load CA key: %w", err)
-		}
+	responderCert, signer, err := loadOCSPServeResponderCredentials(cmd, caCert)
+	if err != nil {
+		return err
 	}
 
 	// Parse validity
