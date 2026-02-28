@@ -34,7 +34,7 @@ QPKI is a quantum-safe PKI toolkit to help organizations prepare for post-quantu
 - **HSM support** via PKCS#11
 - **Cross-validated** with external implementations (OpenSSL, BouncyCastle)
 - **CLI-first** - simple, scriptable, no database required
-- **PQC via [Cloudflare CIRCL](https://github.com/cloudflare/circl)** — FIPS 203/204/205 implementations, NIST test vectors validated
+- **PQC via [Cloudflare CIRCL](https://github.com/cloudflare/circl)** — FIPS 203/204/205 implementations, NIST ACVP test vectors validated
 - **Pure Go by default** - CGO optional (only for HSM/PKCS#11)
 
 ## Supported Algorithms
