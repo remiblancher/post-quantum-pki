@@ -11,7 +11,7 @@ This document covers the testing philosophy, categories, and execution for QPKI 
 
 ### Integration Testing, Not Primitive Testing
 
-We do NOT duplicate tests that underlying cryptographic libraries already perform. For PQC (ML-DSA, SLH-DSA, ML-KEM), we use [cloudflare/circl](https://github.com/cloudflare/circl) which includes NIST KAT tests and comprehensive fuzzing.
+We do NOT duplicate tests that underlying cryptographic libraries already perform. For PQC (ML-DSA, SLH-DSA, ML-KEM), we use [cloudflare/circl](https://github.com/cloudflare/circl) which includes NIST ACVP test vectors and comprehensive fuzzing.
 
 **What we test:**
 - Key generation produces valid keys (integration)
@@ -21,7 +21,7 @@ We do NOT duplicate tests that underlying cryptographic libraries already perfor
 - Cross-validation with OpenSSL/BouncyCastle
 
 **What we don't test:**
-- KAT vectors (circl does this)
+- ACVP test vectors (circl does this)
 - Edge cases in primitive operations (circl does this)
 
 ### External Validation

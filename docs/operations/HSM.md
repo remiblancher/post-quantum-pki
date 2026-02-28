@@ -243,8 +243,8 @@ qpki key gen --algorithm ecdsa-p384 \
 Supported algorithms for HSM key generation:
 - `ecdsa-p256`, `ecdsa-p384`, `ecdsa-p521` (EC keys)
 - `rsa-2048`, `rsa-3072`, `rsa-4096` (RSA keys)
-- `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87` (PQC signatures, Utimaco only)
-- `ml-kem-512`, `ml-kem-768`, `ml-kem-1024` (PQC key encapsulation, Utimaco only)
+- `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87` (PQC signatures)
+- `ml-kem-512`, `ml-kem-768`, `ml-kem-1024` (PQC key encapsulation)
 
 Note: PQC algorithms require HSMs with post-quantum support (see Section 10).
 
