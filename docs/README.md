@@ -39,6 +39,7 @@ Welcome to the Post-Quantum PKI documentation. This guide will help you find the
 | [TSA](services/TSA.md) | Timestamping service (RFC 3161) |
 | [CMS](services/CMS.md) | CMS signatures and encryption (RFC 5652) |
 | [COSE](services/COSE.md) | CBOR Object Signing (IoT, attestation) |
+| [SSH](services/SSH.md) | SSH certificate issuance (OpenSSH format) |
 
 ## Operations
 
@@ -80,6 +81,7 @@ Welcome to the Post-Quantum PKI documentation. This guide will help you find the
 | [Testing Strategy](quality/STRATEGY.md) | Testing philosophy and approach |
 | [Acceptance Tests](quality/TESTS-ACCEPTANCE.md) | 102 acceptance tests |
 | [Interop Tests](quality/TESTS-INTEROP.md) | OpenSSL/BouncyCastle validation |
+| [SSH Tests](quality/TESTS-SSH.md) | OpenSSH certificate validation |
 | [Compliance](quality/COMPLIANCE.md) | FIPS, RFC standards |
 
 ---
@@ -98,6 +100,8 @@ Welcome to the Post-Quantum PKI documentation. This guide will help you find the
 | FIPS 203 | ML-KEM (Kyber) | Implemented |
 | ITU-T X.509 9.8 | Catalyst Hybrid Certificates | Implemented |
 | IETF draft-13 | Composite Signatures | Implemented |
+| PROTOCOL.certkeys | OpenSSH Certificate Format | Implemented |
+| PROTOCOL.krl | OpenSSH Key Revocation List | Implemented |
 
 ## Document Map
 
@@ -124,7 +128,8 @@ docs/
 │   ├── OCSP.md            Real-time revocation
 │   ├── TSA.md             Timestamping
 │   ├── CMS.md             Signatures & encryption
-│   └── COSE.md            CBOR Object Signing
+│   ├── COSE.md            CBOR Object Signing
+│   └── SSH.md             SSH certificates
 │
 ├── operations/            # Operations
 │   ├── HSM.md             PKCS#11 integration
@@ -151,5 +156,6 @@ docs/
     ├── STRATEGY.md        Test philosophy
     ├── TESTS-ACCEPTANCE.md 102 acceptance tests
     ├── TESTS-INTEROP.md   OpenSSL/BC validation
+    ├── TESTS-SSH.md       OpenSSH certificate validation
     └── COMPLIANCE.md      FIPS/RFC standards
 ```

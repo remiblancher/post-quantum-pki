@@ -133,4 +133,7 @@ func init() {
 
 	// CSR operations
 	rootCmd.AddCommand(csrRootCmd)
+
+	// SSH certificate operations
+	rootCmd.AddCommand(sshCmd)
 }

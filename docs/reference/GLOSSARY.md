@@ -47,6 +47,17 @@ description: "PKI and post-quantum cryptography terminology reference."
 | **LTV** | Long-Term Validation. Signatures that remain verifiable for decades, even after algorithm deprecation. |
 | **NIST Levels** | Security strength categories (1, 3, 5) corresponding to AES-128, AES-192, AES-256 equivalent security. |
 
+## SSH Certificate Concepts
+
+| Term | Definition |
+|------|------------|
+| **SSH Certificate** | OpenSSH certificate format (PROTOCOL.certkeys). Signed by a CA, contains principals, validity period, and extensions. Alternative to `authorized_keys`. |
+| **Principal** | An identity a certificate authorizes. For user certificates: usernames (alice, deploy). For host certificates: hostnames or IPs. |
+| **Critical Option** | SSH certificate restriction enforced by sshd. If the server does not recognize a critical option, it rejects the certificate. Examples: `force-command`, `source-address`. |
+| **Extension** | SSH certificate permission (user certificates only). Controls allowed operations: `permit-pty`, `permit-port-forwarding`, `permit-agent-forwarding`, etc. |
+| **KRL** | Key Revocation List. OpenSSH binary format for efficiently revoking SSH certificates by serial number or key. Checked via `ssh-keygen -Q`. |
+| **TrustedUserCAKeys** | sshd configuration directive specifying the CA public key file. All certificates signed by this CA are accepted for user authentication. |
+
 ## QPKI Concepts
 
 | Term | Definition |

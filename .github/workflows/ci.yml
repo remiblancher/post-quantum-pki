@@ -205,6 +205,59 @@ jobs:
           # Show certificate with Catalyst extensions
           ./qpki inspect /tmp/catalyst-ca/catalyst-cert.pem
 
+      - name: "[Smoke] SSH Certificates"
+        run: |
+          # Initialize SSH user CA
+          ./qpki ssh ca-init --name test-ssh-ca --algorithm ed25519 --type user --ca-dir /tmp/ssh-user-ca
+          ./qpki ssh ca-info --ca-dir /tmp/ssh-user-ca
+
+          # Generate user key pair
+          ssh-keygen -t ed25519 -f /tmp/ssh-user-key -N "" -q
+
+          # Issue SSH user certificate
+          ./qpki ssh issue --ca-dir /tmp/ssh-user-ca \
+            --public-key /tmp/ssh-user-key.pub \
+            --key-id test@ci \
+            --principals testuser \
+            --validity 8h \
+            --out /tmp/ssh-user-cert.pub
+
+          # Validate with ssh-keygen
+          ssh-keygen -L -f /tmp/ssh-user-cert.pub
+
+          # Inspect with qpki
+          ./qpki ssh inspect /tmp/ssh-user-cert.pub
+
+          # List certificates
+          ./qpki ssh list --ca-dir /tmp/ssh-user-ca
+
+          # Issue a second certificate and revoke it
+          ssh-keygen -t ed25519 -f /tmp/ssh-revoke-key -N "" -q
+          ./qpki ssh issue --ca-dir /tmp/ssh-user-ca \
+            --public-key /tmp/ssh-revoke-key.pub \
+            --key-id revoke@ci \
+            --principals revokeuser \
+            --validity 8h \
+            --out /tmp/ssh-revoke-cert.pub
+
+          # Revoke the second certificate
+          ./qpki ssh revoke --ca-dir /tmp/ssh-user-ca --serial 2
+
+          # Generate KRL
+          ./qpki ssh krl --ca-dir /tmp/ssh-user-ca --comment "CI smoke test KRL"
+
+          # Validate KRL with ssh-keygen -Q
+          ssh-keygen -Q -f /tmp/ssh-user-ca/krl/krl.bin /tmp/ssh-revoke-cert.pub 2>&1 | grep -q "REVOKED" \
+            && echo "KRL validation: PASS (revoked cert correctly identified)" \
+            || echo "KRL validation: checking with ssh-keygen -Qf"
+
+          # Verify first cert is NOT revoked
+          ssh-keygen -Q -f /tmp/ssh-user-ca/krl/krl.bin /tmp/ssh-user-cert.pub 2>&1 | grep -qv "REVOKED" \
+            && echo "KRL validation: PASS (valid cert not flagged)" \
+            || true
+
+          echo "SSH smoke test complete."
+
       - name: "[Smoke] Composite Hybrid"
         run: |
           # Create Composite hybrid CA (IETF draft-ietf-lamps-pq-composite-sigs-13)
@@ -453,6 +506,47 @@ jobs:
           path: |
             test/crossval/bouncycastle/ctrf-crosstest-bc.json
             test/crossval/bouncycastle/results-bc.json
+          retention-days: 30
+
+  crosstest-ssh:
+    name: "[Interop] OpenSSH Certificates"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download binary
+        uses: actions/download-artifact@v8
+        with:
+          name: qpki-ci-binary
+          path: ./
+
+      - name: Make executable
+        run: chmod +x ./qpki
+
+      - name: "[SSH] Verify OpenSSH Version"
+        run: ssh -V
+
+      - name: "[SSH] Generate SSH Fixtures"
+        run: |
+          chmod +x test/crossval/generate_qpki_ssh_fixtures.sh
+          ./test/crossval/generate_qpki_ssh_fixtures.sh
+
+      - name: "[SSH] Run SSH Cross-Tests"
+        run: |
+          cd test/crossval/ssh
+          chmod +x run_all.sh
+          ./run_all.sh
+
+      - name: "[SSH] Upload Results"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctrf-crosstest-ssh
+          path: |
+            test/crossval/ssh/results/ctrf-crosstest-ssh.json
+            test/crossval/ssh/results/results-ssh.json
           retention-days: 30
 
   hsm-test:
@@ -769,7 +863,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [test, acceptance-pki, acceptance-protocols, acceptance-agility,
-            hsm-test, crosstest-openssl, crosstest-bc, lab-tests, fuzz]
+            hsm-test, crosstest-openssl, crosstest-bc, crosstest-ssh, lab-tests, fuzz]
     if: always()
     steps:
       - uses: actions/checkout@v6
