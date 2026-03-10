@@ -88,6 +88,17 @@ type SubjectConfig struct {
 	Attrs map[string]*SubjectAttribute `yaml:"-" json:"-"`
 }
 
+// CertType defines the certificate format type.
+type CertType string
+
+const (
+	// CertTypeX509 is the default X.509 certificate format.
+	CertTypeX509 CertType = "x509"
+
+	// CertTypeSSH is the OpenSSH certificate format (PROTOCOL.certkeys).
+	CertTypeSSH CertType = "ssh"
+)
+
 // Profile defines a certificate type.
 // Design: 1 profile = 1 certificate.
 // Use multiple profiles to create bundles.
@@ -98,7 +109,11 @@ type Profile struct {
 	// Description provides a human-readable description.
 	Description string `yaml:"description" json:"description"`
 
-	// Subject defines the subject DN configuration.
+	// CertificateType defines the certificate format ("x509" or "ssh").
+	// Defaults to "x509" if empty.
+	CertificateType CertType `yaml:"cert_type,omitempty" json:"cert_type,omitempty"`
+
+	// Subject defines the subject DN configuration (X.509 only).
 	Subject *SubjectConfig `yaml:"subject,omitempty" json:"subject,omitempty"`
 
 	// Algorithm is the single algorithm for simple profiles.
@@ -122,6 +137,10 @@ type Profile struct {
 
 	// Extensions defines X.509 extensions with configurable criticality.
 	Extensions *ExtensionsConfig `yaml:"extensions,omitempty" json:"extensions,omitempty"`
+
+	// SSHExtensions defines SSH certificate extensions and critical options.
+	// Used when CertificateType is "ssh".
+	SSHExtensions *SSHExtensionsConfig `yaml:"ssh_extensions,omitempty" json:"ssh_extensions,omitempty"`
 
 	// Variables defines declarative input variables for the profile.
 	// Variables are declared in YAML and can be referenced in templates using {{ var }}.
@@ -148,10 +167,24 @@ func (p *Profile) Validate() error {
 		return fmt.Errorf("validity must be positive")
 	}
 
-	// Validate extensions (RFC 5280 consistency checks)
-	if p.Extensions != nil {
-		if err := p.Extensions.Validate(); err != nil {
-			return fmt.Errorf("extensions: %w", err)
+	// Validate extensions based on certificate type
+	if p.IsSSH() {
+		// SSH profiles: validate SSH extensions
+		if p.SSHExtensions != nil {
+			if err := p.SSHExtensions.Validate(); err != nil {
+				return fmt.Errorf("ssh_extensions: %w", err)
+			}
+		}
+		// SSH profiles must use SSH-compatible algorithms
+		if !p.GetAlgorithm().IsSSHCompatible() {
+			return fmt.Errorf("algorithm %s is not supported for SSH certificates", p.GetAlgorithm())
+		}
+	} else {
+		// X.509 profiles: validate X.509 extensions (RFC 5280 consistency checks)
+		if p.Extensions != nil {
+			if err := p.Extensions.Validate(); err != nil {
+				return fmt.Errorf("extensions: %w", err)
+			}
 		}
 	}
 
@@ -262,6 +295,11 @@ func (p *Profile) String() string {
 	}
 
 	return fmt.Sprintf("Profile[%s]: algo=%s, validity=%s", p.Name, algoDesc, p.Validity)
+}
+
+// IsSSH returns true if this is an SSH certificate profile.
+func (p *Profile) IsSSH() bool {
+	return p.CertificateType == CertTypeSSH
 }
 
 // CertificateCount returns 1 (each profile produces exactly one certificate).

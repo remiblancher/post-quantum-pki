@@ -1,0 +1,69 @@
+# =============================================================================
+# SSH Host Certificate Profile (Ed25519)
+# =============================================================================
+#
+# Usage: Host certificate for SSH server authentication
+#
+# This certificate allows a server to:
+#   - Prove its identity to SSH clients without Trust-On-First-Use (TOFU)
+#   - Authenticate as the hostnames listed in the principals
+#
+# Standards: OpenSSH PROTOCOL.certkeys
+#
+# Security Level: ~128-bit (Ed25519)
+#
+# Quantum Safety: VULNERABLE
+#   Ed25519 is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
+#   No post-quantum SSH signature algorithms are standardized yet.
+#
+# Examples:
+#
+#   qpki ssh issue --ca host-ca --profile ssh/host-default \
+#       --public-key /etc/ssh/ssh_host_ed25519_key.pub \
+#       --var key_id=web01.example.com \
+#       --var principals=web01.example.com,192.168.1.10
+#
+# Server configuration (sshd_config):
+#   HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
+#
+# Client configuration (ssh_config or known_hosts):
+#   @cert-authority *.example.com <contents of host-ca.pub>
+#
+# =============================================================================
+
+name: ssh/host-default
+description: "SSH host certificate Ed25519 (90 days)"
+cert_type: ssh
+
+# -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  key_id:
+    type: string
+    required: true
+    description: "Key identifier (usually hostname FQDN)"
+
+  principals:
+    type: list
+    required: true
+    description: "Allowed hostnames and IP addresses"
+
+# -----------------------------------------------------------------------------
+# Algorithm
+# -----------------------------------------------------------------------------
+algorithm: ed25519
+
+# -----------------------------------------------------------------------------
+# Validity
+# -----------------------------------------------------------------------------
+# Host certificates have longer validity than user certificates.
+# 90 days with automated renewal is a common practice.
+#
+validity: 2160h
+
+# -----------------------------------------------------------------------------
+# SSH Extensions
+# -----------------------------------------------------------------------------
+ssh_extensions:
+  type: host

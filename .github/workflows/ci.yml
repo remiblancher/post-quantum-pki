@@ -455,6 +455,47 @@ jobs:
             test/crossval/bouncycastle/results-bc.json
           retention-days: 30
 
+  crosstest-ssh:
+    name: "[Interop] OpenSSH Certificates"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download binary
+        uses: actions/download-artifact@v8
+        with:
+          name: qpki-ci-binary
+          path: ./
+
+      - name: Make executable
+        run: chmod +x ./qpki
+
+      - name: "[SSH] Verify OpenSSH Version"
+        run: ssh -V
+
+      - name: "[SSH] Generate SSH Fixtures"
+        run: |
+          chmod +x test/crossval/generate_qpki_ssh_fixtures.sh
+          ./test/crossval/generate_qpki_ssh_fixtures.sh
+
+      - name: "[SSH] Run SSH Cross-Tests"
+        run: |
+          cd test/crossval/ssh
+          chmod +x run_all.sh
+          ./run_all.sh
+
+      - name: "[SSH] Upload Results"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctrf-crosstest-ssh
+          path: |
+            test/crossval/ssh/results/ctrf-crosstest-ssh.json
+            test/crossval/ssh/results/results-ssh.json
+          retention-days: 30
+
   hsm-test:
     name: "[HSM] HSM Operations (SoftHSM2)"
     runs-on: ubuntu-latest
@@ -769,7 +810,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [test, acceptance-pki, acceptance-protocols, acceptance-agility,
-            hsm-test, crosstest-openssl, crosstest-bc, lab-tests, fuzz]
+            hsm-test, crosstest-openssl, crosstest-bc, crosstest-ssh, lab-tests, fuzz]
     if: always()
     steps:
       - uses: actions/checkout@v6

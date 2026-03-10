@@ -1,0 +1,73 @@
+# =============================================================================
+# SSH User Certificate Profile (Ed25519)
+# =============================================================================
+#
+# Usage: Short-lived user certificate for SSH authentication
+#
+# This certificate allows a user to:
+#   - Authenticate to SSH servers that trust the issuing CA
+#   - Access servers as the principals listed in the certificate
+#
+# Standards: OpenSSH PROTOCOL.certkeys
+#
+# Security Level: ~128-bit (Ed25519)
+#
+# Quantum Safety: VULNERABLE
+#   Ed25519 is vulnerable to Cryptographically Relevant Quantum Computers (CRQC).
+#   No post-quantum SSH signature algorithms are standardized yet.
+#   PQC key exchange (ML-KEM) is available in OpenSSH 10+ at the transport layer.
+#
+# Examples:
+#
+#   qpki ssh issue --ca user-ca --profile ssh/user-default \
+#       --public-key ~/.ssh/id_ed25519.pub \
+#       --var key_id=alice@example.com \
+#       --var principals=alice,deploy
+#
+# Server configuration (sshd_config):
+#   TrustedUserCAKeys /etc/ssh/user-ca.pub
+#
+# =============================================================================
+
+name: ssh/user-default
+description: "SSH user certificate Ed25519 (short-lived, 8h)"
+cert_type: ssh
+
+# -----------------------------------------------------------------------------
+# Declarative Variables
+# -----------------------------------------------------------------------------
+variables:
+  key_id:
+    type: string
+    required: true
+    description: "Key identifier (usually email or username)"
+
+  principals:
+    type: list
+    required: true
+    description: "Allowed usernames on target servers"
+
+# -----------------------------------------------------------------------------
+# Algorithm
+# -----------------------------------------------------------------------------
+algorithm: ed25519
+
+# -----------------------------------------------------------------------------
+# Validity
+# -----------------------------------------------------------------------------
+# Short-lived certificates reduce revocation needs (passive revocation).
+# 8 hours = typical workday session.
+#
+validity: 8h
+
+# -----------------------------------------------------------------------------
+# SSH Extensions
+# -----------------------------------------------------------------------------
+ssh_extensions:
+  type: user
+  permissions:
+    permit_pty: true
+    permit_port_forwarding: true
+    permit_agent_forwarding: true
+    permit_x11_forwarding: false
+    permit_user_rc: true

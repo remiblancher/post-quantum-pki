@@ -89,6 +89,13 @@ qpki [--audit-log PATH]
 │   ├── info                  # Display HSM token info
 │   └── mechanisms            # List supported PKCS#11 mechanisms
 │
+├── ssh                       # SSH Certificates → SSH.md
+│   ├── ca-init               # Initialize SSH CA
+│   ├── ca-info               # Display SSH CA information
+│   ├── issue                 # Issue SSH certificate
+│   ├── inspect               # Inspect SSH certificate
+│   └── list                  # List issued SSH certificates
+│
 ├── audit                     # Audit logging → AUDIT.md
 │   ├── verify                # Verify audit log integrity
 │   └── tail                  # Show recent audit events
@@ -169,6 +176,11 @@ qpki [--audit-log PATH]
 | | `hsm test` | Test HSM connectivity | [HSM](../operations/HSM.md) |
 | | `hsm info` | Display HSM token info | [HSM](../operations/HSM.md) |
 | | `hsm mechanisms` | List supported PKCS#11 mechanisms | [HSM](../operations/HSM.md) |
+| **SSH** | `ssh ca-init` | Initialize SSH CA | [SSH](../services/SSH.md) |
+| | `ssh ca-info` | Display SSH CA info | [SSH](../services/SSH.md) |
+| | `ssh issue` | Issue SSH certificate | [SSH](../services/SSH.md) |
+| | `ssh inspect` | Inspect SSH certificate | [SSH](../services/SSH.md) |
+| | `ssh list` | List SSH certificates | [SSH](../services/SSH.md) |
 | **Audit** | `audit verify` | Verify audit log integrity | [Audit](../operations/AUDIT.md) |
 | | `audit tail` | Show recent audit events | [Audit](../operations/AUDIT.md) |
 | **Server** | `serve` | Start REST API server | [API Server](../api/SERVER.md) |
@@ -230,6 +242,7 @@ qpki inspect <file>
 | CRL | .crl | Certificate Revocation Lists |
 | Timestamp Token | .tsr | RFC 3161 timestamp tokens |
 | CMS SignedData | .p7s, .p7m | CMS signatures and encrypted data |
+| SSH Certificate | *-cert.pub | OpenSSH certificates |
 
 **Examples:**
 
@@ -275,4 +288,5 @@ qpki inspect signature.p7s
 - [TSA](../services/TSA.md) - Timestamping
 - [CMS](../services/CMS.md) - CMS signatures and encryption
 - [Audit](../operations/AUDIT.md) - Audit logging
+- [SSH](../services/SSH.md) - SSH certificates
 - [HSM](../operations/HSM.md) - HSM integration
