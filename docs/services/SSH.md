@@ -487,4 +487,5 @@ ls -la ~/.ssh/id_ed25519.pub ~/.ssh/id_ed25519-cert.pub
 - [Keys](../core-pki/KEYS.md) - Key generation
 - [Profiles](../core-pki/PROFILES.md) - Certificate profile system
 - [HSM](../operations/HSM.md) - Hardware Security Module integration
-- [OpenSSH PROTOCOL.certkeys](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys) - SSH certificate format specification
+- [OpenSSH PROTOCOL](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL) - SSH certificate format specification
+- [OpenSSH PROTOCOL.krl](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.krl) - Key Revocation List format
