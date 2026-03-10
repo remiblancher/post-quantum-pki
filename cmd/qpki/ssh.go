@@ -26,6 +26,8 @@ Commands:
   issue       Issue an SSH certificate
   inspect     Inspect an SSH certificate
   list        List issued SSH certificates
+  revoke      Revoke an SSH certificate
+  krl         Generate a Key Revocation List (KRL)
 
 Examples:
   # Initialize a user CA
@@ -157,9 +159,10 @@ func runSSHCAInfo(cmd *cobra.Command, args []string) error {
 		valid := 0
 		revoked := 0
 		for _, e := range entries {
-			if e.Status == "V" {
+			switch e.Status {
+			case "V":
 				valid++
-			} else if e.Status == "R" {
+			case "R":
 				revoked++
 			}
 		}
@@ -395,9 +398,9 @@ func runSSHInspect(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Fingerprint:   %s\n", ssh.FingerprintSHA256(cert.Key))
 	fmt.Printf("  Signing CA:    %s\n", ssh.FingerprintSHA256(cert.SignatureKey))
 
-	if len(cert.Permissions.CriticalOptions) > 0 {
+	if len(cert.CriticalOptions) > 0 {
 		fmt.Printf("\n  Critical Options:\n")
-		for k, v := range cert.Permissions.CriticalOptions {
+		for k, v := range cert.CriticalOptions {
 			if v != "" {
 				fmt.Printf("    %s: %s\n", k, v)
 			} else {
@@ -406,9 +409,9 @@ func runSSHInspect(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if len(cert.Permissions.Extensions) > 0 {
+	if len(cert.Extensions) > 0 {
 		fmt.Printf("\n  Extensions:\n")
-		for k := range cert.Permissions.Extensions {
+		for k := range cert.Extensions {
 			fmt.Printf("    %s\n", k)
 		}
 	}
@@ -456,6 +459,163 @@ func runSSHList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// --- ssh revoke ---
+
+var sshRevokeCmd = &cobra.Command{
+	Use:   "revoke",
+	Short: "Revoke an SSH certificate",
+	Long: `Revoke an SSH certificate by serial number.
+
+Marks the certificate as revoked in the CA index and generates an updated KRL file.
+The KRL file can be used with sshd's RevokedKeys directive.
+
+Examples:
+  qpki ssh revoke --ca-dir ./ssh-user-ca --serial 3
+  qpki ssh revoke --ca-dir ./ssh-user-ca --serial 3 --passphrase "secret"`,
+	RunE: runSSHRevoke,
+}
+
+var (
+	sshRevokeCADir      string
+	sshRevokeSerial     uint64
+	sshRevokePassphrase string
+)
+
+func runSSHRevoke(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	store := sshca.NewFileStore(sshRevokeCADir)
+	info, err := sshca.LoadInfo(ctx, store)
+	if err != nil {
+		return fmt.Errorf("failed to load CA: %w", err)
+	}
+
+	// Load CA signer
+	kp := crypto.NewSoftwareKeyProvider()
+	signer, err := kp.Load(crypto.KeyStorageConfig{
+		Type:       crypto.KeyProviderTypeSoftware,
+		KeyPath:    sshRevokeCADir + "/ssh-ca.key",
+		Passphrase: sshRevokePassphrase,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to load CA key: %w", err)
+	}
+
+	ca, err := sshca.Load(ctx, store, signer)
+	if err != nil {
+		return err
+	}
+
+	// Revoke the certificate
+	if err := ca.Revoke(ctx, sshRevokeSerial); err != nil {
+		return err
+	}
+
+	// Generate updated KRL
+	krlData, err := ca.GenerateKRL(ctx, fmt.Sprintf("qpki SSH CA %s KRL", info.Name))
+	if err != nil {
+		return fmt.Errorf("failed to generate KRL: %w", err)
+	}
+
+	if err := store.SaveKRL(ctx, krlData); err != nil {
+		return fmt.Errorf("failed to save KRL: %w", err)
+	}
+
+	fmt.Printf("Certificate serial %d revoked.\n", sshRevokeSerial)
+	fmt.Printf("KRL updated: %s/krl/krl.bin\n", sshRevokeCADir)
+	fmt.Printf("\nTo use with sshd, add to sshd_config:\n")
+	fmt.Printf("  RevokedKeys %s/krl/krl.bin\n", sshRevokeCADir)
+
+	return nil
+}
+
+// --- ssh krl ---
+
+var sshKRLCmd = &cobra.Command{
+	Use:   "krl",
+	Short: "Generate a Key Revocation List",
+	Long: `Generate a KRL (Key Revocation List) from revoked certificates.
+
+The KRL is a compact binary file (OpenSSH PROTOCOL.krl format) that lists
+all revoked certificates. It can be used with sshd's RevokedKeys directive
+for immediate certificate revocation.
+
+Examples:
+  qpki ssh krl --ca-dir ./ssh-user-ca
+  qpki ssh krl --ca-dir ./ssh-user-ca --out /etc/ssh/krl.bin
+  qpki ssh krl --ca-dir ./ssh-user-ca --comment "Production KRL"`,
+	RunE: runSSHKRL,
+}
+
+var (
+	sshKRLCADir      string
+	sshKRLOutput     string
+	sshKRLPassphrase string
+	sshKRLComment    string
+)
+
+func runSSHKRL(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	store := sshca.NewFileStore(sshKRLCADir)
+	info, err := sshca.LoadInfo(ctx, store)
+	if err != nil {
+		return fmt.Errorf("failed to load CA: %w", err)
+	}
+
+	// Load CA signer
+	kp := crypto.NewSoftwareKeyProvider()
+	signer, err := kp.Load(crypto.KeyStorageConfig{
+		Type:       crypto.KeyProviderTypeSoftware,
+		KeyPath:    sshKRLCADir + "/ssh-ca.key",
+		Passphrase: sshKRLPassphrase,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to load CA key: %w", err)
+	}
+
+	ca, err := sshca.Load(ctx, store, signer)
+	if err != nil {
+		return err
+	}
+
+	comment := sshKRLComment
+	if comment == "" {
+		comment = fmt.Sprintf("qpki SSH CA %s KRL", info.Name)
+	}
+
+	krlData, err := ca.GenerateKRL(ctx, comment)
+	if err != nil {
+		return err
+	}
+
+	// Count revoked certs
+	entries, _ := store.ReadIndex(ctx)
+	revokedCount := 0
+	for _, e := range entries {
+		if e.Status == "R" {
+			revokedCount++
+		}
+	}
+
+	if sshKRLOutput != "" {
+		if err := os.WriteFile(sshKRLOutput, krlData, 0644); err != nil {
+			return fmt.Errorf("failed to write KRL: %w", err)
+		}
+		fmt.Printf("KRL generated: %s\n", sshKRLOutput)
+	} else {
+		if err := store.SaveKRL(ctx, krlData); err != nil {
+			return fmt.Errorf("failed to save KRL: %w", err)
+		}
+		fmt.Printf("KRL generated: %s/krl/krl.bin\n", sshKRLCADir)
+	}
+
+	fmt.Printf("  Revoked certificates: %d\n", revokedCount)
+	fmt.Printf("  KRL size: %d bytes\n", len(krlData))
+
+	return nil
+}
+
 func init() {
 	// ssh ca-init
 	sshCAInitCmd.Flags().StringVar(&sshCAInitName, "name", "", "CA name (required)")
@@ -494,10 +654,26 @@ func init() {
 	sshListCmd.Flags().StringVar(&sshListDir, "ca-dir", "", "CA directory (required)")
 	_ = sshListCmd.MarkFlagRequired("ca-dir")
 
+	// ssh revoke
+	sshRevokeCmd.Flags().StringVar(&sshRevokeCADir, "ca-dir", "", "CA directory (required)")
+	sshRevokeCmd.Flags().Uint64Var(&sshRevokeSerial, "serial", 0, "Certificate serial number to revoke (required)")
+	sshRevokeCmd.Flags().StringVar(&sshRevokePassphrase, "passphrase", "", "CA key passphrase")
+	_ = sshRevokeCmd.MarkFlagRequired("ca-dir")
+	_ = sshRevokeCmd.MarkFlagRequired("serial")
+
+	// ssh krl
+	sshKRLCmd.Flags().StringVar(&sshKRLCADir, "ca-dir", "", "CA directory (required)")
+	sshKRLCmd.Flags().StringVar(&sshKRLOutput, "out", "", "Output file (default: {ca-dir}/krl/krl.bin)")
+	sshKRLCmd.Flags().StringVar(&sshKRLPassphrase, "passphrase", "", "CA key passphrase")
+	sshKRLCmd.Flags().StringVar(&sshKRLComment, "comment", "", "KRL comment")
+	_ = sshKRLCmd.MarkFlagRequired("ca-dir")
+
 	// Register subcommands
 	sshCmd.AddCommand(sshCAInitCmd)
 	sshCmd.AddCommand(sshCAInfoCmd)
 	sshCmd.AddCommand(sshIssueCmd)
 	sshCmd.AddCommand(sshInspectCmd)
 	sshCmd.AddCommand(sshListCmd)
+	sshCmd.AddCommand(sshRevokeCmd)
+	sshCmd.AddCommand(sshKRLCmd)
 }

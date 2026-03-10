@@ -315,7 +315,76 @@ HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
 
 ---
 
-## 6. SSH Profiles
+## 6. Certificate Revocation and KRL
+
+SSH certificates can be revoked using OpenSSH Key Revocation Lists (KRL).
+KRL is a compact binary format defined in OpenSSH `PROTOCOL.krl` that lists revoked
+certificates. It integrates directly with `sshd` via the `RevokedKeys` directive.
+
+### ssh revoke
+
+Revoke a certificate by serial number. This updates the CA index and generates an updated KRL.
+
+```bash
+qpki ssh revoke --ca-dir ./ssh-user-ca --serial 3
+```
+
+Output:
+```
+Certificate serial 3 revoked.
+KRL updated: ./ssh-user-ca/krl/krl.bin
+
+To use with sshd, add to sshd_config:
+  RevokedKeys ./ssh-user-ca/krl/krl.bin
+```
+
+### ssh krl
+
+Generate or regenerate a KRL from all revoked certificates.
+
+```bash
+# Generate KRL (saved to CA directory)
+qpki ssh krl --ca-dir ./ssh-user-ca
+
+# Generate KRL to a custom path
+qpki ssh krl --ca-dir ./ssh-user-ca --out /etc/ssh/krl.bin --comment "Production KRL"
+```
+
+Output:
+```
+KRL generated: /etc/ssh/krl.bin
+  Revoked certificates: 2
+  KRL size: 143 bytes
+```
+
+### Deploying KRL
+
+**Step 1: Configure sshd**
+
+```
+# /etc/ssh/sshd_config
+RevokedKeys /etc/ssh/krl.bin
+```
+
+**Step 2: Validate with ssh-keygen**
+
+```bash
+# Check if a certificate is revoked
+ssh-keygen -Q -f /etc/ssh/krl.bin cert.pub
+
+# Output for revoked cert: "cert.pub: REVOKED"
+# Output for valid cert:   "cert.pub: ok"
+```
+
+**Step 3: Automate distribution**
+
+Distribute the KRL to all servers after each revocation (e.g., via Ansible, rsync, or a configuration management tool).
+
+> **Note:** Unlike OCSP, KRL is a static file — `sshd` reads it at connection time without network access. Update the file on each server to propagate revocations.
+
+---
+
+## 7. SSH Profiles
 
 QPKI provides built-in SSH profiles in `profiles/ssh/`.
 
@@ -365,7 +434,7 @@ ssh_extensions:
 
 ---
 
-## 7. Supported Algorithms
+## 8. Supported Algorithms
 
 | Algorithm | SSH Certificate Type | Recommended |
 |-----------|---------------------|-------------|
@@ -380,7 +449,7 @@ ssh_extensions:
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 ### Common Errors
 

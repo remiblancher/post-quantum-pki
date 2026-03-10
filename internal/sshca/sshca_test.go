@@ -792,7 +792,7 @@ func TestFileStoreSaveCAPublicKeyError(t *testing.T) {
 	if err := os.Chmod(dir, 0555); err != nil {
 		t.Fatalf("Chmod() error = %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(dir, 0755) })
+	t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
 
 	err := store.SaveCAPublicKey(ctx, sshPub)
 	if err == nil {
@@ -810,7 +810,7 @@ func TestFileStoreSaveCAInfoError(t *testing.T) {
 	if err := os.Chmod(dir, 0555); err != nil {
 		t.Fatalf("Chmod() error = %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(dir, 0755) })
+	t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
 
 	err := store.SaveCAInfo(ctx, info)
 	if err == nil {
@@ -832,7 +832,7 @@ func TestFileStoreSaveSSHCertWriteError(t *testing.T) {
 	if err := os.Chmod(certsDir, 0555); err != nil {
 		t.Fatalf("Chmod() error = %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(certsDir, 0755) })
+	t.Cleanup(func() { _ = os.Chmod(certsDir, 0755) })
 
 	// Create a valid signed cert to save
 	_, caPriv, _ := ed25519.GenerateKey(rand.Reader)
@@ -848,7 +848,9 @@ func TestFileStoreSaveSSHCertWriteError(t *testing.T) {
 		ValidAfter:  uint64(time.Now().Unix()),
 		ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
 	}
-	cert.SignCert(rand.Reader, caSigner)
+	if err := cert.SignCert(rand.Reader, caSigner); err != nil {
+		t.Fatalf("SignCert() error = %v", err)
+	}
 
 	err := store.SaveSSHCert(ctx, cert)
 	if err == nil {
@@ -870,7 +872,7 @@ func TestFileStoreNextSerialWriteError(t *testing.T) {
 	if err := os.Chmod(serialPath, 0444); err != nil {
 		t.Fatalf("Chmod() error = %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(serialPath, 0644) })
+	t.Cleanup(func() { _ = os.Chmod(serialPath, 0644) })
 
 	_, err := store.NextSerial(ctx)
 	if err == nil {
@@ -892,7 +894,7 @@ func TestFileStoreAppendIndexWriteError(t *testing.T) {
 	if err := os.Chmod(indexPath, 0444); err != nil {
 		t.Fatalf("Chmod() error = %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(indexPath, 0644) })
+	t.Cleanup(func() { _ = os.Chmod(indexPath, 0644) })
 
 	err := store.AppendIndex(ctx, IndexEntry{Serial: 1, KeyID: "test"})
 	if err == nil {
@@ -911,7 +913,7 @@ func TestFileStoreInitWriteErrors(t *testing.T) {
 	if err := os.Chmod(subDir, 0555); err != nil {
 		t.Fatalf("Chmod() error = %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(subDir, 0755) })
+	t.Cleanup(func() { _ = os.Chmod(subDir, 0755) })
 
 	store := NewFileStore(subDir + "/nested")
 	ctx := context.Background()

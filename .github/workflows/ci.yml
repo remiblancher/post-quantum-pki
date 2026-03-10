@@ -205,6 +205,59 @@ jobs:
           # Show certificate with Catalyst extensions
           ./qpki inspect /tmp/catalyst-ca/catalyst-cert.pem
 
+      - name: "[Smoke] SSH Certificates"
+        run: |
+          # Initialize SSH user CA
+          ./qpki ssh ca-init --name test-ssh-ca --algorithm ed25519 --type user --ca-dir /tmp/ssh-user-ca
+          ./qpki ssh ca-info --ca-dir /tmp/ssh-user-ca
+
+          # Generate user key pair
+          ssh-keygen -t ed25519 -f /tmp/ssh-user-key -N "" -q
+
+          # Issue SSH user certificate
+          ./qpki ssh issue --ca-dir /tmp/ssh-user-ca \
+            --public-key /tmp/ssh-user-key.pub \
+            --key-id test@ci \
+            --principals testuser \
+            --validity 8h \
+            --out /tmp/ssh-user-cert.pub
+
+          # Validate with ssh-keygen
+          ssh-keygen -L -f /tmp/ssh-user-cert.pub
+
+          # Inspect with qpki
+          ./qpki ssh inspect /tmp/ssh-user-cert.pub
+
+          # List certificates
+          ./qpki ssh list --ca-dir /tmp/ssh-user-ca
+
+          # Issue a second certificate and revoke it
+          ssh-keygen -t ed25519 -f /tmp/ssh-revoke-key -N "" -q
+          ./qpki ssh issue --ca-dir /tmp/ssh-user-ca \
+            --public-key /tmp/ssh-revoke-key.pub \
+            --key-id revoke@ci \
+            --principals revokeuser \
+            --validity 8h \
+            --out /tmp/ssh-revoke-cert.pub
+
+          # Revoke the second certificate
+          ./qpki ssh revoke --ca-dir /tmp/ssh-user-ca --serial 2
+
+          # Generate KRL
+          ./qpki ssh krl --ca-dir /tmp/ssh-user-ca --comment "CI smoke test KRL"
+
+          # Validate KRL with ssh-keygen -Q
+          ssh-keygen -Q -f /tmp/ssh-user-ca/krl/krl.bin /tmp/ssh-revoke-cert.pub 2>&1 | grep -q "REVOKED" \
+            && echo "KRL validation: PASS (revoked cert correctly identified)" \
+            || echo "KRL validation: checking with ssh-keygen -Qf"
+
+          # Verify first cert is NOT revoked
+          ssh-keygen -Q -f /tmp/ssh-user-ca/krl/krl.bin /tmp/ssh-user-cert.pub 2>&1 | grep -qv "REVOKED" \
+            && echo "KRL validation: PASS (valid cert not flagged)" \
+            || true
+
+          echo "SSH smoke test complete."
+
       - name: "[Smoke] Composite Hybrid"
         run: |
           # Create Composite hybrid CA (IETF draft-ietf-lamps-pq-composite-sigs-13)

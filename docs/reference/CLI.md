@@ -94,7 +94,9 @@ qpki [--audit-log PATH]
 │   ├── ca-info               # Display SSH CA information
 │   ├── issue                 # Issue SSH certificate
 │   ├── inspect               # Inspect SSH certificate
-│   └── list                  # List issued SSH certificates
+│   ├── list                  # List issued SSH certificates
+│   ├── revoke                # Revoke SSH certificate
+│   └── krl                   # Generate Key Revocation List (KRL)
 │
 ├── audit                     # Audit logging → AUDIT.md
 │   ├── verify                # Verify audit log integrity
@@ -181,6 +183,8 @@ qpki [--audit-log PATH]
 | | `ssh issue` | Issue SSH certificate | [SSH](../services/SSH.md) |
 | | `ssh inspect` | Inspect SSH certificate | [SSH](../services/SSH.md) |
 | | `ssh list` | List SSH certificates | [SSH](../services/SSH.md) |
+| | `ssh revoke` | Revoke SSH certificate | [SSH](../services/SSH.md) |
+| | `ssh krl` | Generate KRL file | [SSH](../services/SSH.md) |
 | **Audit** | `audit verify` | Verify audit log integrity | [Audit](../operations/AUDIT.md) |
 | | `audit tail` | Show recent audit events | [Audit](../operations/AUDIT.md) |
 | **Server** | `serve` | Start REST API server | [API Server](../api/SERVER.md) |

@@ -101,6 +101,7 @@ Welcome to the Post-Quantum PKI documentation. This guide will help you find the
 | ITU-T X.509 9.8 | Catalyst Hybrid Certificates | Implemented |
 | IETF draft-13 | Composite Signatures | Implemented |
 | PROTOCOL.certkeys | OpenSSH Certificate Format | Implemented |
+| PROTOCOL.krl | OpenSSH Key Revocation List | Implemented |
 
 ## Document Map
 

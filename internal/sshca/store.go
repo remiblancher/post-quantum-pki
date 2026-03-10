@@ -53,6 +53,15 @@ type Store interface {
 
 	// ReadIndex reads all index entries.
 	ReadIndex(ctx context.Context) ([]IndexEntry, error)
+
+	// UpdateIndexStatus updates the status of an index entry by serial.
+	UpdateIndexStatus(ctx context.Context, serial uint64, status string) error
+
+	// SaveKRL saves a KRL binary to the krl directory.
+	SaveKRL(ctx context.Context, data []byte) error
+
+	// LoadKRL loads the KRL binary.
+	LoadKRL(ctx context.Context) ([]byte, error)
 }
 
 // IndexEntry represents an entry in the SSH certificate index.
@@ -320,6 +329,69 @@ func (s *FileStore) ReadIndex(ctx context.Context) ([]IndexEntry, error) {
 	}
 
 	return entries, nil
+}
+
+// UpdateIndexStatus updates the status of an index entry by serial.
+func (s *FileStore) UpdateIndexStatus(ctx context.Context, serial uint64, status string) error {
+	_ = ctx
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	indexPath := filepath.Join(s.basePath, "index.json")
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		return fmt.Errorf("failed to read index: %w", err)
+	}
+
+	var entries []IndexEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return fmt.Errorf("failed to parse index: %w", err)
+	}
+
+	found := false
+	for i := range entries {
+		if entries[i].Serial == serial {
+			entries[i].Status = status
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("certificate with serial %d not found in index", serial)
+	}
+
+	out, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal index: %w", err)
+	}
+
+	if err := os.WriteFile(indexPath, out, 0644); err != nil {
+		return fmt.Errorf("failed to write index: %w", err)
+	}
+
+	return nil
+}
+
+// SaveKRL saves a KRL binary to the krl directory.
+func (s *FileStore) SaveKRL(ctx context.Context, data []byte) error {
+	_ = ctx
+	krlPath := filepath.Join(s.basePath, "krl", "krl.bin")
+	if err := os.WriteFile(krlPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to save KRL: %w", err)
+	}
+	return nil
+}
+
+// LoadKRL loads the KRL binary.
+func (s *FileStore) LoadKRL(ctx context.Context) ([]byte, error) {
+	_ = ctx
+	krlPath := filepath.Join(s.basePath, "krl", "krl.bin")
+	data, err := os.ReadFile(krlPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read KRL: %w", err)
+	}
+	return data, nil
 }
 
 // certTypeString returns "user" or "host" for an SSH certificate type.
