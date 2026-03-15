@@ -239,7 +239,7 @@ qpki cert issue --ca-dir ./myca --profile ec/tls-server \
   --csr server.csr --var-file vars.yaml
 
 # From PQC signature CSR (ML-DSA, SLH-DSA)
-qpki cert issue --ca-dir ./myca --profile ml/tls-server-sign \
+qpki cert issue --ca-dir ./myca --profile ml/tls-server \
   --csr mldsa.csr --out server.crt \
   --var cn=pqc.example.com
 
@@ -376,7 +376,7 @@ qpki credential enroll --ca-dir ./myca --profile ec/tls-client --var cn=Alice
 qpki credential enroll --ca-dir ./myca --profile ec/client --profile ml/client --var cn=Alice
 
 # Create credential with custom ID
-qpki credential enroll --ca-dir ./myca --profile hybrid/catalyst/tls-client --var cn=Alice --id alice-prod
+qpki credential enroll alice-prod --ca-dir ./myca --profile hybrid/catalyst/tls-client --var cn=Alice
 ```
 
 Manage credential lifecycle:
