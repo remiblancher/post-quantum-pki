@@ -261,13 +261,13 @@ func IssueCatalystCert(
 	resolvedExtensions *profile.ExtensionsConfig,
 ) (*x509.Certificate, error) {
 	if csrResult.AltPublicKey == nil {
-		return nil, fmt.Errorf("Catalyst mode requires a hybrid CSR with SubjectAltPublicKeyInfo (use 'csr gen --hybrid')")
+		return nil, fmt.Errorf("catalyst mode requires a hybrid CSR with SubjectAltPublicKeyInfo (use 'csr gen --hybrid')")
 	}
 
 	// Validate that the CSR's PQC algorithm matches the profile
 	expectedAlg := prof.GetAlternativeAlgorithm()
 	if expectedAlg != "" && csrResult.AltAlgorithm != expectedAlg {
-		return nil, fmt.Errorf("CSR PQC algorithm %s does not match profile expected algorithm %s", csrResult.AltAlgorithm, expectedAlg)
+		return nil, fmt.Errorf("csr PQC algorithm %s does not match profile expected algorithm %s", csrResult.AltAlgorithm, expectedAlg)
 	}
 
 	// Build Catalyst request using the PQC key from the CSR
