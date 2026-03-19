@@ -7,11 +7,17 @@ Install [QPKI](https://qpki.io), the open-source post-quantum PKI toolkit, using
 
 ## Quick Install
 
+**Linux / macOS:**
 ```bash
-curl -sSL https://qpki.io/install.sh | sh
+curl -sSL get.qpki.io | sh
 ```
 
-Detects your OS and architecture, downloads the latest release, verifies the checksum, and installs `qpki` to `/usr/local/bin`.
+**Windows (PowerShell):**
+```powershell
+irm https://qpki.io/install.ps1 | iex
+```
+
+Detects your OS and architecture, downloads the latest release, verifies the checksum, and installs `qpki`.
 
 ## Requirements
 
@@ -22,12 +28,12 @@ Detects your OS and architecture, downloads the latest release, verifies the che
 
 ## Download pre-built binaries (recommended)
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/qentriq/qpki/releases/latest).
+Download the latest release for your platform from [GitHub Releases](https://github.com/remiblancher/qpki/releases/latest).
 
 **Linux / macOS:**
 ```bash
 # Download (replace VERSION, OS, and ARCH as needed)
-curl -LO https://github.com/qentriq/qpki/releases/latest/download/qpki_VERSION_OS_ARCH.tar.gz
+curl -LO https://github.com/remiblancher/qpki/releases/latest/download/qpki_VERSION_OS_ARCH.tar.gz
 
 # Extract
 tar -xzf qpki_*.tar.gz
@@ -62,7 +68,7 @@ sudo rpm -i qpki_VERSION_linux_amd64.rpm
 ## Install via Homebrew (macOS)
 
 ```bash
-brew tap qentriq/qpki
+brew tap remiblancher/qpki
 brew install qpki
 ```
 
@@ -72,12 +78,12 @@ Requires Go 1.25 or later.
 
 ```bash
 # Clone and build
-git clone https://github.com/qentriq/qpki.git
+git clone https://github.com/remiblancher/qpki.git
 cd qpki
 go build -o qpki ./cmd/qpki
 
 # Or install directly to GOPATH/bin
-go install github.com/qentriq/qpki/cmd/qpki@latest
+go install github.com/remiblancher/qpki/cmd/qpki@latest
 ```
 
 ## Verify installation
@@ -96,8 +102,8 @@ All releases are signed with GPG. To verify:
 gpg --keyserver keyserver.ubuntu.com --recv-keys 39CD0BF9647E3F56
 
 # Download checksums and signature
-curl -LO https://github.com/qentriq/qpki/releases/download/vX.Y.Z/checksums.txt
-curl -LO https://github.com/qentriq/qpki/releases/download/vX.Y.Z/checksums.txt.sig
+curl -LO https://github.com/remiblancher/qpki/releases/download/vX.Y.Z/checksums.txt
+curl -LO https://github.com/remiblancher/qpki/releases/download/vX.Y.Z/checksums.txt.sig
 
 # Verify signature
 gpg --verify checksums.txt.sig checksums.txt
