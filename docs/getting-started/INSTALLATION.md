@@ -5,7 +5,7 @@ description: "Install QPKI - Download binaries, Homebrew, or build from source"
 
 Install [QPKI](https://qpki.io), the open-source post-quantum PKI toolkit, using one of the methods below.
 
-## Quick Install
+## Quick Install (recommended)
 
 **Linux / macOS:**
 ```bash
@@ -26,7 +26,7 @@ Detects your OS and architecture, downloads the latest release, verifies the che
 - CGO required only for HSM/PKCS#11 support (optional)
 - No external dependencies (OpenSSL not required)
 
-## Download pre-built binaries (recommended)
+## Download pre-built binaries
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/remiblancher/qpki/releases/latest).
 
