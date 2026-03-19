@@ -67,7 +67,19 @@ QPKI is a quantum-safe PKI toolkit to help organizations prepare for post-quantu
 - CGO required only for HSM/PKCS#11 support (optional)
 - No external dependencies (OpenSSL not required)
 
-### Download pre-built binaries (recommended)
+### Quick Install (recommended)
+
+**Linux / macOS:**
+```bash
+curl -sSL get.qpki.io | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://qpki.io/install.ps1 | iex
+```
+
+### Download pre-built binaries
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/remiblancher/qpki/releases/latest).
 
