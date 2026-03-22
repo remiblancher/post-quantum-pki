@@ -19,7 +19,6 @@ This guide covers the Cryptographic Message Syntax (CMS) implementation for sign
 | RFC 8419 | EdDSA (Ed25519/Ed448) in CMS |
 | RFC 9629 | Using Key Encapsulation Mechanisms in CMS |
 | RFC 9814 | SLH-DSA in CMS |
-| RFC 9880 | ML-KEM for CMS |
 | RFC 9882 | ML-DSA in CMS |
 | FIPS 203 | ML-KEM (Kyber) |
 | FIPS 204 | ML-DSA (Dilithium) |
@@ -577,5 +576,4 @@ qpki cms decrypt --in secret.p7m --out secret.txt \
 - [HSM](../operations/HSM.md) - Hardware Security Module integration
 - [RFC 5652](https://www.rfc-editor.org/rfc/rfc5652) - CMS specification
 - [RFC 8419](https://www.rfc-editor.org/rfc/rfc8419) - EdDSA (Ed25519/Ed448) in CMS
-- [RFC 9880](https://www.rfc-editor.org/rfc/rfc9880) - ML-KEM for CMS
 - [RFC 9882](https://www.rfc-editor.org/rfc/rfc9882) - ML-DSA in CMS

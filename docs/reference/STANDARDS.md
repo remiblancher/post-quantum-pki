@@ -26,7 +26,6 @@ description: "Implemented standards, OID registry, X.509 extensions, and file fo
 | FIPS 203 | Module-Lattice-Based Key-Encapsulation Mechanism (ML-KEM) | [csrc.nist.gov](https://csrc.nist.gov/pubs/fips/203/final) |
 | FIPS 204 | Module-Lattice-Based Digital Signature Standard (ML-DSA) | [csrc.nist.gov](https://csrc.nist.gov/pubs/fips/204/final) |
 | FIPS 205 | Stateless Hash-Based Digital Signature Standard (SLH-DSA) | [csrc.nist.gov](https://csrc.nist.gov/pubs/fips/205/final) |
-| RFC 9879 | Use of SLH-DSA in X.509 Certificates | [datatracker](https://datatracker.ietf.org/doc/html/rfc9879) |
 | RFC 9881 | Use of ML-DSA in X.509 Certificates | [datatracker](https://datatracker.ietf.org/doc/html/rfc9881) |
 | RFC 9883 | Use of ML-KEM in Certification Request Attestation | [datatracker](https://datatracker.ietf.org/doc/html/rfc9883) |
 
@@ -35,8 +34,8 @@ description: "Implemented standards, OID registry, X.509 extensions, and file fo
 | Standard | Title | Link |
 |----------|-------|------|
 | ITU-T X.509 §9.8 | Catalyst certificates (alternative signature extensions) | [itu.int](https://www.itu.int/rec/T-REC-X.509) |
-| draft-ounsworth-pq-composite-sigs-13 | Composite ML-DSA Signatures for X.509 | [datatracker](https://datatracker.ietf.org/doc/draft-ounsworth-pq-composite-sigs/) |
-| draft-ietf-lamps-cert-binding-for-multi-auth-06 | Certificate Binding for Multi-Authentication | [datatracker](https://datatracker.ietf.org/doc/draft-ietf-lamps-cert-binding-for-multi-auth/) |
+| RFC 9763 | Certificate Binding for Multi-Authentication | [datatracker](https://datatracker.ietf.org/doc/html/rfc9763) |
+| draft-ietf-lamps-pq-composite-sigs | Composite ML-DSA Signatures for X.509 | [datatracker](https://datatracker.ietf.org/doc/draft-ietf-lamps-pq-composite-sigs/) |
 
 ### 1.4 CMS & S/MIME
 
@@ -49,7 +48,6 @@ description: "Implemented standards, OID registry, X.509 extensions, and file fo
 | RFC 8551 | S/MIME Version 4.0 Message Specification | [datatracker](https://datatracker.ietf.org/doc/html/rfc8551) |
 | RFC 9629 | Using Key Encapsulation Mechanisms in CMS | [datatracker](https://datatracker.ietf.org/doc/html/rfc9629) |
 | RFC 9814 | Use of SLH-DSA in CMS | [datatracker](https://datatracker.ietf.org/doc/html/rfc9814) |
-| RFC 9880 | Use of ML-KEM in CMS | [datatracker](https://datatracker.ietf.org/doc/html/rfc9880) |
 | RFC 9882 | Use of ML-DSA in CMS | [datatracker](https://datatracker.ietf.org/doc/html/rfc9882) |
 
 ### 1.5 COSE / CBOR
@@ -61,7 +59,7 @@ description: "Implemented standards, OID registry, X.509 extensions, and file fo
 | RFC 9052 | COSE: Structures and Process | [datatracker](https://datatracker.ietf.org/doc/html/rfc9052) |
 | RFC 9053 | COSE: Initial Algorithms | [datatracker](https://datatracker.ietf.org/doc/html/rfc9053) |
 | RFC 9360 | COSE Header Parameters for X.509 Certificates | [datatracker](https://datatracker.ietf.org/doc/html/rfc9360) |
-| draft-ietf-cose-dilithium-04 | COSE Algorithm Identifiers for ML-DSA | [datatracker](https://datatracker.ietf.org/doc/draft-ietf-cose-dilithium/) |
+| draft-ietf-cose-dilithium | ML-DSA for JOSE and COSE | [datatracker](https://datatracker.ietf.org/doc/draft-ietf-cose-dilithium/) |
 
 ### 1.6 TLS & SSH
 

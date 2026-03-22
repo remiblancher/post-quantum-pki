@@ -421,7 +421,7 @@ All artifacts are designed to be compatible with standard PKI tooling and are **
 
 - **X.509 & PKI** — RFC 5280, RFC 2986, RFC 6960, RFC 3161
 - **Post-Quantum** — FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA), RFC 9881, RFC 9883
-- **CMS** — RFC 5652, RFC 8419, RFC 9629, RFC 9814, RFC 9880, RFC 9882
+- **CMS** — RFC 5652, RFC 8419, RFC 9629, RFC 9814, RFC 9882
 - **COSE/CBOR** — RFC 9052, RFC 8392, draft-ietf-cose-dilithium-04
 - **Hybrid** — ITU-T X.509 §9.8 (Catalyst), IETF draft-13 (Composite)
 
