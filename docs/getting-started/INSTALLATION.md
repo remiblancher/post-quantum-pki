@@ -24,7 +24,7 @@ Detects your OS and architecture, downloads the latest release, verifies the che
 - **Go 1.25** or later (only for building from source)
 - No CGO required for standard usage
 - CGO required only for HSM/PKCS#11 support (optional)
-- No external dependencies (OpenSSL not required)
+- No system dependencies (OpenSSL not required, pure Go)
 
 ## Download pre-built binaries
 

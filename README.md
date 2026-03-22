@@ -65,7 +65,7 @@ QPKI is a quantum-safe PKI toolkit to help organizations prepare for post-quantu
 - **Go 1.25** or later (only for building from source)
 - No CGO required for standard usage
 - CGO required only for HSM/PKCS#11 support (optional)
-- No external dependencies (OpenSSL not required)
+- No system dependencies (OpenSSL not required, pure Go)
 
 ### Quick Install (recommended)
 
