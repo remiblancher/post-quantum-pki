@@ -419,24 +419,13 @@ All artifacts are designed to be compatible with standard PKI tooling and are **
 
 ### Standards Compliance
 
-| Standard | Description | Status |
-|----------|-------------|--------|
-| RFC 5280 | X.509 Certificates and CRL | 🟢 |
-| RFC 2986 | PKCS#10 CSR | 🟢 |
-| RFC 9883 | ML-KEM CSR Attestation | 🟢 |
-| RFC 6960 | OCSP | 🟢 |
-| RFC 3161 | TSA Timestamping | 🟢 |
-| RFC 5652 | CMS Signed Data | 🟢 |
-| RFC 8419 | EdDSA in CMS | 🟢 |
-| RFC 9814 | SLH-DSA in CMS | 🟢 |
-| RFC 9880 | ML-KEM for CMS | 🟢 |
-| RFC 9881 | ML-DSA in X.509 | 🟢 |
-| RFC 9882 | ML-DSA in CMS | 🟢 |
-| FIPS 203 | ML-KEM | 🟢 |
-| FIPS 204 | ML-DSA | 🟢 |
-| FIPS 205 | SLH-DSA | 🟢 |
-| ITU-T X.509 9.8 | Catalyst (dual-key extensions) | 🟢 |
-| IETF draft-13 | Composite Signatures | 🟢 |
+- **X.509 & PKI** — RFC 5280, RFC 2986, RFC 6960, RFC 3161
+- **Post-Quantum** — FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA), RFC 9881, RFC 9883
+- **CMS** — RFC 5652, RFC 8419, RFC 9629, RFC 9814, RFC 9880, RFC 9882
+- **COSE/CBOR** — RFC 9052, RFC 8392, draft-ietf-cose-dilithium-04
+- **Hybrid** — ITU-T X.509 §9.8 (Catalyst), IETF draft-13 (Composite)
+
+See [Standards Reference](docs/reference/STANDARDS.md) for the full list including OIDs and compliance details.
 
 ### Interoperability Matrix
 
