@@ -92,7 +92,7 @@ var (
 	OIDMLKEM768  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 2}
 	OIDMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
 
-	// SLH-DSA (Stateless Hash-Based Digital Signature Algorithm) - FIPS 205, RFC 9814, RFC 9879
+	// SLH-DSA (Stateless Hash-Based Digital Signature Algorithm) - FIPS 205, RFC 9814
 	// SHA2 variants (OIDs 20-25)
 	OIDSLHDSA128s = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 20}
 	OIDSLHDSA128f = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 21}
