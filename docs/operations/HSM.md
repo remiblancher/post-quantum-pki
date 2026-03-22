@@ -728,7 +728,7 @@ qpki cose sign --type sign1 \
 qpki cose verify signed-document.cbor --ca ./ca/ca.crt --data document.pdf
 ```
 
-### Hybrid COSE with HSM (UTIMACO)
+### Hybrid COSE with HSM (PQC-capable)
 
 ```bash
 # Use hybrid CA with EC + ML-DSA keys

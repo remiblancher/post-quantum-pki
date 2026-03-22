@@ -483,7 +483,7 @@ qpki cose sign --type cwt \
 qpki cose verify token.cbor --ca ./ca/ca.crt
 ```
 
-### Hybrid Mode with HSM (UTIMACO)
+### Hybrid Mode with HSM (PQC-capable)
 
 ```bash
 # Generate both EC and ML-DSA keys with same label

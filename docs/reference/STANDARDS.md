@@ -26,6 +26,7 @@ description: "Implemented standards, OID registry, X.509 extensions, and file fo
 | FIPS 203 | Module-Lattice-Based Key-Encapsulation Mechanism (ML-KEM) | [csrc.nist.gov](https://csrc.nist.gov/pubs/fips/203/final) |
 | FIPS 204 | Module-Lattice-Based Digital Signature Standard (ML-DSA) | [csrc.nist.gov](https://csrc.nist.gov/pubs/fips/204/final) |
 | FIPS 205 | Stateless Hash-Based Digital Signature Standard (SLH-DSA) | [csrc.nist.gov](https://csrc.nist.gov/pubs/fips/205/final) |
+| RFC 9879 | Use of SLH-DSA in X.509 Certificates | [datatracker](https://datatracker.ietf.org/doc/html/rfc9879) |
 | RFC 9881 | Use of ML-DSA in X.509 Certificates | [datatracker](https://datatracker.ietf.org/doc/html/rfc9881) |
 | RFC 9883 | Use of ML-KEM in Certification Request Attestation | [datatracker](https://datatracker.ietf.org/doc/html/rfc9883) |
 
