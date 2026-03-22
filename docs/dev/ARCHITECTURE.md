@@ -460,14 +460,32 @@ For configuration and usage details, see [HSM.md](../operations/HSM.md).
 
 ## 10. External Dependencies
 
+This project uses minimal, well-maintained dependencies. Versions are managed in `go.mod`.
+
 ### Core Dependencies
-- `github.com/spf13/cobra` - CLI framework
-- `github.com/cloudflare/circl` - PQC algorithms
-- `gopkg.in/yaml.v3` - Profile parsing
-- Standard Go crypto (x509, tls, etc.)
+
+| Dependency | Purpose |
+|------------|---------|
+| [cloudflare/circl](https://github.com/cloudflare/circl) | Post-quantum cryptography (ML-DSA, ML-KEM, SLH-DSA) |
+| [spf13/cobra](https://github.com/spf13/cobra) | CLI framework |
+| [gopkg.in/yaml.v3](https://github.com/go-yaml/yaml) | Profile parsing |
+| Go standard library | `crypto/x509`, `crypto/tls`, `crypto/ecdsa`, `encoding/asn1`, etc. |
 
 ### Optional (with CGO)
-- PKCS#11 libraries (SoftHSM2, Eviden Proteccio, Thales Luna, etc.)
+
+| Dependency | Purpose |
+|------------|---------|
+| [miekg/pkcs11](https://github.com/miekg/pkcs11) | HSM/PKCS#11 interface |
+| PKCS#11 libraries | SoftHSM2, Eviden Proteccio, Thales Luna, etc. |
+
+### PQC Implementation
+
+Post-quantum algorithms are provided by **Cloudflare's CIRCL** library:
+- **ML-DSA** (FIPS 204) — Digital signatures (lattice-based)
+- **SLH-DSA** (FIPS 205) — Hash-based digital signatures
+- **ML-KEM** (FIPS 203) — Key encapsulation (lattice-based)
+
+CIRCL is validated against official NIST ACVP test vectors. We rely on their implementation rather than re-implementing PQC algorithms.
 
 ## See Also
 

@@ -499,7 +499,7 @@ make crosstest-bc       # BouncyCastle only (requires Java 17+)
 > OpenSSL and BouncyCastle are used **for interoperability validation only**.
 > This project does **not embed nor depend on** these libraries.
 
-See [docs/dev/TESTING.md](docs/dev/TESTING.md) for details on the testing strategy.
+See [docs/quality/STRATEGY.md](docs/quality/STRATEGY.md) for details on the testing strategy.
 
 ## Documentation
 
@@ -567,8 +567,8 @@ See [docs/dev/TESTING.md](docs/dev/TESTING.md) for details on the testing strate
 |----------|-------------|
 | [Architecture](docs/dev/ARCHITECTURE.md) | System architecture overview |
 | [Contributing](docs/dev/CONTRIBUTING.md) | Contribution guide |
-| [Testing](docs/dev/TESTING.md) | Testing guide |
-| [Interoperability](docs/dev/INTEROPERABILITY.md) | Interop testing |
+| [Testing](docs/quality/STRATEGY.md) | Testing guide |
+| [Interoperability](docs/quality/TESTS-INTEROP.md) | Interop testing |
 
 ## About
 
