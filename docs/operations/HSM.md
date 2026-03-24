@@ -507,11 +507,11 @@ Utimaco provides a simulator for development and testing of PQC algorithms. The 
 #### Prerequisites
 
 1. **QuantumProtect Simulator** (runs in Docker):
-   - Request the QuantumProtect Evaluation package from [Utimaco](https://utimaco.com/products/applications/quantum-protect-evaluation)
+   - Request the QuantumProtect Evaluation package from [Utimaco](https://utimaco.com/data-protection/simulators-and-trials/quantum-protect-simulator)
    - Extract to `vendor/utimaco-sim/` (excluded from git via `.gitignore`)
 
 2. **PKCS#11 Client Library** (required to connect to the simulator):
-   - Request the "SecurityServer SDK" separately from [Utimaco](https://utimaco.com/products/applications/quantum-protect-evaluation)
+   - Request the "SecurityServer SDK" separately from [Utimaco](https://utimaco.com/data-protection/simulators-and-trials/quantum-protect-simulator)
    - This SDK is **not included** in the QuantumProtect evaluation package
    - Install the library:
      - Linux: `/opt/utimaco/p11/libcs_pkcs11_R3.so`
