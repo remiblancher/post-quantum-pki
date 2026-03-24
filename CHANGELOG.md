@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Use PQC key from hybrid CSR instead of generating a new one (#108)
 - Fix INSTALLATION.md — correct repo URL, add `get.qpki.io` and Windows install (#112)
+- **HSM**: Add RSA-PSS signing support via PKCS#11 (`CKM_RSA_PKCS_PSS`), fixing COSE PS256 on HSM (#120)
+- **HSM**: Fix OAEP label handling for SoftHSM2 compatibility (#120)
+- Fix `qpki version` → `qpki --version` in docs and install scripts (#119)
+- Fix credential rotation test selecting wrong credential directory
 
 ### Documentation
 - Add RFC 9880 and RFC 9881 to standards compliance tables (#114)
@@ -21,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Quick Install section to README and INSTALLATION.md (#113)
 - Simplify About section in README (#110)
 - Add internal links for SEO (#111)
+- Improve HSM documentation: rename section to "PQC HSM Integration", add troubleshooting table, fix Utimaco links
 
 ## [0.17.0] - 2026-03-15
 
