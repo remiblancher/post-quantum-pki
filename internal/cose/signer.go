@@ -96,8 +96,14 @@ func (s *Signer) signClassical(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("signing failed: %w", err)
 	}
 
-	// For ECDSA, convert from ASN.1 DER to raw R||S format
+	// For ECDSA, ensure signature is in raw R||S format (COSE requirement)
 	if _, ok := s.signer.Public().(*ecdsa.PublicKey); ok {
+		// PKCS#11 signers return ASN.1 DER (after internal conversion),
+		// but check if already raw (e.g., 64 bytes for P-256)
+		expectedRawLen := ecdsaRawSigLen(s.algorithm)
+		if expectedRawLen > 0 && len(sig) == expectedRawLen {
+			return sig, nil
+		}
 		return ecdsaDERToRaw(sig, s.algorithm)
 	}
 
@@ -120,6 +126,20 @@ func (s *Signer) signPQC(data []byte) ([]byte, error) {
 	default:
 		// Try using the crypto.Signer interface
 		return s.signer.Sign(rand.Reader, data, crypto.Hash(0))
+	}
+}
+
+// ecdsaRawSigLen returns the expected raw R||S signature length for the given algorithm.
+func ecdsaRawSigLen(alg gocose.Algorithm) int {
+	switch alg {
+	case AlgES256:
+		return 64
+	case AlgES384:
+		return 96
+	case AlgES512:
+		return 132
+	default:
+		return 0
 	}
 }
 

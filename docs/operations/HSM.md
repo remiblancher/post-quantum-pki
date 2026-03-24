@@ -494,19 +494,11 @@ See `examples/hsm/` for vendor-specific configurations:
 - `aws-cloudhsm.yaml` - AWS CloudHSM
 - `yubihsm2.yaml` - YubiHSM2
 
-## 10. Post-Quantum HSM Testing
+## 10. PQC HSM Integration
 
 Some HSMs now support post-quantum cryptographic algorithms. QPKI supports PQC operations via PKCS#11 with compatible HSMs.
 
-### Supported PQC HSMs
-
-| HSM | ML-DSA | ML-KEM | SLH-DSA | Notes |
-|-----|--------|--------|---------|-------|
-| Utimaco QuantumProtect | ✓ | ✓ | – | Simulator available for testing |
-| Thales Luna 7.9+ | ✓ | ✓ | – | Production HSM |
-| Entrust nShield | ✓ | ✓ | ✓ | CAVP certified |
-| Securosys Primus | ✓ | ✓ | ✓ | NIST certified |
-| Eviden Proteccio | ✓ | ✓ | ✓ | ANSSI QR certified |
+> See [Section 7 — Supported HSMs](#7-supported-hsms) for the full compatibility matrix with tested/untested status.
 
 ### Utimaco QuantumProtect Simulator
 
@@ -515,11 +507,11 @@ Utimaco provides a simulator for development and testing of PQC algorithms. The 
 #### Prerequisites
 
 1. **QuantumProtect Simulator** (runs in Docker):
-   - Download QuantumProtect-1.5.0.0-Evaluation from [Utimaco Support Portal](https://support.utimaco.com/)
+   - Request the QuantumProtect Evaluation package from [Utimaco](https://utimaco.com/data-protection/simulators-and-trials/quantum-protect-simulator)
    - Extract to `vendor/utimaco-sim/` (excluded from git via `.gitignore`)
 
 2. **PKCS#11 Client Library** (required to connect to the simulator):
-   - Download "SecurityServer SDK" separately from the [Utimaco Support Portal](https://support.utimaco.com/)
+   - Request the "SecurityServer SDK" separately from [Utimaco](https://utimaco.com/data-protection/simulators-and-trials/quantum-protect-simulator)
    - This SDK is **not included** in the QuantumProtect evaluation package
    - Install the library:
      - Linux: `/opt/utimaco/p11/libcs_pkcs11_R3.so`
@@ -558,6 +550,8 @@ Pre-configured simulator credentials:
 - **SO PIN:** 12345677
 - **User PIN:** 12345688
 - **Slot:** 0
+
+> **Warning:** These are default simulator credentials. Never use default PINs in production. See [Section 8 — Security Best Practices](#8-security-best-practices) for PIN management guidelines.
 
 #### Environment Variables
 
@@ -628,6 +622,16 @@ PQC tests are automatically skipped in CI when `HSM_PQC_ENABLED` is not set. Thi
 3. PQC HSM testing requires vendor-specific PKCS#11 mechanisms
 
 To run PQC tests locally, ensure the Utimaco simulator is running and `HSM_PQC_ENABLED=1` is set.
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `CKR_MECHANISM_INVALID` | HSM does not support the requested PQC algorithm | Verify HSM firmware supports ML-DSA/ML-KEM; check `HSM_PQC_ENABLED=1` |
+| `CKR_ARGUMENTS_BAD` on RSA-OAEP | Incompatible OAEP parameters between software encrypt and HSM decrypt | Upgrade to QPKI >= 0.18.0 (fixes nil label handling) |
+| `crypto/rsa: verification error` for PS256 | RSA-PSS signature produced with wrong PKCS#11 mechanism | Upgrade to QPKI >= 0.18.0 (adds CKM_RSA_PKCS_PSS support) |
+| `CKR_KEY_TYPE_INCONSISTENT` | Key type mismatch when using Catalyst dual-key labels | Ensure both classical and PQC keys share the same label but differ in `CKA_KEY_TYPE` |
+| Simulator connection refused | Docker container not running or wrong port | Run `docker ps` to verify; default port is 3001 |
 
 ---
 
