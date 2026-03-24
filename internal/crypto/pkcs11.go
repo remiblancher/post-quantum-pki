@@ -1001,19 +1001,23 @@ func (s *PKCS11Signer) Decrypt(_ io.Reader, ciphertext []byte, opts crypto.Decry
 			hashMech = uint(pkcs11.CKM_SHA512)
 			mgfMech = uint(pkcs11.CKG_MGF1_SHA512)
 		}
-		// SoftHSM2 requires non-nil label; use empty slice when label is nil
+		// SoftHSM2 distinguishes "no label" from "empty label":
+		// - nil label → source=0 (no label data)
+		// - non-nil label → source=CKZ_DATA_SPECIFIED
 		label := o.Label
+		sourceType := uint(pkcs11.CKZ_DATA_SPECIFIED)
 		if label == nil {
+			sourceType = 0
 			label = []byte{}
 		}
-		oaepParams := pkcs11.NewOAEPParams(hashMech, mgfMech, pkcs11.CKZ_DATA_SPECIFIED, label)
+		oaepParams := pkcs11.NewOAEPParams(hashMech, mgfMech, sourceType, label)
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_OAEP, oaepParams)
 	case *rsa.PKCS1v15DecryptOptions:
 		// Use PKCS#1 v1.5
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)
 	default:
-		// Default to RSA-OAEP with SHA-256 (empty label for SoftHSM2 compatibility)
-		oaepParams := pkcs11.NewOAEPParams(uint(pkcs11.CKM_SHA256), uint(pkcs11.CKG_MGF1_SHA256), pkcs11.CKZ_DATA_SPECIFIED, []byte{})
+		// Default to RSA-OAEP with SHA-256, no label (source=0 for SoftHSM2 compatibility)
+		oaepParams := pkcs11.NewOAEPParams(uint(pkcs11.CKM_SHA256), uint(pkcs11.CKG_MGF1_SHA256), 0, []byte{})
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_OAEP, oaepParams)
 	}
 
