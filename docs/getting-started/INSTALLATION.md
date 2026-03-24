@@ -89,7 +89,7 @@ go install github.com/qpki/qpki/cmd/qpki@latest
 ## Verify installation
 
 ```bash
-qpki version
+qpki --version
 qpki --help
 ```
 
