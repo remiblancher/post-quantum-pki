@@ -447,7 +447,7 @@ qpki credential enroll --help
 Report issues at: https://github.com/qpki/qpki/issues
 
 Include:
-- QPKI version (`qpki version`)
+- QPKI version (`qpki --version`)
 - Operating system
 - Full error message
 - Command that caused the error
