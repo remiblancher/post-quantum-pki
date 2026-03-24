@@ -860,11 +860,28 @@ func (s *PKCS11Signer) Sign(random io.Reader, digest []byte, opts crypto.SignerO
 	case *ecdsa.PublicKey:
 		mech = pkcs11.NewMechanism(pkcs11.CKM_ECDSA, nil)
 	case *rsa.PublicKey:
-		// Use RSA-PKCS for signing
-		// CKM_RSA_PKCS requires DigestInfo prefix (PKCS#1 v1.5)
-		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)
-		// Add DigestInfo prefix for the hash algorithm
-		dataToSign = addDigestInfoPrefix(digest, opts.HashFunc())
+		// Check if RSA-PSS is requested (e.g., COSE PS256/PS384/PS512)
+		if pssOpts, ok := opts.(*rsa.PSSOptions); ok {
+			hashMech := uint(pkcs11.CKM_SHA256)
+			mgfMech := uint(pkcs11.CKG_MGF1_SHA256)
+			saltLen := uint(32)
+			switch pssOpts.Hash {
+			case crypto.SHA384:
+				hashMech = uint(pkcs11.CKM_SHA384)
+				mgfMech = uint(pkcs11.CKG_MGF1_SHA384)
+				saltLen = 48
+			case crypto.SHA512:
+				hashMech = uint(pkcs11.CKM_SHA512)
+				mgfMech = uint(pkcs11.CKG_MGF1_SHA512)
+				saltLen = 64
+			}
+			pssParams := pkcs11.NewPSSParams(hashMech, mgfMech, saltLen)
+			mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_PSS, pssParams)
+		} else {
+			// Default: PKCS#1 v1.5 (CKM_RSA_PKCS requires DigestInfo prefix)
+			mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)
+			dataToSign = addDigestInfoPrefix(digest, opts.HashFunc())
+		}
 	case *MLDSAPublicKey:
 		// Use Utimaco ML-DSA sign mechanism
 		// ML-DSA signs the full message, not a digest
@@ -984,14 +1001,19 @@ func (s *PKCS11Signer) Decrypt(_ io.Reader, ciphertext []byte, opts crypto.Decry
 			hashMech = uint(pkcs11.CKM_SHA512)
 			mgfMech = uint(pkcs11.CKG_MGF1_SHA512)
 		}
-		oaepParams := pkcs11.NewOAEPParams(hashMech, mgfMech, pkcs11.CKZ_DATA_SPECIFIED, o.Label)
+		// SoftHSM2 requires non-nil label; use empty slice when label is nil
+		label := o.Label
+		if label == nil {
+			label = []byte{}
+		}
+		oaepParams := pkcs11.NewOAEPParams(hashMech, mgfMech, pkcs11.CKZ_DATA_SPECIFIED, label)
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_OAEP, oaepParams)
 	case *rsa.PKCS1v15DecryptOptions:
 		// Use PKCS#1 v1.5
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)
 	default:
-		// Default to RSA-OAEP with SHA-256
-		oaepParams := pkcs11.NewOAEPParams(uint(pkcs11.CKM_SHA256), uint(pkcs11.CKG_MGF1_SHA256), pkcs11.CKZ_DATA_SPECIFIED, nil)
+		// Default to RSA-OAEP with SHA-256 (empty label for SoftHSM2 compatibility)
+		oaepParams := pkcs11.NewOAEPParams(uint(pkcs11.CKM_SHA256), uint(pkcs11.CKG_MGF1_SHA256), pkcs11.CKZ_DATA_SPECIFIED, []byte{})
 		mech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_OAEP, oaepParams)
 	}
 
