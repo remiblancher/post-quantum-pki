@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/remiblancher/qpki/internal/credential"
+	"github.com/qpki/qpki/internal/credential"
 )
 
 // ExtractRecipientMatchers parses a CMS EnvelopedData or AuthEnvelopedData

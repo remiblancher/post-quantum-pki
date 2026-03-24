@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/cli"
-	"github.com/remiblancher/qpki/internal/ocsp"
+	"github.com/qpki/qpki/internal/cli"
+	"github.com/qpki/qpki/internal/ocsp"
 )
 
 // =============================================================================

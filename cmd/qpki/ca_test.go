@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/ca"
 )
 
 // resetCAFlags resets all CA command flags to their default values.

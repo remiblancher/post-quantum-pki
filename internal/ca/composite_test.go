@@ -17,8 +17,8 @@ import (
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/x509util"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 func TestU_CA_MLDSASignVerify(t *testing.T) {

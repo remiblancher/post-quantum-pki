@@ -12,8 +12,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/cms"
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/cms"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // TSTInfo represents the timestamp token info (RFC 3161 Section 2.4.2).

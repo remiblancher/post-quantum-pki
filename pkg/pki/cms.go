@@ -5,7 +5,7 @@ package pki
 import (
 	"context"
 
-	"github.com/remiblancher/qpki/internal/cms"
+	"github.com/qpki/qpki/internal/cms"
 )
 
 // Re-export CMS types

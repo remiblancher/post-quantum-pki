@@ -12,8 +12,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/ocsp"
+	"github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/ocsp"
 )
 
 // CheckCRL checks if a certificate is revoked using a CRL file.

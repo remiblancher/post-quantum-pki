@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/ca"
 )
 
 // GetEffectiveStatus returns the effective status, checking for expiry.

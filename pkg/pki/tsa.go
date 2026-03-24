@@ -7,7 +7,7 @@ import (
 	"crypto"
 	"math/big"
 
-	"github.com/remiblancher/qpki/internal/tsa"
+	"github.com/qpki/qpki/internal/tsa"
 )
 
 // Re-export TSA types

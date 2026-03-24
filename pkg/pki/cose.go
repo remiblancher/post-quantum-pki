@@ -7,7 +7,7 @@ import (
 	"crypto"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/cose"
+	"github.com/qpki/qpki/internal/cose"
 	gocose "github.com/veraison/go-cose"
 )
 

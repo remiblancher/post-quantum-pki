@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/ca"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/profile"
 )
 
 // MultiProfileEnrollRequest holds parameters for multi-profile versioned enrollment.

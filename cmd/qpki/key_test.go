@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/crypto"
 )
 
 // resetKeyFlags resets all key command flags to their default values.

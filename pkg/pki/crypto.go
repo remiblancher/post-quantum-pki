@@ -3,7 +3,7 @@
 package pki
 
 import (
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // Re-export crypto types

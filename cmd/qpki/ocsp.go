@@ -18,12 +18,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/internal/audit"
-	"github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/cli"
-	"github.com/remiblancher/qpki/internal/credential"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/ocsp"
+	"github.com/qpki/qpki/internal/audit"
+	"github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/cli"
+	"github.com/qpki/qpki/internal/credential"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/ocsp"
 )
 
 var ocspCmd = &cobra.Command{

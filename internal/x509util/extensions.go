@@ -7,7 +7,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 
-	"github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/crypto"
 )
 
 // HybridPolicy defines how the hybrid public key should be used.

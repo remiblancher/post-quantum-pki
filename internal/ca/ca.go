@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/remiblancher/qpki/internal/audit"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/audit"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // CA represents a Certificate Authority.

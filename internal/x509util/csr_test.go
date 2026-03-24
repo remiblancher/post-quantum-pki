@@ -7,7 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"testing"
 
-	"github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/crypto"
 )
 
 // =============================================================================

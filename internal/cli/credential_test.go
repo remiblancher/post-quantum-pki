@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/credential"
+	"github.com/qpki/qpki/internal/credential"
 )
 
 // =============================================================================

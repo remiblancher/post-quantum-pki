@@ -9,10 +9,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/audit"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/profile"
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/audit"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // IssueRequest holds the parameters for issuing a certificate.

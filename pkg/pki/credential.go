@@ -6,8 +6,8 @@ import (
 	"context"
 	"crypto/x509"
 
-	"github.com/remiblancher/qpki/internal/credential"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/credential"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // Re-export credential types

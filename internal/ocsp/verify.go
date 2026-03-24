@@ -13,9 +13,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/ca"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // VerifyConfig contains options for verifying an OCSP response.

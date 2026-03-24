@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"net"
 
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // OID for RFC 9883 privateKeyPossessionStatement attribute

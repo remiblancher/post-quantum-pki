@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/crypto"
 )
 
 // FirstOrEmpty returns the first element of a slice or an empty string.

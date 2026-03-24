@@ -13,10 +13,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/cli"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/cli"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // crlCmd is the parent command for CRL operations.

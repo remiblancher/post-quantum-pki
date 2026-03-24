@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/remiblancher/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/profile"
 )
 
 // =============================================================================

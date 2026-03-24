@@ -1,4 +1,4 @@
-module github.com/remiblancher/qpki
+module github.com/qpki/qpki
 
 go 1.25.0
 

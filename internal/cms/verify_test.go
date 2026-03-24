@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/cloudflare/circl/sign/ed448"
-	"github.com/remiblancher/qpki/internal/ca"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/ca"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // =============================================================================

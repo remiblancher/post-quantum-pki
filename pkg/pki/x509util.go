@@ -5,7 +5,7 @@ package pki
 import (
 	"encoding/asn1"
 
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // ExtractSignatureAlgorithmOID extracts the signature algorithm OID from a certificate.
