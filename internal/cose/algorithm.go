@@ -15,7 +15,7 @@ import (
 	"github.com/cloudflare/circl/sign/slhdsa"
 	gocose "github.com/veraison/go-cose"
 
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // COSE Algorithm IDs.

@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/profile"
-	"github.com/remiblancher/qpki/internal/sshca"
+	"github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/sshca"
 	"golang.org/x/crypto/ssh"
 )
 

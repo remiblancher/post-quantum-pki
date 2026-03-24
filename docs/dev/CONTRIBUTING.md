@@ -20,7 +20,7 @@ This document covers contributing guidelines, development workflow, and code sty
 ### 1.2 Clone and Build
 
 ```bash
-git clone https://github.com/remiblancher/qpki.git
+git clone https://github.com/qpki/qpki.git
 cd qpki
 
 go build -o qpki ./cmd/qpki

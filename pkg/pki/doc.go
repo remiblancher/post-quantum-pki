@@ -22,7 +22,7 @@
 //
 // External consumers should import this package instead of internal packages:
 //
-//	import "github.com/remiblancher/qpki/pkg/pki"
+//	import "github.com/qpki/qpki/pkg/pki"
 //
 //	func main() {
 //	    ca := pki.NewCA(store, signer)

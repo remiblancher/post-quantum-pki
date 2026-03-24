@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/remiblancher/qpki/internal/cli"
+	"github.com/qpki/qpki/internal/cli"
 )
 
 func TestF_TSA_LoadTSACAConfig(t *testing.T) {

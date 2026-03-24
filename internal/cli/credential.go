@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/remiblancher/qpki/internal/credential"
+	"github.com/qpki/qpki/internal/credential"
 )
 
 // LoadCredentialVersionCerts loads all certificates from a credential version.

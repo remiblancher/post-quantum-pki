@@ -28,12 +28,12 @@ Detects your OS and architecture, downloads the latest release, verifies the che
 
 ## Download pre-built binaries
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/remiblancher/qpki/releases/latest).
+Download the latest release for your platform from [GitHub Releases](https://github.com/qpki/qpki/releases/latest).
 
 **Linux / macOS:**
 ```bash
 # Download (replace VERSION, OS, and ARCH as needed)
-curl -LO https://github.com/remiblancher/qpki/releases/latest/download/qpki_VERSION_OS_ARCH.tar.gz
+curl -LO https://github.com/qpki/qpki/releases/latest/download/qpki_VERSION_OS_ARCH.tar.gz
 
 # Extract
 tar -xzf qpki_*.tar.gz
@@ -68,7 +68,7 @@ sudo rpm -i qpki_VERSION_linux_amd64.rpm
 ## Install via Homebrew (macOS)
 
 ```bash
-brew tap remiblancher/qpki
+brew tap qpki/qpki
 brew install qpki
 ```
 
@@ -78,12 +78,12 @@ Requires Go 1.25 or later.
 
 ```bash
 # Clone and build
-git clone https://github.com/remiblancher/qpki.git
+git clone https://github.com/qpki/qpki.git
 cd qpki
 go build -o qpki ./cmd/qpki
 
 # Or install directly to GOPATH/bin
-go install github.com/remiblancher/qpki/cmd/qpki@latest
+go install github.com/qpki/qpki/cmd/qpki@latest
 ```
 
 ## Verify installation
@@ -102,8 +102,8 @@ All releases are signed with GPG. To verify:
 gpg --keyserver keyserver.ubuntu.com --recv-keys 39CD0BF9647E3F56
 
 # Download checksums and signature
-curl -LO https://github.com/remiblancher/qpki/releases/download/vX.Y.Z/checksums.txt
-curl -LO https://github.com/remiblancher/qpki/releases/download/vX.Y.Z/checksums.txt.sig
+curl -LO https://github.com/qpki/qpki/releases/download/vX.Y.Z/checksums.txt
+curl -LO https://github.com/qpki/qpki/releases/download/vX.Y.Z/checksums.txt.sig
 
 # Verify signature
 gpg --verify checksums.txt.sig checksums.txt

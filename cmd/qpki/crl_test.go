@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	caStore "github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/cli"
+	caStore "github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/cli"
 )
 
 // resetCRLFlags resets all CRL command flags to their default values.

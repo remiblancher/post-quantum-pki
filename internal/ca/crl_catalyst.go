@@ -10,9 +10,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/audit"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/audit"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // GenerateCatalystCRL generates a CRL with dual signatures per ITU-T X.509 Section 9.8.

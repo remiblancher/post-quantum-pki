@@ -50,11 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Repository renamed** from `post-quantum-pki` to `qpki`
-  - Module path: `github.com/remiblancher/qpki`
+  - Module path: `github.com/qpki/qpki`
   - GitHub redirects old URLs automatically
 - **Public API** - Core packages moved from `internal/` to `pkg/` for external consumption
 - **CLI** - `key gen` renamed to `key generate` (alias `gen` preserved for compatibility)
-- **REST API** migrated to [qpki-enterprise](https://github.com/remiblancher/qpki-enterprise)
+- **REST API** migrated to [qpki-enterprise](https://github.com/qpki/qpki-enterprise)
 
 ### Added
 - COSE acceptance tests in CI protocols job

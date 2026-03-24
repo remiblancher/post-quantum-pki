@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/remiblancher/qpki/internal/audit"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/audit"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // LoadSigner loads the CA signer from the store.

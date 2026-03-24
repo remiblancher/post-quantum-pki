@@ -627,7 +627,7 @@ jobs:
       - name: "[E2E] Checkout Lab Repo"
         uses: actions/checkout@v6
         with:
-          repository: remiblancher/qlab
+          repository: qpki/qlab
           ref: main
           path: lab
 

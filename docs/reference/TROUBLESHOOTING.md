@@ -444,7 +444,7 @@ qpki credential enroll --help
 
 ### 7.3 Reporting Issues
 
-Report issues at: https://github.com/remiblancher/qpki/issues
+Report issues at: https://github.com/qpki/qpki/issues
 
 Include:
 - QPKI version (`qpki version`)

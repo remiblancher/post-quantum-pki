@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"net/http"
 
-	"github.com/remiblancher/qpki/internal/ocsp"
+	"github.com/qpki/qpki/internal/ocsp"
 )
 
 // Re-export OCSP types

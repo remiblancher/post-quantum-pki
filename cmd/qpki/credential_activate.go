@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/remiblancher/qpki/internal/credential"
+	"github.com/qpki/qpki/internal/credential"
 )
 
 var credentialActivateCmd = &cobra.Command{

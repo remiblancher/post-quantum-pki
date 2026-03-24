@@ -7,8 +7,8 @@ import (
 	"crypto/x509"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/profile"
 )
 
 // Re-export types from internal/ca

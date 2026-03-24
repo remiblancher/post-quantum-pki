@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/audit"
+	"github.com/qpki/qpki/internal/audit"
 )
 
 // GenerateCRLForAlgorithm generates a CRL for a specific algorithm family.

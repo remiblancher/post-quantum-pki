@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/credential"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/credential"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // =============================================================================

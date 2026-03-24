@@ -6,7 +6,7 @@ authors:
   - family-names: Blancher
     given-names: Remi
     email: remi.blancher@proton.me
-repository-code: "https://github.com/remiblancher/post-quantum-pki"
+repository-code: "https://github.com/qpki/qpki"
 license: Apache-2.0
 keywords:
   - pki

@@ -12,8 +12,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/audit"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/audit"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // PQCCAConfig holds configuration for initializing a pure PQC CA.

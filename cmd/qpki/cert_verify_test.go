@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/remiblancher/qpki/internal/cli"
+	"github.com/qpki/qpki/internal/cli"
 )
 
 // resetVerifyFlags resets all verify command flags to their default values.

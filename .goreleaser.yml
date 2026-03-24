@@ -93,7 +93,7 @@ changelog:
 
 release:
   github:
-    owner: remiblancher
+    owner: qpki
     name: qpki
   draft: true  # Creates draft for review before publishing
   prerelease: auto
@@ -104,7 +104,7 @@ nfpms:
   - id: packages
     package_name: qpki
     vendor: Remi Blancher
-    homepage: "https://github.com/remiblancher/qpki"
+    homepage: "https://github.com/qpki/qpki"
     maintainer: "Remi Blancher"
     description: "Qpki - Certificate Authority toolkit supporting classical and Post-Quantum Cryptography (PQC)"
     license: "Apache-2.0"
@@ -118,11 +118,11 @@ nfpms:
 # Homebrew tap (macOS)
 brews:
   - repository:
-      owner: remiblancher
+      owner: qpki
       name: homebrew-qpki
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
-    homepage: "https://github.com/remiblancher/qpki"
+    homepage: "https://github.com/qpki/qpki"
     description: "Qpki - Certificate Authority toolkit with PQC support"
     license: "Apache-2.0"
     install: |

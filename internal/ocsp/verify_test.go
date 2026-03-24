@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // =============================================================================

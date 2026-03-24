@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"math/big"
 
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // LoadSigner loads the signing certificate and signer from a credential.

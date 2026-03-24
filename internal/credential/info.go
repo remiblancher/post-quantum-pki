@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // VersionStatus represents the status of a credential version.

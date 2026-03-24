@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // =============================================================================

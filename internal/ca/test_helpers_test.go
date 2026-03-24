@@ -6,7 +6,7 @@ import (
 	"crypto/x509/pkix"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/profile"
 )
 
 // =============================================================================

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/ca"
-	"github.com/remiblancher/qpki/internal/crypto"
-	"github.com/remiblancher/qpki/internal/profile"
+	"github.com/qpki/qpki/internal/ca"
+	"github.com/qpki/qpki/internal/crypto"
+	"github.com/qpki/qpki/internal/profile"
 )
 
 // =============================================================================

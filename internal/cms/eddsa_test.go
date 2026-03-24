@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/circl/sign/ed448"
-	pkicrypto "github.com/remiblancher/qpki/internal/crypto"
+	pkicrypto "github.com/qpki/qpki/internal/crypto"
 )
 
 // =============================================================================

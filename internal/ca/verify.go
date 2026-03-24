@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/remiblancher/qpki/internal/x509util"
+	"github.com/qpki/qpki/internal/x509util"
 )
 
 // VerifyChainConfig holds configuration for chain verification.
