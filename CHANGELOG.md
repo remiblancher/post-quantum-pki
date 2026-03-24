@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-03-24
+
+### Changed
+- **Repository transferred** to `qpki` GitHub organization — module path is now `github.com/qpki/qpki`
+- **Profile renamed** `ml/tls-server-sign` → `ml/tls-server`, removed `ml/tls-server-encrypt` (#109)
+
+### Fixed
+- Use PQC key from hybrid CSR instead of generating a new one (#108)
+- Fix INSTALLATION.md — correct repo URL, add `get.qpki.io` and Windows install (#112)
+
+### Documentation
+- Add RFC 9880 and RFC 9881 to standards compliance tables (#114)
+- Fix dead links, enrich dependencies and standards references (#115, #116)
+- Add Quick Install section to README and INSTALLATION.md (#113)
+- Simplify About section in README (#110)
+- Add internal links for SEO (#111)
+
 ## [0.17.0] - 2026-03-15
 
 ### Added
