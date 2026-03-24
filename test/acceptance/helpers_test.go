@@ -320,6 +320,14 @@ func enrollCredentialWithInfo(t *testing.T, caDir, profile string, vars ...strin
 	credDir := filepath.Join(caDir, "credentials")
 	keyConfig := newKeyConfig(t, "cred-key")
 
+	// Record existing entries BEFORE enrollment to find the new one after
+	existingEntries := make(map[string]bool)
+	if entries, err := os.ReadDir(credDir); err == nil {
+		for _, e := range entries {
+			existingEntries[e.Name()] = true
+		}
+	}
+
 	args := []string{
 		"credential", "enroll",
 		"--ca-dir", caDir,
@@ -333,13 +341,21 @@ func enrollCredentialWithInfo(t *testing.T, caDir, profile string, vars ...strin
 
 	runQPKI(t, args...)
 
-	// Find the created credential directory (it's a hash-named subdirectory)
+	// Find the NEW credential directory (the one that didn't exist before)
 	entries, err := os.ReadDir(credDir)
 	if err != nil {
 		t.Fatalf("failed to read credential directory: %v", err)
 	}
-	if len(entries) == 0 {
-		t.Fatal("no credential directory created")
+
+	var newDir string
+	for _, e := range entries {
+		if !existingEntries[e.Name()] {
+			newDir = e.Name()
+			break
+		}
+	}
+	if newDir == "" {
+		t.Fatal("no new credential directory created")
 	}
 
 	// For HSM mode with simple credentials, the key label has "-0" appended (keyIndex=0)
@@ -348,9 +364,8 @@ func enrollCredentialWithInfo(t *testing.T, caDir, profile string, vars ...strin
 		keyConfig.KeyLabel = keyConfig.KeyLabel + "-0"
 	}
 
-	// Return the most recently created one with key config
 	return CredentialInfo{
-		Dir:       filepath.Join(credDir, entries[len(entries)-1].Name()),
+		Dir:       filepath.Join(credDir, newDir),
 		KeyConfig: keyConfig,
 	}
 }
