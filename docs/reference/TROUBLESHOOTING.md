@@ -168,12 +168,12 @@ Error: certificate verification failed: x509: certificate signed by unknown auth
 
 **Solution**:
 ```bash
-qpki cert verify server.crt --ca ./issuing-ca/ca.crt
+qpki cert verify server.pem --ca ./issuing-ca/versions/v1/certs/ca.ecdsa-p256.pem
 
-qpki cert verify server.crt --ca ./issuing-ca/chain.crt
+qpki cert verify server.pem --ca ./issuing-ca/chain.pem
 
-openssl verify -CAfile ./root-ca/ca.crt ./issuing-ca/ca.crt
-openssl verify -CAfile ./root-ca/ca.crt -untrusted ./issuing-ca/ca.crt server.crt
+openssl verify -CAfile ./root-ca/versions/v1/certs/ca.ecdsa-p384.pem ./issuing-ca/versions/v1/certs/ca.ecdsa-p256.pem
+openssl verify -CAfile ./root-ca/versions/v1/certs/ca.ecdsa-p384.pem -untrusted ./issuing-ca/versions/v1/certs/ca.ecdsa-p256.pem server.pem
 ```
 
 ---
@@ -205,7 +205,7 @@ Error: OCSP request failed: connection refused
 ```bash
 qpki ocsp serve --ca-dir ./myca --listen :8080 &
 
-qpki cert verify server.crt --ca ca.crt --ocsp http://localhost:8080
+qpki cert verify server.pem --ca ca.pem --ocsp http://localhost:8080
 ```
 
 ---
@@ -222,7 +222,7 @@ qpki ca versions --ca-dir ./myca
 
 qpki ca list --dir /var/lib/pki
 
-qpki ca export --ca-dir ./myca --out ca.crt
+qpki ca export --ca-dir ./myca --out ca.pem
 ```
 
 ### 2.2 Credential Diagnostics
@@ -246,7 +246,7 @@ qpki cert list --ca-dir ./myca
 
 qpki cert info 0x03 --ca-dir ./myca
 
-qpki inspect certificate.crt
+qpki inspect certificate.pem
 qpki inspect private.key
 qpki inspect request.csr
 ```
@@ -272,7 +272,7 @@ qpki crl list --ca-dir ./myca
 
 qpki crl info ./myca/crl/ca.crl
 
-qpki crl verify ./myca/crl/ca.crl --ca ./myca/ca.crt
+qpki crl verify ./myca/crl/ca.crl --ca ./myca/versions/v1/certs/ca.ecdsa-p256.pem
 ```
 
 ---
@@ -283,15 +283,15 @@ qpki crl verify ./myca/crl/ca.crl --ca ./myca/ca.crt
 
 ```bash
 # Verify single certificate
-openssl verify -CAfile ca.crt server.crt
+openssl verify -CAfile ca.pem server.pem
 
-openssl verify -CAfile root-ca/ca.crt -untrusted issuing-ca/ca.crt server.crt
+openssl verify -CAfile root-ca/versions/v1/certs/ca.ecdsa-p384.pem -untrusted issuing-ca/versions/v1/certs/ca.ecdsa-p256.pem server.pem
 
-openssl x509 -in server.crt -text -noout
+openssl x509 -in server.pem -text -noout
 
-openssl x509 -in server.crt -dates -noout
+openssl x509 -in server.pem -dates -noout
 
-openssl x509 -in server.crt -subject -issuer -noout
+openssl x509 -in server.pem -subject -issuer -noout
 ```
 
 ### 3.2 Key Verification
@@ -301,7 +301,7 @@ openssl x509 -in server.crt -subject -issuer -noout
 openssl ec -in key.pem -text -noout
 openssl rsa -in key.pem -text -noout
 
-openssl x509 -in cert.crt -noout -modulus | openssl md5
+openssl x509 -in cert.pem -noout -modulus | openssl md5
 openssl rsa -in key.pem -noout -modulus | openssl md5
 ```
 
@@ -320,7 +320,7 @@ openssl req -in request.csr -verify -noout
 # View CRL details
 openssl crl -in ca.crl -text -noout
 
-openssl crl -in ca.crl -CAfile ca.crt -verify
+openssl crl -in ca.crl -CAfile ca.pem -verify
 ```
 
 ---
@@ -373,15 +373,15 @@ qpki hsm list --hsm-config ./hsm.yaml
 ### 5.1 Permission Denied
 
 ```
-Error: open ./ca/ca.key: permission denied
+Error: open ./ca/versions/v1/keys/ca.ecdsa-p256.key: permission denied
 ```
 
 **Solution**:
 ```bash
-ls -la ./ca/
+ls -la ./ca/versions/v1/keys/
 
-chmod 600 ./ca/ca.key
-chmod 644 ./ca/ca.crt
+chmod 600 ./ca/versions/v1/keys/ca.ecdsa-p256.key
+chmod 644 ./ca/versions/v1/certs/ca.ecdsa-p256.pem
 ```
 
 ### 5.2 Directory Structure
@@ -389,16 +389,20 @@ chmod 644 ./ca/ca.crt
 Expected CA directory structure:
 ```
 ca/
-├── ca.crt           # CA certificate
-├── ca.key           # CA private key (protect!)
-├── chain.crt        # Certificate chain (if subordinate)
-├── serial           # Next serial number
+├── ca.meta.json     # CA metadata (versions, keys, status)
 ├── index.txt        # Certificate database
+├── crlnumber        # Current CRL number
 ├── crl/             # CRL directory
 │   └── ca.crl
-├── certs/           # Issued certificates
+├── issued/          # Issued certificates
 │   ├── 01.pem
 │   └── 02.pem
+├── versions/        # CA versions
+│   └── v1/
+│       ├── keys/
+│       │   └── ca.ecdsa-p256.key
+│       └── certs/
+│           └── ca.ecdsa-p256.pem
 └── profiles/        # Custom profiles (optional)
 ```
 
@@ -413,8 +417,6 @@ Enable verbose output for troubleshooting:
 qpki --debug ca info --ca-dir ./myca
 
 cat ./myca/index.txt
-
-cat ./myca/serial
 ```
 
 ---

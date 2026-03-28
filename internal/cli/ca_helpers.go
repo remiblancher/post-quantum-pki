@@ -286,14 +286,6 @@ func LoadVersionCerts(absDir, versionID string, info *ca.CAInfo) ([]*x509.Certif
 		}
 	}
 
-	// Fallback: check legacy ca.crt path (for rotate-created versions)
-	if len(certs) == 0 {
-		legacyCertPath := filepath.Join(absDir, "versions", versionID, "ca.crt")
-		if cert, err := LoadCertFromPath(legacyCertPath); err == nil {
-			certs = append(certs, cert)
-		}
-	}
-
 	return certs, nil
 }
 
@@ -780,7 +772,7 @@ func LoadBundleCerts(store ca.Store, bundleType string) ([]*x509.Certificate, er
 			certs = append(certs, crossCerts...)
 		}
 		// Try to load chain file (parent CA for subordinate CAs)
-		chainPath := filepath.Join(store.BasePath(), "chain.crt")
+		chainPath := filepath.Join(store.BasePath(), "chain.pem")
 		if chainData, err := os.ReadFile(chainPath); err == nil {
 			if chainCerts, err := ParseCertificatesPEM(chainData); err == nil {
 				// Skip the first cert (it's the CA cert already added)
@@ -794,7 +786,7 @@ func LoadBundleCerts(store ca.Store, bundleType string) ([]*x509.Certificate, er
 		return certs, nil
 
 	case "root":
-		chainPath := filepath.Join(store.BasePath(), "chain.crt")
+		chainPath := filepath.Join(store.BasePath(), "chain.pem")
 		if chainData, err := os.ReadFile(chainPath); err == nil {
 			if chainCerts, err := ParseCertificatesPEM(chainData); err == nil && len(chainCerts) > 0 {
 				// Last cert in chain is the root

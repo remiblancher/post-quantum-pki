@@ -58,12 +58,12 @@ type Store interface {
 // Directory structure:
 //
 //	{base}/
-//	  ├── ca.crt           # CA certificate
-//	  ├── ca.key           # CA private key (encrypted)
-//	  ├── certs/           # Issued certificates
-//	  │   └── {serial}.crt
+//	  ├── cert.pem         # CA certificate
+//	  ├── key.pem          # CA private key (encrypted)
+//	  ├── issued/          # Issued certificates
+//	  │   └── {serial}.pem
 //	  ├── index.txt        # Certificate database (OpenSSL-like)
-//	  └── serial           # Next serial number
+//	  └── crl/             # Certificate Revocation Lists
 type FileStore struct {
 	basePath string
 }
@@ -80,9 +80,8 @@ func NewFileStore(basePath string) *FileStore {
 func (s *FileStore) Init(ctx context.Context) error {
 	dirs := []string{
 		s.basePath,
-		filepath.Join(s.basePath, "certs"),
+		filepath.Join(s.basePath, "issued"),
 		filepath.Join(s.basePath, "crl"),
-		filepath.Join(s.basePath, "private"),
 	}
 
 	for _, dir := range dirs {
@@ -117,28 +116,18 @@ func (s *FileStore) Init(ctx context.Context) error {
 }
 
 // CACertPath returns the path to the CA certificate.
-// Returns cert.pem if it exists, otherwise ca.crt for legacy compatibility.
 func (s *FileStore) CACertPath() string {
-	certPem := filepath.Join(s.basePath, "cert.pem")
-	if _, err := os.Stat(certPem); err == nil {
-		return certPem
-	}
-	return filepath.Join(s.basePath, "ca.crt")
+	return filepath.Join(s.basePath, "cert.pem")
 }
 
 // CAKeyPath returns the path to the CA private key.
-// Returns key.pem if it exists, otherwise private/ca.key for legacy compatibility.
 func (s *FileStore) CAKeyPath() string {
-	keyPem := filepath.Join(s.basePath, "key.pem")
-	if _, err := os.Stat(keyPem); err == nil {
-		return keyPem
-	}
-	return filepath.Join(s.basePath, "private", "ca.key")
+	return filepath.Join(s.basePath, "key.pem")
 }
 
-// CertPath returns the path for a certificate with the given serial.
+// CertPath returns the path for an issued certificate with the given serial.
 func (s *FileStore) CertPath(serial []byte) string {
-	return filepath.Join(s.basePath, "certs", hex.EncodeToString(serial)+".crt")
+	return filepath.Join(s.basePath, "issued", hex.EncodeToString(serial)+".pem")
 }
 
 // SaveCACert saves the CA certificate to the store.
@@ -169,17 +158,7 @@ func (s *FileStore) LoadCACert(ctx context.Context) (*x509.Certificate, error) {
 		}
 	}
 
-	// Check if old versioned CA (has versions.json)
-	versionIndex := filepath.Join(s.basePath, "versions.json")
-	if _, err := os.Stat(versionIndex); err == nil {
-		// Versioned CA - load from active/ directory
-		activeCert := filepath.Join(s.basePath, "active", "ca.crt")
-		if _, err := os.Stat(activeCert); err == nil {
-			return s.loadCert(activeCert)
-		}
-	}
-
-	// Legacy CA - load from root
+	// Fallback: load from root cert.pem
 	return s.loadCert(s.CACertPath())
 }
 
@@ -263,20 +242,7 @@ func (s *FileStore) LoadAllCACerts(ctx context.Context) ([]*x509.Certificate, er
 		}
 	}
 
-	// Check if old versioned CA (has versions.json)
-	versionIndex := filepath.Join(s.basePath, "versions.json")
-	if _, err := os.Stat(versionIndex); err == nil {
-		activeCert := filepath.Join(s.basePath, "active", "ca.crt")
-		if _, err := os.Stat(activeCert); err == nil {
-			cert, err := s.loadCert(activeCert)
-			if err != nil {
-				return nil, err
-			}
-			return []*x509.Certificate{cert}, nil
-		}
-	}
-
-	// Legacy CA - load from root
+	// Fallback: load from root cert.pem
 	cert, err := s.loadCert(s.CACertPath())
 	if err != nil {
 		return nil, err
@@ -307,7 +273,7 @@ func (s *FileStore) LoadCrossSignedCerts(ctx context.Context) ([]*x509.Certifica
 
 	var certs []*x509.Certificate
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".crt") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".pem") {
 			continue
 		}
 		certPath := filepath.Join(crossSignDir, entry.Name())
@@ -561,22 +527,8 @@ func splitTabs(s string) []string {
 }
 
 // Exists checks if the store is already initialized.
-// Returns true for both legacy CAs (ca.crt at root) and new versioned CAs (ca.json).
 func (s *FileStore) Exists() bool {
-	// Check new format (ca.json)
-	if CAInfoExists(s.basePath) {
-		return true
-	}
-	// Check legacy location
-	if _, err := os.Stat(s.CACertPath()); err == nil {
-		return true
-	}
-	// Check old versioned location (deprecated)
-	activeCert := filepath.Join(s.basePath, "active", "ca.crt")
-	if _, err := os.Stat(activeCert); err == nil {
-		return true
-	}
-	return false
+	return CAInfoExists(s.basePath)
 }
 
 // BasePath returns the base path of the store.

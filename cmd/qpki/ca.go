@@ -49,14 +49,15 @@ and extensions. With --parent, creates a subordinate CA signed by the parent.
 
 The CA will be created in the specified directory with the following structure:
   {dir}/
-    ├── ca.crt           # CA certificate (PEM)
-    ├── chain.crt        # Certificate chain (subordinate CA only)
-    ├── private/
-    │   └── ca.key       # CA private key (PEM, optionally encrypted)
-    ├── certs/           # Issued certificates
-    ├── crl/             # Certificate Revocation Lists
-    ├── index.txt        # Certificate database
-    └── serial           # Serial number counter
+    ├── versions/
+    │   └── v1/
+    │       ├── certs/       # CA certificates (per algorithm)
+    │       └── keys/        # CA private keys (per algorithm)
+    ├── chain.pem            # Certificate chain (subordinate CA only)
+    ├── issued/              # Issued certificates
+    ├── crl/                 # Certificate Revocation Lists
+    ├── index.txt            # Certificate database
+    └── ca.meta.json         # CA metadata
 
 Available profiles (use 'pki profile list' to see all):
   ec/root-ca                   ECDSA P-384 root CA
@@ -153,7 +154,7 @@ var caListCmd = &cobra.Command{
 	Short: "List Certificate Authorities",
 	Long: `List all Certificate Authorities in a directory.
 
-Scans subdirectories for CA structures (directories containing ca.crt).
+Scans subdirectories for CA structures (directories containing ca.meta.json).
 
 Examples:
   # List CAs in current directory
@@ -751,7 +752,7 @@ func runCAInitSubordinate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	chainPath := filepath.Join(absDir, "chain.crt")
+	chainPath := filepath.Join(absDir, "chain.pem")
 	if err := cli.CreateChainFile(chainPath, cert, parentCA.Certificate()); err != nil {
 		return err
 	}
@@ -812,7 +813,7 @@ func runCAInitSubordinateCatalyst(prof *profile.Profile, subject pkix.Name, algI
 		return err
 	}
 
-	chainPath := filepath.Join(absDir, "chain.crt")
+	chainPath := filepath.Join(absDir, "chain.pem")
 	if err := cli.CreateChainFile(chainPath, cert, parentCA.Certificate()); err != nil {
 		return err
 	}
@@ -890,7 +891,7 @@ func runCAInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check for chain file
-	chainPath := filepath.Join(absDir, "chain.crt")
+	chainPath := filepath.Join(absDir, "chain.pem")
 	if _, err := os.Stat(chainPath); err == nil {
 		fmt.Printf("  Chain:       %s\n", chainPath)
 	}

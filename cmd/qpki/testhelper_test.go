@@ -225,18 +225,18 @@ func getCACertPath(t *testing.T, caDir string) string {
 }
 
 // getIssuedCertSerial returns the hex serial of the first issued cert
-// found in the CA's certs directory (caDir/certs/*.crt).
+// found in the CA's issued directory (caDir/issued/*.pem).
 func getIssuedCertSerial(t *testing.T, caDir string) string {
 	t.Helper()
-	matches, err := filepath.Glob(filepath.Join(caDir, "certs", "*.crt"))
+	matches, err := filepath.Glob(filepath.Join(caDir, "issued", "*.pem"))
 	if err != nil {
 		t.Fatalf("failed to glob certs: %v", err)
 	}
 	for _, m := range matches {
 		name := filepath.Base(m)
-		return name[:len(name)-4] // strip .crt → hex serial
+		return name[:len(name)-4] // strip .pem → hex serial
 	}
-	t.Fatalf("no issued certificate found in %s/certs/", caDir)
+	t.Fatalf("no issued certificate found in %s/issued/", caDir)
 	return ""
 }
 

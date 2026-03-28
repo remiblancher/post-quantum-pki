@@ -398,7 +398,7 @@ func crossSignIfRequested(currentCAs map[string]*CA, newCA *CA, algoFamily, vers
 		return nil, fmt.Errorf("failed to cross-sign for %s: %w", algoFamily, err)
 	}
 
-	crossSignPath := filepath.Join(versionDir, "cross-signed", "by-previous.crt")
+	crossSignPath := filepath.Join(versionDir, "cross-signed", "by-previous.pem")
 	if err := saveCrossSignedCert(crossSignPath, crossSignedCert); err != nil {
 		return nil, fmt.Errorf("failed to save cross-signed cert for %s: %w", algoFamily, err)
 	}

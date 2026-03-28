@@ -158,8 +158,8 @@ make crosstest-fixtures
 ```
 test/crossval/fixtures/
 ├── ec/                     # Artefacts EC (P-256, P-384)
-│   ├── root-ca.crt
-│   ├── leaf.crt
+│   ├── root-ca.pem
+│   ├── leaf.pem
 │   ├── leaf.crl
 │   ├── leaf.csr
 │   ├── cms-signed.p7s

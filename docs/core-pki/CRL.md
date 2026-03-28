@@ -153,9 +153,9 @@ qpki crl verify <crl-file> [flags]
 
 ```bash
 # Verify CRL signature
-qpki crl verify ./ca/crl/ca.crl --ca ./ca/ca.crt
+qpki crl verify ./ca/crl/ca.crl --ca ./ca/versions/v1/certs/ca.ecdsa-p256.pem
 
-qpki crl verify ./ca/crl/ca.crl --ca ./ca/ca.crt --check-expiry
+qpki crl verify ./ca/crl/ca.crl --ca ./ca/versions/v1/certs/ca.ecdsa-p256.pem --check-expiry
 ```
 
 ### crl list

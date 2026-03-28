@@ -56,18 +56,18 @@ Create a signed OCSP response.
 ```bash
 # Sign with credential (recommended)
 qpki ocsp sign --serial 0A1B2C3D --status good \
-  --ca ca.crt --credential ocsp-responder --out response.ocsp
+  --ca ca.pem --credential ocsp-responder --out response.ocsp
 
 qpki ocsp sign --serial 0A1B2C3D --status good \
-  --ca ca.crt --cert responder.crt --key responder.key --out response.ocsp
+  --ca ca.pem --cert responder.pem --key responder.key --out response.ocsp
 
 qpki ocsp sign --serial 0A1B2C3D --status revoked \
   --revocation-time "2024-01-15T10:00:00Z" \
   --revocation-reason keyCompromise \
-  --ca ca.crt --cert responder.crt --key responder.key --out response.ocsp
+  --ca ca.pem --cert responder.pem --key responder.key --out response.ocsp
 
 qpki ocsp sign --serial 0A1B2C3D --status unknown \
-  --ca ca.crt --cert responder.crt --key responder.key --out response.ocsp
+  --ca ca.pem --cert responder.pem --key responder.key --out response.ocsp
 ```
 
 **Options:**
@@ -95,11 +95,11 @@ Verify an OCSP response.
 
 ```bash
 # Basic verification
-qpki ocsp verify --response response.ocsp --ca ca.crt
+qpki ocsp verify --response response.ocsp --ca ca.pem
 
-qpki ocsp verify --response response.ocsp --ca ca.crt --cert server.crt
+qpki ocsp verify --response response.ocsp --ca ca.pem --cert server.pem
 
-qpki ocsp verify --response response.ocsp --ca ca.crt --nonce 0102030405060708
+qpki ocsp verify --response response.ocsp --ca ca.pem --nonce 0102030405060708
 ```
 
 ### ocsp request
@@ -108,11 +108,11 @@ Create an OCSP request.
 
 ```bash
 # Simple request
-qpki ocsp request --ca ca.crt --cert server.crt --out request.ocsp
+qpki ocsp request --ca ca.pem --cert server.pem --out request.ocsp
 
-qpki ocsp request --ca ca.crt --cert server.crt --nonce --out request.ocsp
+qpki ocsp request --ca ca.pem --cert server.pem --nonce --out request.ocsp
 
-qpki ocsp request --ca ca.crt --serial 0A1B2C3D --out request.ocsp
+qpki ocsp request --ca ca.pem --serial 0A1B2C3D --out request.ocsp
 ```
 
 ### ocsp info
@@ -132,13 +132,13 @@ Start an HTTP OCSP responder server.
 qpki ocsp serve --port 8080 --ca-dir /path/to/ca --credential ocsp-responder
 
 qpki ocsp serve --port 8080 --ca-dir /path/to/ca \
-  --cert responder.crt --key responder.key
+  --cert responder.pem --key responder.key
 
 qpki ocsp serve --port 8080 --ca-dir /path/to/ca \
-  --cert responder.crt --key responder.key --validity 24h
+  --cert responder.pem --key responder.key --validity 24h
 
 qpki ocsp serve --port 8080 --ca-dir /path/to/ca \
-  --cert responder.crt --key responder.key --pid-file /var/run/ocsp.pid
+  --cert responder.pem --key responder.key --pid-file /var/run/ocsp.pid
 ```
 
 **Options:**
@@ -196,7 +196,7 @@ qpki credential enroll hybrid-ocsp-responder --ca-dir ./ca --cred-dir ./credenti
     --profile hybrid/catalyst/ocsp-responder --var cn=hybrid-ocsp.example.com
 
 qpki ocsp serve --port 8080 --ca-dir ./ca \
-    --cert ./credentials/ocsp-responder/ocsp-responder.crt \
+    --cert ./credentials/ocsp-responder/ocsp-responder.pem \
     --key ./credentials/ocsp-responder/ocsp-responder.key
 ```
 
@@ -208,10 +208,10 @@ qpki key gen --algo ecdsa-p256 --out ocsp-responder.key
 
 qpki csr create --key ocsp-responder.key --cn ocsp.example.com --out ocsp-responder.csr
 
-qpki cert issue --ca-dir ./ca --profile ec/ocsp-responder --csr ocsp-responder.csr --out ocsp-responder.crt
+qpki cert issue --ca-dir ./ca --profile ec/ocsp-responder --csr ocsp-responder.csr --out ocsp-responder.pem
 
 qpki ocsp serve --port 8080 --ca-dir ./ca \
-    --cert ocsp-responder.crt --key ocsp-responder.key
+    --cert ocsp-responder.pem --key ocsp-responder.key
 ```
 
 ### Server Mode with Credentials
@@ -241,12 +241,12 @@ The server always uses the **active** version of the credential. This workflow a
 
 ```bash
 # Create request with OpenSSL
-openssl ocsp -issuer ca.crt -cert server.crt -reqout request.ocsp -no_nonce
+openssl ocsp -issuer ca.pem -cert server.pem -reqout request.ocsp -no_nonce
 
-openssl ocsp -issuer ca.crt -cert server.crt \
+openssl ocsp -issuer ca.pem -cert server.pem \
   -url http://localhost:8080 -resp_text
 
-openssl ocsp -respin response.ocsp -CAfile ca.crt -resp_text
+openssl ocsp -respin response.ocsp -CAfile ca.pem -resp_text
 ```
 
 > **Note:** OpenSSL does not support ML-DSA. Use `qpki ocsp verify` for PQC responses.
@@ -268,11 +268,11 @@ export HSM_PIN="****"
 
 # Sign OCSP response with HSM key
 qpki ocsp sign --serial 0A1B2C3D --status good \
-  --ca ca.crt --cert responder.crt \
+  --ca ca.pem --cert responder.pem \
   --hsm-config ./hsm.yaml --key-label "ocsp-key" --out response.ocsp
 
 # Start OCSP server with HSM key
-qpki ocsp serve --port 8080 --ca-dir ./ca --cert responder.crt \
+qpki ocsp serve --port 8080 --ca-dir ./ca --cert responder.pem \
   --hsm-config ./hsm.yaml --key-label "ocsp-key"
 ```
 

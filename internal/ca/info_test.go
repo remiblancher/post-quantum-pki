@@ -595,7 +595,7 @@ func TestU_CA_VersionStore_CrossSignedCertPath(t *testing.T) {
 	vs := NewVersionStore("/tmp/test-ca")
 
 	path := vs.CrossSignedCertPath("v1", "ecdsa-p256")
-	expected := "/tmp/test-ca/versions/v1/cross-signed/by-ecdsa-p256.crt"
+	expected := "/tmp/test-ca/versions/v1/cross-signed/by-ecdsa-p256.pem"
 	if path != expected {
 		t.Errorf("CrossSignedCertPath() = %s, want %s", path, expected)
 	}

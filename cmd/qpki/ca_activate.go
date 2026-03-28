@@ -18,7 +18,7 @@ var caActivateCmd = &cobra.Command{
 This command:
   1. Marks the specified version as active
   2. Archives the previously active version
-  3. Updates the CA root files (ca.crt, private/ca.key) for backward compatibility
+  3. Updates the CA metadata (ca.meta.json)
 
 Examples:
   # Activate a specific version

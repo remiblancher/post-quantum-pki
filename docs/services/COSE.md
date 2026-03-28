@@ -93,31 +93,31 @@ Create a signed COSE message or CWT.
 
 ```bash
 # Create a CWT with ECDSA (default type)
-qpki cose sign --cert signer.crt --key signer.key \
+qpki cose sign --cert signer.pem --key signer.key \
     --iss "https://issuer.example.com" \
     --sub "user-123" \
     --aud "https://api.example.com" \
     --exp 1h \
     -o token.cbor
 
-qpki cose sign --cert pqc-signer.crt --key pqc-signer.key \
+qpki cose sign --cert pqc-signer.pem --key pqc-signer.key \
     --iss "https://issuer.example.com" \
     --sub "device-456" \
     --exp 24h \
     -o pqc-token.cbor
 
-qpki cose sign --cert signer.crt --key signer.key \
+qpki cose sign --cert signer.pem --key signer.key \
     --pqc-key pqc-signer.key \
     --iss "https://issuer.example.com" \
     --sub "hybrid-user" \
     --exp 1h \
     -o hybrid-token.cbor
 
-qpki cose sign --type sign1 --cert signer.crt --key signer.key \
+qpki cose sign --type sign1 --cert signer.pem --key signer.key \
     --data document.pdf \
     -o signed-document.cbor
 
-qpki cose sign --cert signer.crt --key signer.key \
+qpki cose sign --cert signer.pem --key signer.key \
     --iss "https://issuer.example.com" \
     --claim "8=admin" \
     --claim "-65537=custom-value" \
@@ -152,13 +152,13 @@ Verify a COSE message signature.
 
 ```bash
 # Verify with CA certificate
-qpki cose verify token.cbor --ca ca.crt
+qpki cose verify token.cbor --ca ca.pem
 
-qpki cose verify hybrid-token.cbor --ca ca.crt --pqc-ca pqc-ca.crt
+qpki cose verify hybrid-token.cbor --ca ca.pem --pqc-ca pqc-ca.pem
 
-qpki cose verify token.cbor --ca ca.crt --check-exp
+qpki cose verify token.cbor --ca ca.pem --check-exp
 
-qpki cose verify signed-document.cbor --ca ca.crt --data document.pdf
+qpki cose verify signed-document.cbor --ca ca.pem --data document.pdf
 ```
 
 **Options:**
@@ -235,13 +235,13 @@ Uses traditional cryptographic algorithms (ECDSA, EdDSA, RSA-PSS).
 
 ```bash
 # ECDSA P-256
-qpki cose sign --cert ec-signer.crt --key ec-signer.key \
+qpki cose sign --cert ec-signer.pem --key ec-signer.key \
     --iss "issuer" --sub "subject" -o token.cbor
 
-qpki cose sign --cert ed-signer.crt --key ed-signer.key \
+qpki cose sign --cert ed-signer.pem --key ed-signer.key \
     --iss "issuer" --sub "subject" -o token.cbor
 
-qpki cose sign --cert rsa-signer.crt --key rsa-signer.key \
+qpki cose sign --cert rsa-signer.pem --key rsa-signer.key \
     --iss "issuer" --sub "subject" -o token.cbor
 ```
 
@@ -251,10 +251,10 @@ Uses post-quantum algorithms (ML-DSA, SLH-DSA).
 
 ```bash
 # ML-DSA-65 (recommended for general use)
-qpki cose sign --cert mldsa-signer.crt --key mldsa-signer.key \
+qpki cose sign --cert mldsa-signer.pem --key mldsa-signer.key \
     --iss "issuer" --sub "subject" -o pqc-token.cbor
 
-qpki cose sign --cert slhdsa-signer.crt --key slhdsa-signer.key \
+qpki cose sign --cert slhdsa-signer.pem --key slhdsa-signer.key \
     --iss "issuer" --sub "subject" -o slhdsa-token.cbor
 ```
 
@@ -264,7 +264,7 @@ Uses both classical and PQC signatures for quantum-safe transition.
 
 ```bash
 # ECDSA + ML-DSA hybrid
-qpki cose sign --cert ec-signer.crt --key ec-signer.key \
+qpki cose sign --cert ec-signer.pem --key ec-signer.key \
     --pqc-key mldsa-signer.key \
     --iss "issuer" --sub "subject" -o hybrid-token.cbor
 ```
@@ -272,7 +272,7 @@ qpki cose sign --cert ec-signer.crt --key ec-signer.key \
 **Hybrid verification requires BOTH signatures to be valid:**
 
 ```bash
-qpki cose verify hybrid-token.cbor --ca ec-ca.crt --pqc-ca mldsa-ca.crt
+qpki cose verify hybrid-token.cbor --ca ec-ca.pem --pqc-ca mldsa-ca.pem
 ```
 
 ---
@@ -286,7 +286,7 @@ A CWT is a COSE_Sign1 or COSE_Sign message where the payload contains CBOR-encod
 ```bash
 # Create CWT
 qpki cose sign --type cwt \
-    --cert signer.crt --key signer.key \
+    --cert signer.pem --key signer.key \
     --iss "https://auth.example.com" \
     --sub "user@example.com" \
     --aud "https://api.example.com" \
@@ -311,7 +311,7 @@ A COSE_Sign1 message for signing arbitrary data.
 ```bash
 # Sign a document
 qpki cose sign --type sign1 \
-    --cert signer.crt --key signer.key \
+    --cert signer.pem --key signer.key \
     --data document.pdf \
     -o signed-document.cbor
 ```
@@ -325,7 +325,7 @@ A COSE_Sign message with multiple signatures, used for hybrid mode.
 ```bash
 # Create multi-signature message
 qpki cose sign --type sign \
-    --cert ec-signer.crt --key ec-signer.key \
+    --cert ec-signer.pem --key ec-signer.key \
     --pqc-key mldsa-signer.key \
     --data document.pdf \
     -o hybrid-signed.cbor
@@ -368,7 +368,7 @@ Use integer keys for custom claims. Positive integers are reserved for IANA regi
 
 ```bash
 # Add custom claims
-qpki cose sign --cert signer.crt --key signer.key \
+qpki cose sign --cert signer.pem --key signer.key \
     --iss "issuer" \
     --claim "8=admin" \
     --claim "-65537=tenant-id-123" \
@@ -379,9 +379,9 @@ qpki cose sign --cert signer.crt --key signer.key \
 
 ```bash
 # Verify with expiration check (default)
-qpki cose verify token.cbor --ca ca.crt --check-exp
+qpki cose verify token.cbor --ca ca.pem --check-exp
 
-qpki cose verify token.cbor --ca ca.crt --check-exp=false
+qpki cose verify token.cbor --ca ca.pem --check-exp=false
 ```
 
 ---
@@ -395,7 +395,7 @@ qpki cose verify token.cbor --ca ca.crt --check-exp=false
 qpki credential enroll device-001 --profile ml/codesigning \
     --var cn="device-001.iot.example.com"
 
-qpki cose sign --cert device-001.crt --key device-001.key \
+qpki cose sign --cert device-001.pem --key device-001.key \
     --iss "https://manufacturer.example.com" \
     --sub "device-001" \
     --claim "-65537=firmware-v2.1.0" \
@@ -408,7 +408,7 @@ qpki cose sign --cert device-001.crt --key device-001.key \
 
 ```bash
 # Create access token
-qpki cose sign --cert auth-server.crt --key auth-server.key \
+qpki cose sign --cert auth-server.pem --key auth-server.key \
     --iss "https://auth.example.com" \
     --sub "user@example.com" \
     --aud "https://api.example.com" \
@@ -416,7 +416,7 @@ qpki cose sign --cert auth-server.crt --key auth-server.key \
     --claim "8=read,write" \
     -o access-token.cbor
 
-qpki cose verify access-token.cbor --ca auth-ca.crt
+qpki cose verify access-token.cbor --ca auth-ca.pem
 ```
 
 ### Post-Quantum Transition
@@ -432,14 +432,14 @@ qpki credential enroll pqc-signer --profile ml/codesigning \
     --var cn="pqc-signer.example.com"
 
 qpki cose sign \
-    --cert ec-signer.crt --key ec-signer.key \
+    --cert ec-signer.pem --key ec-signer.key \
     --pqc-key pqc-signer.key \
     --iss "https://issuer.example.com" \
     --sub "hybrid-protected-data" \
     --exp 24h \
     -o hybrid-token.cbor
 
-qpki cose verify hybrid-token.cbor --ca ec-ca.crt --pqc-ca pqc-ca.crt
+qpki cose verify hybrid-token.cbor --ca ec-ca.pem --pqc-ca pqc-ca.pem
 ```
 
 ### Document Signing
@@ -447,11 +447,11 @@ qpki cose verify hybrid-token.cbor --ca ec-ca.crt --pqc-ca pqc-ca.crt
 ```bash
 # Sign a document with timestamp
 qpki cose sign --type sign1 \
-    --cert signer.crt --key signer.key \
+    --cert signer.pem --key signer.key \
     --data contract.pdf \
     -o signed-contract.cbor
 
-qpki cose verify signed-contract.cbor --ca ca.crt --data contract.pdf
+qpki cose verify signed-contract.cbor --ca ca.pem --data contract.pdf
 ```
 
 ---
@@ -473,14 +473,14 @@ qpki ca init --hsm-config ./hsm.yaml --key-label cose-signer \
 
 # Sign CWT using HSM key
 qpki cose sign --type cwt \
-    --cert ./ca/ca.crt \
+    --cert ./ca/versions/v1/certs/ca.ml-dsa-87.pem \
     --hsm-config ./hsm.yaml --key-label cose-signer \
     --iss "https://hsm-issuer.example.com" \
     --sub "user-123" --exp 1h \
     -o token.cbor
 
 # Verify
-qpki cose verify token.cbor --ca ./ca/ca.crt
+qpki cose verify token.cbor --ca ./ca/versions/v1/certs/ca.ml-dsa-87.pem
 ```
 
 ### Hybrid Mode with HSM (PQC-capable)
@@ -502,12 +502,12 @@ qpki ca init --hsm-config ./hsm.yaml --key-label hybrid-signer \
 
 # Sign with hybrid mode (COSE_Sign with 2 signatures)
 qpki cose sign --type sign \
-    --cert ./hybrid-ca/ca.crt \
+    --cert ./hybrid-ca/versions/v1/certs/ca.ecdsa-p384.pem \
     --hsm-config ./hsm.yaml --key-label hybrid-signer \
     --data payload.bin -o hybrid-signed.cbor
 
 # Verify
-qpki cose verify hybrid-signed.cbor --ca ./hybrid-ca/ca.crt
+qpki cose verify hybrid-signed.cbor --ca ./hybrid-ca/versions/v1/certs/ca.ecdsa-p384.pem
 ```
 
 ### Supported HSM Algorithms

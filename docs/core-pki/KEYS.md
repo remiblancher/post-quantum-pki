@@ -259,7 +259,7 @@ qpki csr gen --algorithm ml-dsa-65 --keyout mldsa.key \
 # (requires an existing signature certificate for attestation)
 qpki csr gen --algorithm ml-kem-768 --keyout kem.key \
     --cn alice@example.com \
-    --attest-cert sign.crt --attest-key sign.key \
+    --attest-cert sign.pem --attest-key sign.key \
     --out kem.csr
 
 qpki csr gen --algorithm ecdsa-p384 --hybrid ml-dsa-87 \

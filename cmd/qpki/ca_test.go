@@ -190,7 +190,7 @@ func TestF_CA_Init_Subordinate(t *testing.T) {
 	assertFileExists(t, filepath.Join(subDir, "ca.meta.json"))
 	assertFileExists(t, filepath.Join(subDir, "versions", "v1", "certs", "ca.ecdsa-p256.pem"))
 	assertFileExists(t, filepath.Join(subDir, "versions", "v1", "keys", "ca.ecdsa-p256.key"))
-	assertFileExists(t, filepath.Join(subDir, "chain.crt"))
+	assertFileExists(t, filepath.Join(subDir, "chain.pem"))
 }
 
 func TestF_CA_Init_Subordinate_ParentNotFound(t *testing.T) {

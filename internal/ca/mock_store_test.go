@@ -296,19 +296,19 @@ func (m *MockStore) LoadCert(ctx context.Context, serial []byte) (*x509.Certific
 // CACertPath returns a mock CA certificate path.
 func (m *MockStore) CACertPath() string {
 	m.recordCall("CACertPath")
-	return m.BasePath_ + "/ca.crt"
+	return m.BasePath_ + "/cert.pem"
 }
 
 // CAKeyPath returns a mock CA key path.
 func (m *MockStore) CAKeyPath() string {
 	m.recordCall("CAKeyPath")
-	return m.BasePath_ + "/private/ca.key"
+	return m.BasePath_ + "/key.pem"
 }
 
 // CertPath returns a mock certificate path for a serial.
 func (m *MockStore) CertPath(serial []byte) string {
 	m.recordCall("CertPath", serial)
-	return m.BasePath_ + "/certs/" + hex.EncodeToString(serial) + ".crt"
+	return m.BasePath_ + "/issued/" + hex.EncodeToString(serial) + ".pem"
 }
 
 // NextSerial generates a random 20-byte serial number.

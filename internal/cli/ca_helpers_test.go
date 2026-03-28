@@ -765,6 +765,11 @@ func TestU_LoadAllVersionCerts_NilInfo(t *testing.T) {
 	if err := store.Init(ctx); err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
+	// Write minimal ca.meta.json so store.Exists() returns true
+	metaPath := filepath.Join(tmpDir, "ca.meta.json")
+	if err := os.WriteFile(metaPath, []byte(`{}`), 0644); err != nil {
+		t.Fatalf("failed to write ca.meta.json: %v", err)
+	}
 	saveCertPEM(t, store.CACertPath(), caCert)
 
 	certs, err := LoadAllVersionCerts(tmpDir, nil)

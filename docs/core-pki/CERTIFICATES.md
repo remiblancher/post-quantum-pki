@@ -52,20 +52,20 @@ qpki cert issue [flags]
 ```bash
 # From classical CSR (ECDSA, RSA)
 qpki cert issue --ca-dir ./myca --profile ec/tls-server \
-  --csr server.csr --out server.crt
+  --csr server.csr --out server.pem
 
 # From PQC CSR (ML-DSA)
 qpki cert issue --ca-dir ./myca --profile ml/tls-server \
-  --csr mldsa.csr --out server.crt
+  --csr mldsa.csr --out server.pem
 
 # From ML-KEM CSR (requires attestation certificate)
 qpki cert issue --ca-dir ./myca --profile ml-kem/client \
-  --csr kem.csr --attest-cert sign.crt --out kem.crt
+  --csr kem.csr --attest-cert sign.pem --out kem.pem
 
 # From hybrid CSR (created with 'csr gen --hybrid')
 # The PQC key is automatically extracted from the CSR
 qpki cert issue --ca-dir ./myca --profile hybrid/catalyst/tls-server \
-  --csr hybrid.csr --out server.crt
+  --csr hybrid.csr --out server.pem
 ```
 
 > **Hybrid certificates:** When using a hybrid CSR (created with `csr gen --hybrid`), the PQC public key is automatically extracted from the CSR's `SubjectAltPublicKeyInfo` attribute. No additional flag is needed — the profile determines the certificate mode (Catalyst or Composite). See [Hybrid Migration](../migration/HYBRID.md) for details.
@@ -128,11 +128,11 @@ qpki inspect <file> [flags]
 
 ```bash
 # Show certificate details
-qpki inspect certificate.crt
+qpki inspect certificate.pem
 
 qpki inspect private.key
 
-qpki inspect ./myca/ca.crt
+qpki inspect ./myca/versions/v1/certs/ca.ecdsa-p256.pem
 ```
 
 ### cert verify
@@ -161,11 +161,11 @@ qpki cert verify <certificate> [flags]
 
 ```bash
 # Basic validation
-qpki cert verify server.crt --ca ca.crt
+qpki cert verify server.pem --ca ca.pem
 
-qpki cert verify server.crt --ca ca.crt --crl ca/crl/ca.crl
+qpki cert verify server.pem --ca ca.pem --crl ca/crl/ca.crl
 
-qpki cert verify server.crt --ca ca.crt --ocsp http://localhost:8080
+qpki cert verify server.pem --ca ca.pem --ocsp http://localhost:8080
 ```
 
 **Exit codes:**

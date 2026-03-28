@@ -276,15 +276,15 @@ func TestU_CA_MockStore_Paths(t *testing.T) {
 		t.Errorf("Unexpected BasePath: %s", store.BasePath())
 	}
 
-	if store.CACertPath() != "/test/ca/ca.crt" {
+	if store.CACertPath() != "/test/ca/cert.pem" {
 		t.Errorf("Unexpected CACertPath: %s", store.CACertPath())
 	}
 
-	if store.CAKeyPath() != "/test/ca/private/ca.key" {
+	if store.CAKeyPath() != "/test/ca/key.pem" {
 		t.Errorf("Unexpected CAKeyPath: %s", store.CAKeyPath())
 	}
 
-	if store.CertPath([]byte{0x01}) != "/test/ca/certs/01.crt" {
+	if store.CertPath([]byte{0x01}) != "/test/ca/issued/01.pem" {
 		t.Errorf("Unexpected CertPath: %s", store.CertPath([]byte{0x01}))
 	}
 }

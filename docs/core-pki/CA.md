@@ -26,11 +26,10 @@ A **Certificate Authority (CA)** is the trust anchor that signs certificates. QP
 ca/
 ├── ca.meta.json           # CA metadata (versions, keys, status)
 ├── index.txt              # OpenSSL-compatible certificate index
-├── serial                 # Current serial number (hex)
 ├── crlnumber              # Current CRL number
-├── certs/                 # Issued certificates
-│   ├── 02.crt
-│   └── 03.crt
+├── issued/                # Issued certificates
+│   ├── 02.pem
+│   └── 03.pem
 ├── crl/                   # Certificate Revocation Lists
 │   ├── ca.crl             # PEM format
 │   └── ca.crl.der         # DER format
@@ -192,11 +191,11 @@ qpki ca export [flags]
 
 ```bash
 # Export CA certificate
-qpki ca export --ca-dir ./myca --out ca.crt
+qpki ca export --ca-dir ./myca --out ca.pem
 
 qpki ca export --ca-dir ./issuing-ca --bundle chain --out chain.pem
 
-qpki ca export --ca-dir ./issuing-ca --bundle root --out root.crt
+qpki ca export --ca-dir ./issuing-ca --bundle root --out root.pem
 ```
 
 ### ca list
@@ -322,14 +321,14 @@ qpki credential enroll --ca-dir ./issuing-ca --cred-dir ./issuing-ca/credentials
   --var cn=www.example.com \
   --var dns_names=www.example.com,example.com
 
-openssl verify -CAfile ./root-ca/ca.crt ./issuing-ca/ca.crt
+openssl verify -CAfile ./root-ca/versions/v1/certs/ca.ecdsa-p384.pem ./issuing-ca/versions/v1/certs/ca.ecdsa-p256.pem
 ```
 
 The `--parent` flag automatically:
 - Generates a new key for the subordinate CA
 - Issues a CA certificate signed by the parent
 - Creates the full CA directory structure
-- Generates `chain.crt` with the certificate chain
+- Generates `chain.pem` with the certificate chain
 
 ### 3.2 CA Rotation (Crypto Migration)
 

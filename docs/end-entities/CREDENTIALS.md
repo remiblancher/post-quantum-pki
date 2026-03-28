@@ -451,7 +451,7 @@ qpki credential enroll --profile ec/tls-server \
     --var dns_names=server.example.com,www.example.com
 
 # 2. Export certificate and key for deployment
-qpki credential export <id> --out /etc/ssl/server.crt
+qpki credential export <id> --out /etc/ssl/server.pem
 # For the private key, copy from the versioned directory:
 cp ./credentials/<id>/versions/v1/keys/credential.ecdsa-p384.key /etc/ssl/server.key
 
@@ -479,8 +479,8 @@ qpki credential enroll client-b --ca-dir ./mtls-ca --cred-dir ./mtls-ca/credenti
     --profile ec/tls-client \
     --var cn=client-b@example.com
 
-# ssl_certificate server.crt;
-# ssl_client_certificate mtls-ca/ca.crt;
+# ssl_certificate server.pem;
+# ssl_client_certificate mtls-ca/versions/v1/certs/ca.ecdsa-p384.pem;
 ```
 
 ### 3.3 Code Signing
@@ -503,7 +503,7 @@ openssl cms -sign -in binary.exe \
 
 # 3. Verify
 openssl cms -verify -in binary.exe.sig \
-    -content binary.exe -CAfile ./ca/ca.crt
+    -content binary.exe -CAfile ./ca/versions/v1/certs/ca.ecdsa-p384.pem
 ```
 
 ### 3.4 Certificate Rotation
@@ -551,7 +551,7 @@ qpki cms sign --data doc.pdf --credential signer --out doc.p7s
 
 qpki tsa sign --data doc.pdf --credential tsa --out doc.tsr
 
-qpki ocsp sign --serial 0A1B2C --status good --ca ca.crt \
+qpki ocsp sign --serial 0A1B2C --status good --ca ca.pem \
     --credential ocsp-responder --out response.ocsp
 ```
 
