@@ -3,6 +3,7 @@ package ca
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -103,13 +104,6 @@ func (s *FileStore) Init(ctx context.Context) error {
 	default:
 	}
 
-	// Initialize serial file if it doesn't exist
-	serialPath := filepath.Join(s.basePath, "serial")
-	if _, err := os.Stat(serialPath); os.IsNotExist(err) {
-		if err := os.WriteFile(serialPath, []byte("01\n"), 0644); err != nil {
-			return fmt.Errorf("failed to create serial file: %w", err)
-		}
-	}
 
 	// Initialize index file if it doesn't exist
 	indexPath := filepath.Join(s.basePath, "index.txt")
@@ -355,59 +349,23 @@ func (s *FileStore) LoadCert(ctx context.Context, serial []byte) (*x509.Certific
 	return s.loadCert(s.CertPath(serial))
 }
 
-// NextSerial returns the next serial number and increments the counter.
+// NextSerial generates a cryptographically random 20-byte serial number.
+// The high bit is cleared to ensure the serial is a positive ASN.1 INTEGER,
+// yielding 159 bits of entropy. This complies with RFC 5280 §4.1.2.2 and
+// CA/Browser Forum Baseline Requirements (minimum 64 bits of entropy).
 func (s *FileStore) NextSerial(ctx context.Context) ([]byte, error) {
-	// Check for cancellation before I/O
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
 
-	serialPath := filepath.Join(s.basePath, "serial")
-
-	data, err := os.ReadFile(serialPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read serial file: %w", err)
+	serial := make([]byte, 20)
+	if _, err := rand.Read(serial); err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
-
-	// Parse hex serial
-	serialHex := strings.TrimSpace(string(data))
-	serial, err := hex.DecodeString(serialHex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse serial: %w", err)
-	}
-
-	// Check for cancellation before write
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
-	// Increment for next use
-	next := incrementSerial(serial)
-	if err := os.WriteFile(serialPath, []byte(hex.EncodeToString(next)+"\n"), 0644); err != nil {
-		return nil, fmt.Errorf("failed to update serial file: %w", err)
-	}
-
+	serial[0] &= 0x7F // force positive ASN.1 INTEGER
 	return serial, nil
-}
-
-// incrementSerial increments a big-endian byte slice by 1.
-func incrementSerial(serial []byte) []byte {
-	result := make([]byte, len(serial))
-	copy(result, serial)
-
-	for i := len(result) - 1; i >= 0; i-- {
-		result[i]++
-		if result[i] != 0 {
-			return result
-		}
-	}
-
-	// Overflow - prepend a byte
-	return append([]byte{1}, result...)
 }
 
 // saveCert saves a certificate to a PEM file.

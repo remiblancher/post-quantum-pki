@@ -224,6 +224,22 @@ func getCACertPath(t *testing.T, caDir string) string {
 	return info.CertPath(info.Active, activeVer.Algos[0])
 }
 
+// getIssuedCertSerial returns the hex serial of the first issued cert
+// found in the CA's certs directory (caDir/certs/*.crt).
+func getIssuedCertSerial(t *testing.T, caDir string) string {
+	t.Helper()
+	matches, err := filepath.Glob(filepath.Join(caDir, "certs", "*.crt"))
+	if err != nil {
+		t.Fatalf("failed to glob certs: %v", err)
+	}
+	for _, m := range matches {
+		name := filepath.Base(m)
+		return name[:len(name)-4] // strip .crt → hex serial
+	}
+	t.Fatalf("no issued certificate found in %s/certs/", caDir)
+	return ""
+}
+
 // =============================================================================
 // Assertion Helpers
 // =============================================================================

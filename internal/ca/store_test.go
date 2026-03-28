@@ -50,7 +50,6 @@ func TestU_Store_Init(t *testing.T) {
 
 	// Check files exist
 	files := []string{
-		filepath.Join(tmpDir, "serial"),
 		filepath.Join(tmpDir, "index.txt"),
 	}
 	for _, f := range files {
@@ -73,45 +72,23 @@ func TestU_Store_NextSerial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NextSerial() error = %v", err)
 	}
-	if len(serial1) != 1 || serial1[0] != 0x01 {
-		t.Errorf("first serial = %x, want 01", serial1)
+	if len(serial1) != 20 {
+		t.Errorf("serial length = %d, want 20", len(serial1))
+	}
+	if serial1[0]&0x80 != 0 {
+		t.Errorf("serial high bit set, should be cleared for positive ASN.1 INTEGER")
 	}
 
-	// Get second serial
+	// Get second serial — must be different (random)
 	serial2, err := store.NextSerial(context.Background())
 	if err != nil {
 		t.Fatalf("NextSerial() error = %v", err)
 	}
-	if len(serial2) != 1 || serial2[0] != 0x02 {
-		t.Errorf("second serial = %x, want 02", serial2)
+	if len(serial2) != 20 {
+		t.Errorf("serial length = %d, want 20", len(serial2))
 	}
-}
-
-func TestU_IncrementSerial(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  []byte
-		output []byte
-	}{
-		{"[Unit] Serial Increment: Simple", []byte{0x01}, []byte{0x02}},
-		{"[Unit] Serial Increment: Carry", []byte{0xFF}, []byte{0x01, 0x00}},
-		{"[Unit] Serial Increment: MultiByte", []byte{0x01, 0xFF}, []byte{0x02, 0x00}},
-		{"[Unit] Serial Increment: MultiCarry", []byte{0xFF, 0xFF}, []byte{0x01, 0x00, 0x00}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := incrementSerial(tt.input)
-			if len(result) != len(tt.output) {
-				t.Errorf("length = %d, want %d", len(result), len(tt.output))
-				return
-			}
-			for i := range result {
-				if result[i] != tt.output[i] {
-					t.Errorf("result[%d] = %x, want %x", i, result[i], tt.output[i])
-				}
-			}
-		})
+	if string(serial1) == string(serial2) {
+		t.Errorf("two consecutive serials should differ, both = %x", serial1)
 	}
 }
 
