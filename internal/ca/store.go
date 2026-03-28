@@ -103,7 +103,6 @@ func (s *FileStore) Init(ctx context.Context) error {
 	default:
 	}
 
-
 	// Initialize index file if it doesn't exist
 	indexPath := filepath.Join(s.basePath, "index.txt")
 	if _, err := os.Stat(indexPath); os.IsNotExist(err) {

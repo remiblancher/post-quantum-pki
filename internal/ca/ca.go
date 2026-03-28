@@ -17,10 +17,12 @@ type CA struct {
 	store       Store
 	cert        *x509.Certificate
 	signer      pkicrypto.Signer
-	keyProvider pkicrypto.KeyProvider      // Key manager for enrollment operations
-	keyConfig   pkicrypto.KeyStorageConfig // Key storage configuration for enrollment
-	info        *CAInfo                    // CA info (unified metadata + versioning)
-	keyRefs     []KeyRef                   // Key references (used during rotation for HSM keys)
+	signers     map[string]pkicrypto.Signer  // Per-algo-family signers (multi-profile CAs)
+	certs       map[string]*x509.Certificate // Per-algo-family certs (multi-profile CAs)
+	keyProvider pkicrypto.KeyProvider        // Key manager for enrollment operations
+	keyConfig   pkicrypto.KeyStorageConfig   // Key storage configuration for enrollment
+	info        *CAInfo                      // CA info (unified metadata + versioning)
+	keyRefs     []KeyRef                     // Key references (used during rotation for HSM keys)
 }
 
 // New loads an existing CA from the store.
@@ -200,6 +202,28 @@ func (ca *CA) Certificate() *x509.Certificate {
 // Returns nil if the signer hasn't been loaded yet.
 func (ca *CA) Signer() pkicrypto.Signer {
 	return ca.signer
+}
+
+// SignerForAlgo returns the signer for a specific algorithm family in a multi-profile CA.
+// Falls back to the default signer if no per-algo signer is available.
+func (ca *CA) SignerForAlgo(algoFamily string) pkicrypto.Signer {
+	if ca.signers != nil {
+		if s, ok := ca.signers[algoFamily]; ok {
+			return s
+		}
+	}
+	return ca.signer
+}
+
+// CertForAlgo returns the certificate for a specific algorithm family in a multi-profile CA.
+// Falls back to the default certificate if no per-algo cert is available.
+func (ca *CA) CertForAlgo(algoFamily string) *x509.Certificate {
+	if ca.certs != nil {
+		if c, ok := ca.certs[algoFamily]; ok {
+			return c
+		}
+	}
+	return ca.cert
 }
 
 // Store returns the CA store.

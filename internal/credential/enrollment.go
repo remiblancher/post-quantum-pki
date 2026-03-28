@@ -588,6 +588,7 @@ func issueSimpleCertFromProfile(caInstance *ca.CA, req EnrollmentRequest, prof *
 		Extensions:    prof.Extensions,
 		SubjectConfig: prof.Subject,
 		Validity:      prof.Validity,
+		AlgoFamily:    prof.GetAlgorithmFamily(),
 	})
 	if err != nil {
 		return nil, nil, pkicrypto.StorageRef{}, err

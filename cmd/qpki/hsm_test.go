@@ -89,6 +89,8 @@ func resetHSMFlags() {
 	hsmListConfigPath = ""
 	hsmConfigPath = ""
 	hsmInfoConfigPath = ""
+	hsmMechanismsConfigPath = ""
+	hsmMechanismsFilter = ""
 }
 
 // =============================================================================
@@ -200,4 +202,43 @@ func TestF_HSM_Info_ConfigInvalid(t *testing.T) {
 	)
 
 	assertError(t, err) // Invalid YAML
+}
+
+// =============================================================================
+// HSM Mechanisms Tests (Error Cases)
+// =============================================================================
+
+func TestF_HSM_Mechanisms_ConfigMissing(t *testing.T) {
+	resetHSMFlags()
+	hsmMechanismsConfigPath = ""
+	hsmMechanismsFilter = ""
+
+	_, err := executeCommand(rootCmd, "hsm", "mechanisms")
+	assertError(t, err)
+}
+
+func TestF_HSM_Mechanisms_ConfigNotFound(t *testing.T) {
+	tc := newTestContext(t)
+	resetHSMFlags()
+	hsmMechanismsConfigPath = ""
+	hsmMechanismsFilter = ""
+
+	_, err := executeCommand(rootCmd, "hsm", "mechanisms",
+		"--hsm-config", tc.path("nonexistent.yaml"),
+	)
+	assertError(t, err)
+}
+
+func TestF_HSM_Mechanisms_ConfigInvalid(t *testing.T) {
+	tc := newTestContext(t)
+	resetHSMFlags()
+	hsmMechanismsConfigPath = ""
+	hsmMechanismsFilter = ""
+
+	tc.writeFile("hsm-mech.yaml", "not valid yaml: [")
+
+	_, err := executeCommand(rootCmd, "hsm", "mechanisms",
+		"--hsm-config", tc.path("hsm-mech.yaml"),
+	)
+	assertError(t, err)
 }
