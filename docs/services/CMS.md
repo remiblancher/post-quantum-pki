@@ -67,13 +67,13 @@ qpki cms sign --data <file> --cert <cert> --key <key> --out <output> [flags]
 # Sign with credential (recommended)
 qpki cms sign --data document.pdf --credential signer --out document.p7s
 
-qpki cms sign --data document.pdf --cert signer.crt --key signer.key --out document.p7s
+qpki cms sign --data document.pdf --cert signer.pem --key signer.key --out document.p7s
 
-qpki cms sign --data document.pdf --cert signer.crt --key signer.key --detached=false --out document.p7s
+qpki cms sign --data document.pdf --cert signer.pem --key signer.key --detached=false --out document.p7s
 
-qpki cms sign --data document.pdf --cert signer.crt --key signer.key --hash sha512 --out document.p7s
+qpki cms sign --data document.pdf --cert signer.pem --key signer.key --hash sha512 --out document.p7s
 
-qpki cms sign --data document.pdf --cert signer.crt \
+qpki cms sign --data document.pdf --cert signer.pem \
     --hsm-config ./hsm.yaml --key-label "signing-key" --out document.p7s
 ```
 
@@ -96,9 +96,9 @@ qpki cms verify <signature-file> [flags]
 
 ```bash
 # Verify detached signature
-qpki cms verify document.p7s --data document.pdf --ca ca.crt
+qpki cms verify document.p7s --data document.pdf --ca ca.pem
 
-qpki cms verify document.p7s --ca ca.crt
+qpki cms verify document.p7s --ca ca.pem
 
 qpki cms verify document.p7s --data document.pdf
 ```
@@ -129,11 +129,11 @@ qpki cms encrypt --recipient <cert> --in <file> --out <file> [flags]
 
 ```bash
 # Encrypt for a single recipient
-qpki cms encrypt --recipient bob.crt --in secret.txt --out secret.p7m
+qpki cms encrypt --recipient bob.pem --in secret.txt --out secret.p7m
 
-qpki cms encrypt --recipient alice.crt --recipient bob.crt --in data.txt --out data.p7m
+qpki cms encrypt --recipient alice.pem --recipient bob.pem --in data.txt --out data.p7m
 
-qpki cms encrypt --recipient bob.crt --in data.txt --out data.p7m --content-enc aes-256-cbc
+qpki cms encrypt --recipient bob.pem --in data.txt --out data.p7m --content-enc aes-256-cbc
 ```
 
 ### cms decrypt
@@ -166,7 +166,7 @@ qpki cms decrypt --key bob.key --in secret.p7m --out secret.txt
 
 qpki cms decrypt --key bob.key --passphrase "secret" --in data.p7m --out data.txt
 
-qpki cms decrypt --key bob.key --cert bob.crt --in data.p7m --out data.txt
+qpki cms decrypt --key bob.key --cert bob.pem --in data.p7m --out data.txt
 ```
 
 > **Note:** When using `--credential`, QPKI searches **all versions** of the credential for a matching decryption key. This is essential after key rotation: data encrypted with an old key (before rotation) can still be decrypted.
@@ -230,9 +230,9 @@ qpki key gen --algorithm ecdsa-p256 --out signer.key
 
 qpki csr gen --key signer.key --cn "Document Signer" --out signer.csr
 
-qpki cert issue --ca-dir ./ca --profile ec/signing --csr signer.csr --out signer.crt
+qpki cert issue --ca-dir ./ca --profile ec/signing --csr signer.csr --out signer.pem
 
-qpki cms sign --data doc.pdf --cert signer.crt --key signer.key --out doc.p7s
+qpki cms sign --data doc.pdf --cert signer.pem --key signer.key --out doc.p7s
 ```
 
 ---
@@ -263,9 +263,9 @@ qpki key gen --algorithm ecdsa-p384 --out recipient.key
 
 qpki csr gen --key recipient.key --cn "Recipient" --out recipient.csr
 
-qpki cert issue --ca-dir ./ca --profile ec/encryption --csr recipient.csr --out recipient.crt
+qpki cert issue --ca-dir ./ca --profile ec/encryption --csr recipient.csr --out recipient.pem
 
-qpki cms encrypt --recipient recipient.crt --in secret.txt --out secret.p7m
+qpki cms encrypt --recipient recipient.pem --in secret.txt --out secret.p7m
 ```
 
 ---
@@ -318,9 +318,9 @@ selected based on the ML-DSA security level if not explicitly specified:
 
 ```bash
 # Sign with ML-DSA (see Section 3 for certificate creation)
-qpki cms sign --data doc.pdf --cert signer.crt --key signer.key --out doc.p7s
+qpki cms sign --data doc.pdf --cert signer.pem --key signer.key --out doc.p7s
 
-qpki cms sign --data doc.pdf --cert signer.crt --key signer.key --hash sha256 --out doc.p7s
+qpki cms sign --data doc.pdf --cert signer.pem --key signer.key --hash sha256 --out doc.p7s
 ```
 
 #### Verification Warnings
@@ -330,7 +330,7 @@ security level and issues warnings for suboptimal combinations:
 
 ```bash
 # Verify a signature - warning shown if digest doesn't match ML-DSA level
-qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
+qpki cms verify doc.p7s --data doc.pdf --ca ca.pem
 
 # WARNING: ML-DSA-87 signature uses SHA-256 (RFC 9882 recommends SHA-512 for NIST Level 5)
 ```
@@ -368,9 +368,9 @@ Both Ed25519 and Ed448 operate in "pure" mode per RFC 8419:
 
 ```bash
 # Sign with Ed448 (see Section 3 for certificate creation)
-qpki cms sign --data doc.pdf --cert signer.crt --key signer.key --out doc.p7s
+qpki cms sign --data doc.pdf --cert signer.pem --key signer.key --out doc.p7s
 
-qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
+qpki cms verify doc.p7s --data doc.pdf --ca ca.pem
 ```
 
 #### Ed25519 vs Ed448
@@ -427,9 +427,9 @@ All SLH-DSA variants operate in "pure" mode:
 
 ```bash
 # Sign with SLH-DSA (see Section 3 for certificate creation)
-qpki cms sign --data doc.pdf --cert signer.crt --key signer.key --out doc.p7s
+qpki cms sign --data doc.pdf --cert signer.pem --key signer.key --out doc.p7s
 
-qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
+qpki cms verify doc.p7s --data doc.pdf --ca ca.pem
 ```
 
 #### SHA2 vs SHAKE Variants
@@ -447,11 +447,11 @@ qpki cms verify doc.p7s --data doc.pdf --ca ca.crt
 
 ```bash
 # Verify a CMS signature (classical algorithms only)
-openssl cms -verify -in signature.p7s -content document.pdf -CAfile ca.crt
+openssl cms -verify -in signature.p7s -content document.pdf -CAfile ca.pem
 
 openssl cms -decrypt -in encrypted.p7m -inkey recipient.key -out decrypted.txt
 
-openssl cms -sign -in document.pdf -signer signer.crt -inkey signer.key -out signature.p7s
+openssl cms -sign -in document.pdf -signer signer.pem -inkey signer.key -out signature.p7s
 ```
 
 > **Note:** OpenSSL 3.6+ supports ML-KEM for CMS encryption/decryption (RFC 9629). For ML-DSA and SLH-DSA signatures, use `qpki cms` commands.
@@ -464,16 +464,16 @@ openssl cms -sign -in document.pdf -signer signer.crt -inkey signer.key -out sig
 
 ```bash
 # Sign a contract
-qpki cms sign --data contract.pdf --cert signer.crt --key signer.key --out contract.p7s
+qpki cms sign --data contract.pdf --cert signer.pem --key signer.key --out contract.p7s
 
-qpki cms verify contract.p7s --data contract.pdf --ca ca.crt
+qpki cms verify contract.p7s --data contract.pdf --ca ca.pem
 ```
 
 ### Secure Email (S/MIME)
 
 ```bash
 # Encrypt for recipient
-qpki cms encrypt --recipient alice@example.com.crt --in message.txt --out message.p7m
+qpki cms encrypt --recipient alice@example.com.pem --in message.txt --out message.p7m
 
 qpki cms decrypt --key alice.key --in message.p7m --out message.txt
 ```
@@ -482,7 +482,7 @@ qpki cms decrypt --key alice.key --in message.p7m --out message.txt
 
 ```bash
 # Encrypt with ML-KEM (quantum-resistant)
-qpki cms encrypt --recipient bob-mlkem.crt --in sensitive.doc --out sensitive.p7m
+qpki cms encrypt --recipient bob-mlkem.pem --in sensitive.doc --out sensitive.p7m
 ```
 
 ---
@@ -518,8 +518,8 @@ qpki credential enroll --ca-dir /path/to/pqc-ca --profile ml/encryption \
     --var cn="Alice (PQC)"
 
 qpki cms encrypt \
-    --recipient alice-ec.crt \
-    --recipient alice-mlkem.crt \
+    --recipient alice-ec.pem \
+    --recipient alice-mlkem.pem \
     --in secret.txt --out secret.p7m
 
 qpki cms decrypt --key alice-ec.key --in secret.p7m --out decrypted.txt
@@ -548,7 +548,7 @@ CMS operations support HSM-stored keys for both signing and decryption.
 ```bash
 export HSM_PIN="****"
 
-qpki cms sign --data document.pdf --cert signer.crt \
+qpki cms sign --data document.pdf --cert signer.pem \
   --hsm-config ./hsm.yaml --key-label "signing-key" --out document.p7s
 ```
 

@@ -263,7 +263,7 @@ vim ./my-custom.yaml
 qpki credential enroll --profile ./my-custom.yaml \
     --var cn=server.example.com --var dns_names=server.example.com --ca-dir ./ca
 
-qpki cert issue --profile ./my-custom.yaml --csr server.csr --out server.crt --ca-dir ./ca
+qpki cert issue --profile ./my-custom.yaml --csr server.csr --out server.pem --ca-dir ./ca
 ```
 
 ### Profile Loading Priority
@@ -1473,7 +1473,7 @@ qpki credential enroll --profile ml/tls-server \
 qpki csr gen --algorithm ecdsa-p256 --keyout server.key \
     --cn server.example.com --dns server.example.com --out server.csr
 
-qpki cert issue --profile ec/tls-server --csr server.csr --out server.crt --ca-dir ./ca
+qpki cert issue --profile ec/tls-server --csr server.csr --out server.pem --ca-dir ./ca
 ```
 
 ### Recommended Profiles by Use Case

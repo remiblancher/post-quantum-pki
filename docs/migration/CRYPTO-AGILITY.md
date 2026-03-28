@@ -46,18 +46,21 @@ CA rotation creates a new version of the CA with different algorithms while main
 ```bash
 # CA versioning after rotations:
 ca/
-├── ca.crt           # Symlink to active version
-├── ca.key           # Symlink to active version
+├── ca.meta.json     # CA metadata (versions, keys, status)
 └── versions/
     ├── v1/          # Original (EC P-384)
-    │   ├── ca.crt
-    │   └── ca.key
+    │   ├── keys/ca.ecdsa-p384.key
+    │   └── certs/ca.ecdsa-p384.pem
     ├── v2/          # After first rotation (Catalyst)
-    │   ├── ca.crt
-    │   └── ca.key
+    │   ├── keys/
+    │   │   ├── ca.ecdsa-p384.key
+    │   │   └── ca.ml-dsa-87.key
+    │   └── certs/
+    │       ├── ca.ecdsa-p384.pem
+    │       └── ca.ml-dsa-87.pem
     └── v3/          # After second rotation (ML-DSA)
-        ├── ca.crt
-        └── ca.key
+        ├── keys/ca.ml-dsa-87.key
+        └── certs/ca.ml-dsa-87.pem
 ```
 
 ### 2.2 ca rotate
@@ -163,8 +166,8 @@ Cross-signing creates a certificate chain between old and new CA versions, enabl
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                      New CA v2 (Catalyst)                 │   │
 │  ├──────────────────────────────────────────────────────────┤   │
-│  │  versions/v2/ca.crt              (self-signed)            │   │
-│  │  versions/v2/ca_crosssigned_by_v1.crt  (cross-signed)     │   │
+│  │  versions/v2/certs/ca.{algo}.pem          (self-signed)    │   │
+│  │  versions/v2/certs/ca_crosssigned_by_v1.pem  (cross-signed)│   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
@@ -174,11 +177,11 @@ When using `--cross-sign`, the rotation generates **two certificates**:
 
 | File | Description |
 |------|-------------|
-| `versions/<new>/ca.crt` | Self-signed certificate (new CA signs itself) |
-| `versions/<new>/ca_crosssigned_by_<old>.crt` | Cross-signed certificate (old CA signs new CA's public key) |
+| `versions/<new>/certs/ca.{algo}.pem` | Self-signed certificate (new CA signs itself) |
+| `versions/<new>/certs/ca_crosssigned_by_<old>.pem` | Cross-signed certificate (old CA signs new CA's public key) |
 
 This allows:
-- **New clients**: trust the new CA directly via `ca.crt`
+- **New clients**: trust the new CA directly via its versioned certificate
 - **Existing clients**: trust the new CA via the cross-signed certificate chain
 
 **Usage:**
@@ -352,7 +355,7 @@ qpki ca versions --ca-dir ./ca
 
 qpki credential versions <cred-id>
 
-qpki cert verify server.crt --ca ./ca/ca.crt
+qpki cert verify server.pem --ca ./ca/versions/v1/certs/ca.ecdsa-p384.pem
 ```
 
 ### 5.4 Rollback

@@ -45,10 +45,10 @@ func TestF_Cert_Revoke_Certificate(t *testing.T) {
 
 	resetRevokeFlags()
 
-	// Certificate serial is always "02" (CA is 01, first issued cert is 02)
+	serial := getIssuedCertSerial(t, caDir)
 	_, err = executeCommand(rootCmd, "cert", "revoke",
 		"--ca-dir", caDir,
-		"02",
+		serial,
 	)
 	assertNoError(t, err)
 }
@@ -81,11 +81,11 @@ func TestF_Cert_Revoke_WithReason(t *testing.T) {
 
 	resetRevokeFlags()
 
-	// Revoke with specific reason (serial 02 is the first issued cert)
+	serial := getIssuedCertSerial(t, caDir)
 	_, err = executeCommand(rootCmd, "cert", "revoke",
 		"--ca-dir", caDir,
 		"--reason", "superseded",
-		"02",
+		serial,
 	)
 	assertNoError(t, err)
 }
@@ -118,11 +118,11 @@ func TestF_Cert_Revoke_WithCRLGeneration(t *testing.T) {
 
 	resetRevokeFlags()
 
-	// Revoke with CRL generation (serial 02 is the first issued cert)
+	serial := getIssuedCertSerial(t, caDir)
 	_, err = executeCommand(rootCmd, "cert", "revoke",
 		"--ca-dir", caDir,
 		"--gen-crl",
-		"02",
+		serial,
 	)
 	assertNoError(t, err)
 }

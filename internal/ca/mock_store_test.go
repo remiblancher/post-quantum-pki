@@ -2,6 +2,7 @@ package ca
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
@@ -295,22 +296,22 @@ func (m *MockStore) LoadCert(ctx context.Context, serial []byte) (*x509.Certific
 // CACertPath returns a mock CA certificate path.
 func (m *MockStore) CACertPath() string {
 	m.recordCall("CACertPath")
-	return m.BasePath_ + "/ca.crt"
+	return m.BasePath_ + "/cert.pem"
 }
 
 // CAKeyPath returns a mock CA key path.
 func (m *MockStore) CAKeyPath() string {
 	m.recordCall("CAKeyPath")
-	return m.BasePath_ + "/private/ca.key"
+	return m.BasePath_ + "/key.pem"
 }
 
 // CertPath returns a mock certificate path for a serial.
 func (m *MockStore) CertPath(serial []byte) string {
 	m.recordCall("CertPath", serial)
-	return m.BasePath_ + "/certs/" + hex.EncodeToString(serial) + ".crt"
+	return m.BasePath_ + "/issued/" + hex.EncodeToString(serial) + ".pem"
 }
 
-// NextSerial returns the next serial number.
+// NextSerial generates a random 20-byte serial number.
 func (m *MockStore) NextSerial(ctx context.Context) ([]byte, error) {
 	select {
 	case <-ctx.Done():
@@ -327,13 +328,12 @@ func (m *MockStore) NextSerial(ctx context.Context) ([]byte, error) {
 		return nil, m.NextSerialErr
 	}
 
-	current := make([]byte, len(m.Serial))
-	copy(current, m.Serial)
-
-	// Increment serial for next call
-	m.Serial = incrementSerial(m.Serial)
-
-	return current, nil
+	serial := make([]byte, 20)
+	if _, err := rand.Read(serial); err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
+	}
+	serial[0] &= 0x7F
+	return serial, nil
 }
 
 // ReadIndex reads all index entries.
@@ -411,7 +411,7 @@ func (m *MockStore) NextCRLNumber(ctx context.Context) ([]byte, error) {
 	copy(current, m.CRLNumber)
 
 	// Increment for next call
-	m.CRLNumber = incrementSerial(m.CRLNumber)
+	m.CRLNumber = incrementBytes(m.CRLNumber)
 
 	return current, nil
 }

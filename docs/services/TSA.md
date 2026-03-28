@@ -63,7 +63,7 @@ Sign a file with a timestamp.
 # Sign with credential (recommended)
 qpki tsa sign --data document.pdf --credential tsa --out token.tsr
 
-qpki tsa sign --data document.pdf --cert tsa.crt --key tsa.key --out token.tsr
+qpki tsa sign --data document.pdf --cert tsa.pem --key tsa.key --out token.tsr
 
 #   --credential <id>             Credential ID (alternative to --cert/--key)
 #   --hash sha256|sha384|sha512   Hash algorithm (default: sha256)
@@ -75,9 +75,9 @@ qpki tsa sign --data document.pdf --cert tsa.crt --key tsa.key --out token.tsr
 Verify a timestamp token.
 
 ```bash
-qpki tsa verify --token token.tsr --data document.pdf --ca ca.crt
+qpki tsa verify --token token.tsr --data document.pdf --ca ca.pem
 
-qpki tsa verify --token token.tsr --ca ca.crt
+qpki tsa verify --token token.tsr --ca ca.pem
 ```
 
 ### inspect
@@ -156,13 +156,13 @@ Start an HTTP TSA server.
 # Start the server with credential (recommended)
 qpki tsa serve --port 8318 --credential tsa
 
-qpki tsa serve --port 8318 --cert tsa.crt --key tsa.key
+qpki tsa serve --port 8318 --cert tsa.pem --key tsa.key
 
-qpki tsa serve --port 8318 --cert tsa.crt --key tsa.key --pid-file /var/run/tsa.pid
+qpki tsa serve --port 8318 --cert tsa.pem --key tsa.key --pid-file /var/run/tsa.pid
 
 #   --credential <id>             Credential ID (alternative to --cert/--key)
 #   --policy "1.3.6.1.4.1.X.Y.Z"  TSA policy OID
-#   --tls-cert server.crt          TLS certificate (HTTPS)
+#   --tls-cert server.pem          TLS certificate (HTTPS)
 #   --pid-file /path/to/file.pid   PID file path
 ```
 
@@ -232,7 +232,7 @@ qpki credential enroll hybrid-tsa --ca-dir ./ca --cred-dir ./credentials \
     --profile hybrid/catalyst/timestamping --var cn=hybrid-tsa.example.com
 
 qpki tsa serve --port 8318 \
-    --cert ./credentials/tsa/tsa.crt --key ./credentials/tsa/tsa.key
+    --cert ./credentials/tsa/tsa.pem --key ./credentials/tsa/tsa.key
 ```
 
 ### Option B: CSR-based
@@ -243,9 +243,9 @@ qpki key gen --algo ecdsa-p256 --out tsa.key
 
 qpki csr create --key tsa.key --cn tsa.example.com --out tsa.csr
 
-qpki cert issue --ca-dir ./ca --profile ec/timestamping --csr tsa.csr --out tsa.crt
+qpki cert issue --ca-dir ./ca --profile ec/timestamping --csr tsa.csr --out tsa.pem
 
-qpki tsa serve --port 8318 --cert tsa.crt --key tsa.key
+qpki tsa serve --port 8318 --cert tsa.pem --key tsa.key
 ```
 
 ### Server Mode with Credentials
@@ -281,7 +281,7 @@ curl -H "Content-Type: application/timestamp-query" \
      --data-binary @request.tsq \
      http://localhost:8318/ -o response.tsr
 
-openssl ts -verify -in response.tsr -data document.pdf -CAfile ca.crt
+openssl ts -verify -in response.tsr -data document.pdf -CAfile ca.pem
 ```
 
 > **Note:** OpenSSL does not support ML-DSA/SLH-DSA. Use `qpki tsa verify` for PQC tokens.
@@ -297,7 +297,7 @@ openssl ts -verify -in response.tsr -data document.pdf -CAfile ca.crt
 codesign --sign "Developer ID" myapp.app
 
 qpki tsa sign --data myapp.app/Contents/_CodeSignature/CodeResources \
-    --cert tsa.crt --key tsa.key --out myapp.tsr
+    --cert tsa.pem --key tsa.key --out myapp.tsr
 ```
 
 ### Legal Archiving
@@ -308,7 +308,7 @@ qpki credential enroll archive-tsa --profile slh/timestamping \
     --var cn=archive-tsa.example.com
 
 for doc in *.pdf; do
-    qpki tsa sign --data "$doc" --cert archive-tsa.crt --key archive-tsa.key \
+    qpki tsa sign --data "$doc" --cert archive-tsa.pem --key archive-tsa.key \
         --out "${doc%.pdf}.tsr"
 done
 ```
@@ -370,7 +370,7 @@ The `eidas/qc-tsa` profile includes:
 ```bash
 # Start qualified TSA server
 qpki tsa serve --port 8318 \
-    --cert qualified-tsa.crt \
+    --cert qualified-tsa.pem \
     --key qualified-tsa.key \
     --policy "0.4.0.2042.1.3"
 
@@ -403,11 +403,11 @@ TSA signing operations support HSM-stored keys.
 export HSM_PIN="****"
 
 # Sign timestamp with HSM key
-qpki tsa sign --data document.pdf --cert tsa.crt \
+qpki tsa sign --data document.pdf --cert tsa.pem \
   --hsm-config ./hsm.yaml --key-label "tsa-key" --out token.tsr
 
 # Start TSA server with HSM key
-qpki tsa serve --port 8318 --cert tsa.crt \
+qpki tsa serve --port 8318 --cert tsa.pem \
   --hsm-config ./hsm.yaml --key-label "tsa-key"
 ```
 

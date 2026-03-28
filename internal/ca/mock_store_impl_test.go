@@ -167,24 +167,24 @@ func TestU_CA_MockStore_LoadCertNotFound(t *testing.T) {
 
 func TestU_CA_MockStore_NextSerial(t *testing.T) {
 	store := NewMockStore()
-	store.Serial = []byte{0x10}
 
 	serial1, err := store.NextSerial(context.Background())
 	if err != nil {
 		t.Fatalf("NextSerial failed: %v", err)
 	}
-
-	if serial1[0] != 0x10 {
-		t.Errorf("Expected 0x10, got 0x%x", serial1[0])
+	if len(serial1) != 20 {
+		t.Errorf("serial length = %d, want 20", len(serial1))
+	}
+	if serial1[0]&0x80 != 0 {
+		t.Errorf("serial high bit set, should be cleared for positive ASN.1 INTEGER")
 	}
 
 	serial2, err := store.NextSerial(context.Background())
 	if err != nil {
 		t.Fatalf("NextSerial failed: %v", err)
 	}
-
-	if serial2[0] != 0x11 {
-		t.Errorf("Expected 0x11, got 0x%x", serial2[0])
+	if string(serial1) == string(serial2) {
+		t.Errorf("two consecutive serials should differ")
 	}
 }
 
@@ -276,15 +276,15 @@ func TestU_CA_MockStore_Paths(t *testing.T) {
 		t.Errorf("Unexpected BasePath: %s", store.BasePath())
 	}
 
-	if store.CACertPath() != "/test/ca/ca.crt" {
+	if store.CACertPath() != "/test/ca/cert.pem" {
 		t.Errorf("Unexpected CACertPath: %s", store.CACertPath())
 	}
 
-	if store.CAKeyPath() != "/test/ca/private/ca.key" {
+	if store.CAKeyPath() != "/test/ca/key.pem" {
 		t.Errorf("Unexpected CAKeyPath: %s", store.CAKeyPath())
 	}
 
-	if store.CertPath([]byte{0x01}) != "/test/ca/certs/01.crt" {
+	if store.CertPath([]byte{0x01}) != "/test/ca/issued/01.pem" {
 		t.Errorf("Unexpected CertPath: %s", store.CertPath([]byte{0x01}))
 	}
 }

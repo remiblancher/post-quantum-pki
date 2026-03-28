@@ -38,9 +38,8 @@ func TestU_Store_Init(t *testing.T) {
 	// Check directories exist
 	dirs := []string{
 		tmpDir,
-		filepath.Join(tmpDir, "certs"),
+		filepath.Join(tmpDir, "issued"),
 		filepath.Join(tmpDir, "crl"),
-		filepath.Join(tmpDir, "private"),
 	}
 	for _, dir := range dirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -50,7 +49,6 @@ func TestU_Store_Init(t *testing.T) {
 
 	// Check files exist
 	files := []string{
-		filepath.Join(tmpDir, "serial"),
 		filepath.Join(tmpDir, "index.txt"),
 	}
 	for _, f := range files {
@@ -73,45 +71,23 @@ func TestU_Store_NextSerial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NextSerial() error = %v", err)
 	}
-	if len(serial1) != 1 || serial1[0] != 0x01 {
-		t.Errorf("first serial = %x, want 01", serial1)
+	if len(serial1) != 20 {
+		t.Errorf("serial length = %d, want 20", len(serial1))
+	}
+	if serial1[0]&0x80 != 0 {
+		t.Errorf("serial high bit set, should be cleared for positive ASN.1 INTEGER")
 	}
 
-	// Get second serial
+	// Get second serial — must be different (random)
 	serial2, err := store.NextSerial(context.Background())
 	if err != nil {
 		t.Fatalf("NextSerial() error = %v", err)
 	}
-	if len(serial2) != 1 || serial2[0] != 0x02 {
-		t.Errorf("second serial = %x, want 02", serial2)
+	if len(serial2) != 20 {
+		t.Errorf("serial length = %d, want 20", len(serial2))
 	}
-}
-
-func TestU_IncrementSerial(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  []byte
-		output []byte
-	}{
-		{"[Unit] Serial Increment: Simple", []byte{0x01}, []byte{0x02}},
-		{"[Unit] Serial Increment: Carry", []byte{0xFF}, []byte{0x01, 0x00}},
-		{"[Unit] Serial Increment: MultiByte", []byte{0x01, 0xFF}, []byte{0x02, 0x00}},
-		{"[Unit] Serial Increment: MultiCarry", []byte{0xFF, 0xFF}, []byte{0x01, 0x00, 0x00}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := incrementSerial(tt.input)
-			if len(result) != len(tt.output) {
-				t.Errorf("length = %d, want %d", len(result), len(tt.output))
-				return
-			}
-			for i := range result {
-				if result[i] != tt.output[i] {
-					t.Errorf("result[%d] = %x, want %x", i, result[i], tt.output[i])
-				}
-			}
-		})
+	if string(serial1) == string(serial2) {
+		t.Errorf("two consecutive serials should differ, both = %x", serial1)
 	}
 }
 
@@ -123,59 +99,25 @@ func TestU_IncrementSerial(t *testing.T) {
 // CAKeyPath and CACertPath Tests
 // =============================================================================
 
-func TestU_Store_CACertPath_Legacy(t *testing.T) {
+func TestU_Store_CACertPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	// No cert.pem exists, should return ca.crt path
-	expected := filepath.Join(tmpDir, "ca.crt")
+	expected := filepath.Join(tmpDir, "cert.pem")
 	result := store.CACertPath()
 	if result != expected {
 		t.Errorf("CACertPath() = %s, want %s", result, expected)
 	}
 }
 
-func TestU_Store_CACertPath_NewFormat(t *testing.T) {
+func TestU_Store_CAKeyPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
 
-	// Create cert.pem
-	certPem := filepath.Join(tmpDir, "cert.pem")
-	if err := os.WriteFile(certPem, []byte("dummy"), 0644); err != nil {
-		t.Fatalf("failed to create cert.pem: %v", err)
-	}
-
-	result := store.CACertPath()
-	if result != certPem {
-		t.Errorf("CACertPath() = %s, want %s", result, certPem)
-	}
-}
-
-func TestU_Store_CAKeyPath_Legacy(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// No key.pem exists, should return private/ca.key path
-	expected := filepath.Join(tmpDir, "private", "ca.key")
+	expected := filepath.Join(tmpDir, "key.pem")
 	result := store.CAKeyPath()
 	if result != expected {
 		t.Errorf("CAKeyPath() = %s, want %s", result, expected)
-	}
-}
-
-func TestU_Store_CAKeyPath_NewFormat(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create key.pem
-	keyPem := filepath.Join(tmpDir, "key.pem")
-	if err := os.WriteFile(keyPem, []byte("dummy"), 0644); err != nil {
-		t.Fatalf("failed to create key.pem: %v", err)
-	}
-
-	result := store.CAKeyPath()
-	if result != keyPem {
-		t.Errorf("CAKeyPath() = %s, want %s", result, keyPem)
 	}
 }
 
@@ -184,7 +126,7 @@ func TestU_Store_CertPath(t *testing.T) {
 	store := NewFileStore(tmpDir)
 
 	serial := []byte{0x01, 0x02, 0x03}
-	expected := filepath.Join(tmpDir, "certs", "010203.crt")
+	expected := filepath.Join(tmpDir, "issued", "010203.pem")
 	result := store.CertPath(serial)
 	if result != expected {
 		t.Errorf("CertPath() = %s, want %s", result, expected)
@@ -421,7 +363,7 @@ func TestU_Store_LoadCrossSignedCerts_WithCerts(t *testing.T) {
 	cert, _ := x509.ParseCertificate(certDER)
 
 	// Save cross-signed cert
-	crossCertPath := filepath.Join(crossDir, "cross-ecdsa.crt")
+	crossCertPath := filepath.Join(crossDir, "cross-ecdsa.pem")
 	if err := store.SaveCertAt(context.Background(), crossCertPath, cert); err != nil {
 		t.Fatalf("SaveCertAt() error = %v", err)
 	}
@@ -449,21 +391,6 @@ func TestU_Store_Exists_NoCA(t *testing.T) {
 	}
 }
 
-func TestU_Store_Exists_LegacyCA(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create legacy ca.crt
-	caCrt := filepath.Join(tmpDir, "ca.crt")
-	if err := os.WriteFile(caCrt, []byte("dummy"), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	if !store.Exists() {
-		t.Error("Exists() should return true for legacy CA")
-	}
-}
-
 func TestU_Store_Exists_VersionedCA(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := NewFileStore(tmpDir)
@@ -478,25 +405,6 @@ func TestU_Store_Exists_VersionedCA(t *testing.T) {
 
 	if !store.Exists() {
 		t.Error("Exists() should return true for versioned CA")
-	}
-}
-
-func TestU_Store_Exists_OldVersioned(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create old versioned structure (active/ca.crt)
-	activeDir := filepath.Join(tmpDir, "active")
-	if err := os.MkdirAll(activeDir, 0755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-	activeCert := filepath.Join(activeDir, "ca.crt")
-	if err := os.WriteFile(activeCert, []byte("dummy"), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	if !store.Exists() {
-		t.Error("Exists() should return true for old versioned CA")
 	}
 }
 
@@ -716,50 +624,6 @@ func TestU_Store_LoadCACert_LegacyCA(t *testing.T) {
 	}
 	if cert.Subject.CommonName != "Test Legacy CA" {
 		t.Errorf("Subject.CommonName = %s, want Test Legacy CA", cert.Subject.CommonName)
-	}
-}
-
-func TestU_Store_LoadCACert_OldVersioned(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := NewFileStore(tmpDir)
-
-	// Create old versioned structure
-	activeDir := filepath.Join(tmpDir, "active")
-	if err := os.MkdirAll(activeDir, 0755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-
-	// Create a test certificate
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	template := &x509.Certificate{
-		SerialNumber: createTestSerial(),
-		Subject:      pkix.Name{CommonName: "Test Old Versioned CA"},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		IsCA:         true,
-	}
-	certDER, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	cert, _ := x509.ParseCertificate(certDER)
-
-	// Save to active/ca.crt
-	activeCert := filepath.Join(activeDir, "ca.crt")
-	if err := store.SaveCertAt(context.Background(), activeCert, cert); err != nil {
-		t.Fatalf("SaveCertAt() error = %v", err)
-	}
-
-	// Create versions.json to trigger old versioned path
-	versionsFile := filepath.Join(tmpDir, "versions.json")
-	if err := os.WriteFile(versionsFile, []byte("{}"), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	// Load CA cert
-	loadedCert, err := store.LoadCACert(context.Background())
-	if err != nil {
-		t.Fatalf("LoadCACert() error = %v", err)
-	}
-	if loadedCert.Subject.CommonName != "Test Old Versioned CA" {
-		t.Errorf("Subject.CommonName = %s, want Test Old Versioned CA", loadedCert.Subject.CommonName)
 	}
 }
 

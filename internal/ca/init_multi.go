@@ -6,8 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"math/big"
-	"os"
-	"path/filepath"
 
 	"github.com/qpki/qpki/internal/audit"
 	pkicrypto "github.com/qpki/qpki/internal/crypto"
@@ -129,9 +127,6 @@ func validateMultiProfileInitConfig(basePath string, cfg MultiProfileInitConfig)
 	}
 	if CAInfoExists(basePath) {
 		return fmt.Errorf("CA already exists at %s", basePath)
-	}
-	if _, err := os.Stat(filepath.Join(basePath, "ca.crt")); err == nil {
-		return fmt.Errorf("CA already exists at %s (legacy format)", basePath)
 	}
 	return nil
 }

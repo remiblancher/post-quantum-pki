@@ -462,7 +462,7 @@ func (vs *VersionStore) CertsDir(versionID string) string {
 
 // CrossSignedCertPath returns the path for a cross-signed certificate.
 func (vs *VersionStore) CrossSignedCertPath(versionID, signerVersionID string) string {
-	return filepath.Join(vs.VersionDir(versionID), "cross-signed", fmt.Sprintf("by-%s.crt", signerVersionID))
+	return filepath.Join(vs.VersionDir(versionID), "cross-signed", fmt.Sprintf("by-%s.pem", signerVersionID))
 }
 
 // Init initializes the version store.

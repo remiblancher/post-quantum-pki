@@ -110,7 +110,7 @@ func (s *FileStore) NextCRLNumber(ctx context.Context) ([]byte, error) {
 	}
 
 	// Increment for next use
-	next := incrementSerial(num)
+	next := incrementBytes(num)
 	if err := os.WriteFile(crlNumPath, []byte(hex.EncodeToString(next)+"\n"), 0644); err != nil {
 		return nil, err
 	}
@@ -352,4 +352,21 @@ func (s *FileStore) ListCRLAlgorithms() ([]string, error) {
 	}
 
 	return algos, nil
+}
+
+// incrementBytes increments a big-endian byte slice by 1.
+// Used for CRL number generation (which is sequential per spec).
+func incrementBytes(b []byte) []byte {
+	result := make([]byte, len(b))
+	copy(result, b)
+
+	for i := len(result) - 1; i >= 0; i-- {
+		result[i]++
+		if result[i] != 0 {
+			return result
+		}
+	}
+
+	// Overflow - prepend a byte
+	return append([]byte{1}, result...)
 }

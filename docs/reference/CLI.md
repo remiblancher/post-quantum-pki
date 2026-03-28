@@ -252,7 +252,7 @@ qpki inspect <file>
 
 ```bash
 # Inspect a certificate (shows subject, issuer, validity, extensions)
-qpki inspect server.crt
+qpki inspect server.pem
 
 # Inspect a CSR (shows subject, signature algorithm, verification)
 qpki inspect request.csr
