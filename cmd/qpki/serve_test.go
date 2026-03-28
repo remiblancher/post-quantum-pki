@@ -146,12 +146,12 @@ func TestU_ApplyServeEnvVars(t *testing.T) {
 		resetServeFlags()
 
 		// Ensure env vars are unset
-		os.Unsetenv("QPKI_PORT")
-		os.Unsetenv("QPKI_OCSP_PORT")
-		os.Unsetenv("QPKI_TSA_PORT")
-		os.Unsetenv("QPKI_CA_DIR")
-		os.Unsetenv("QPKI_TLS_CERT")
-		os.Unsetenv("QPKI_TLS_KEY")
+		_ = os.Unsetenv("QPKI_PORT")
+		_ = os.Unsetenv("QPKI_OCSP_PORT")
+		_ = os.Unsetenv("QPKI_TSA_PORT")
+		_ = os.Unsetenv("QPKI_CA_DIR")
+		_ = os.Unsetenv("QPKI_TLS_CERT")
+		_ = os.Unsetenv("QPKI_TLS_KEY")
 
 		applyServeEnvVars()
 
@@ -175,7 +175,7 @@ func TestU_HandleOCSP(t *testing.T) {
 	handleOCSP(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotImplemented {
 		t.Errorf("expected status 501, got %d", resp.StatusCode)
@@ -194,7 +194,7 @@ func TestU_HandleTSA(t *testing.T) {
 	handleTSA(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotImplemented {
 		t.Errorf("expected status 501, got %d", resp.StatusCode)

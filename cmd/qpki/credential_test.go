@@ -1699,7 +1699,7 @@ func TestF_Credential_Enroll_VarAndVarFileMutex(t *testing.T) {
 	resetCredentialFlags()
 
 	varFile := tc.path("vars.yaml")
-	os.WriteFile(varFile, []byte("cn: test.local\ndns_names: test.local\n"), 0644)
+	_ = os.WriteFile(varFile, []byte("cn: test.local\ndns_names: test.local\n"), 0644)
 
 	_, err := executeCommand(rootCmd, "credential", "enroll",
 		"--ca-dir", caDir,

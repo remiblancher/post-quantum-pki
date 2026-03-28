@@ -48,8 +48,8 @@ func TestF_RootCmd_AuditLogFromEnv(t *testing.T) {
 	auditPath := tc.path("audit-env.log")
 
 	oldEnv := os.Getenv("PKI_AUDIT_LOG")
-	os.Setenv("PKI_AUDIT_LOG", auditPath)
-	defer os.Setenv("PKI_AUDIT_LOG", oldEnv)
+	_ = os.Setenv("PKI_AUDIT_LOG", auditPath)
+	defer func() { _ = os.Setenv("PKI_AUDIT_LOG", oldEnv) }()
 
 	oldAuditLogPath := auditLogPath
 	defer func() { auditLogPath = oldAuditLogPath }()

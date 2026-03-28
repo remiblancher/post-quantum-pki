@@ -13,7 +13,6 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -599,7 +598,7 @@ func TestU_classicalKeyInfo_RSA(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *rsa.PublicKey")
 	}
-	if rsaPub.N.Cmp(key.PublicKey.N) != 0 {
+	if rsaPub.N.Cmp(key.N) != 0 {
 		t.Error("public key mismatch")
 	}
 }
@@ -886,34 +885,4 @@ func TestU_issuerEqualFieldByField_MultiAttribute(t *testing.T) {
 	if issuerEqualFieldByField(a, c) {
 		t.Error("expected different multi-attribute RDNs to be not equal")
 	}
-}
-
-// =============================================================================
-// Helper: generate a self-signed cert with a custom issuer for testing
-// =============================================================================
-
-func generateTestCertWithIssuer(t *testing.T, subject pkix.Name) *x509.Certificate {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("failed to generate key: %v", err)
-	}
-	serial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	template := &x509.Certificate{
-		SerialNumber:          serial,
-		Subject:               subject,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-	}
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	if err != nil {
-		t.Fatalf("failed to create certificate: %v", err)
-	}
-	cert, err := x509.ParseCertificate(certDER)
-	if err != nil {
-		t.Fatalf("failed to parse certificate: %v", err)
-	}
-	return cert
 }
