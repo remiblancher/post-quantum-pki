@@ -236,7 +236,7 @@ generate_protocol_fixtures() {
     # 3. OCSP Response (good status) - use TLS cert serial
     if [ -n "$TLS_CERT" ] && [ -n "$OCSP_CERT" ] && [ -n "$OCSP_KEY" ]; then
         # Extract serial from text output: "  Serial Number:  02"
-        local SERIAL=$("$PKI" inspect "$TLS_CERT" 2>/dev/null | grep "Serial Number:" | awk '{print $NF}' || echo "")
+        local SERIAL=$("$PKI" inspect "$TLS_CERT" 2>/dev/null | { grep "Serial Number:" || true; } | awk '{print $NF}')
         if [ -n "$SERIAL" ]; then
             "$PKI" ocsp sign --serial "$SERIAL" --status good \
                 --ca "$CA_DIR/ca.crt" \

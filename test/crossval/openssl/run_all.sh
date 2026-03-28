@@ -42,7 +42,7 @@ set_result() {
 get_result() {
     local tc_id="$1"
     local result
-    result=$(grep "^${tc_id}=" "$RESULTS_FILE" 2>/dev/null | tail -1 | cut -d= -f2)
+    result=$(grep "^${tc_id}=" "$RESULTS_FILE" 2>/dev/null | tail -1 | cut -d= -f2 || true)
     echo "${result:-N/A}"
 }
 
@@ -156,9 +156,12 @@ echo ""
 # This script only exports JSON results for the consolidated report
 
 # Count results first for executive summary
-TOTAL_PASS=$(grep -c '=PASS$' "$RESULTS_FILE" 2>/dev/null || echo 0)
-TOTAL_FAIL=$(grep -c '=FAIL$' "$RESULTS_FILE" 2>/dev/null || echo 0)
-TOTAL_SKIP=$(grep -c '=SKIP$' "$RESULTS_FILE" 2>/dev/null || echo 0)
+TOTAL_PASS=$(grep -c '=PASS$' "$RESULTS_FILE" 2>/dev/null || true)
+TOTAL_FAIL=$(grep -c '=FAIL$' "$RESULTS_FILE" 2>/dev/null || true)
+TOTAL_SKIP=$(grep -c '=SKIP$' "$RESULTS_FILE" 2>/dev/null || true)
+TOTAL_PASS=${TOTAL_PASS:-0}
+TOTAL_FAIL=${TOTAL_FAIL:-0}
+TOTAL_SKIP=${TOTAL_SKIP:-0}
 TOTAL_TESTS=$((TOTAL_PASS + TOTAL_FAIL + TOTAL_SKIP))
 
 # Build summary content with executive summary
