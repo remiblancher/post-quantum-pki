@@ -156,9 +156,9 @@ echo ""
 # This script only exports JSON results for the consolidated report
 
 # Count results first for executive summary
-TOTAL_PASS=$(grep '=PASS$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
-TOTAL_FAIL=$(grep '=FAIL$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
-TOTAL_SKIP=$(grep '=SKIP$' "$RESULTS_FILE" 2>/dev/null | wc -l | tr -d ' ')
+TOTAL_PASS=$(grep -c '=PASS$' "$RESULTS_FILE" 2>/dev/null || echo 0)
+TOTAL_FAIL=$(grep -c '=FAIL$' "$RESULTS_FILE" 2>/dev/null || echo 0)
+TOTAL_SKIP=$(grep -c '=SKIP$' "$RESULTS_FILE" 2>/dev/null || echo 0)
 TOTAL_TESTS=$((TOTAL_PASS + TOTAL_FAIL + TOTAL_SKIP))
 
 # Build summary content with executive summary
