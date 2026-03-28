@@ -74,7 +74,9 @@ type Token struct {
 
 // CreateToken creates a timestamp token from a request.
 func CreateToken(ctx context.Context, req *TimeStampReq, config *TokenConfig, serialGen SerialGenerator) (*Token, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if config.Certificate == nil {
 		return nil, fmt.Errorf("certificate is required")
 	}

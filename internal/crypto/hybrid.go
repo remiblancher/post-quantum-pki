@@ -193,12 +193,16 @@ func (h *HybridSignerImpl) SaveHybridKeys(classicalPath, pqcPath string, passphr
 
 // SaveHybridKeyBundle saves both keys to a single PEM file (bundle format).
 // The file contains two PEM blocks: first classical, then PQC.
-func (h *HybridSignerImpl) SaveHybridKeyBundle(path string, passphrase []byte) error {
+func (h *HybridSignerImpl) SaveHybridKeyBundle(path string, passphrase []byte) (retErr error) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create bundle file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to close key file: %w", cerr)
+		}
+	}()
 
 	// Write classical key
 	classicalSS, ok := h.classical.(*SoftwareSigner)

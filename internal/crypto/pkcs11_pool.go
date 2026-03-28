@@ -131,7 +131,9 @@ func (p *PKCS11SessionPool) Acquire() (pkcs11.SessionHandle, func(), error) {
 		if p.pin != "" && !p.loginDone {
 			if err := p.ctx.Login(session, pkcs11.CKU_USER, p.pin); err != nil {
 				if e, ok := err.(pkcs11.Error); !ok || e != pkcs11.CKR_USER_ALREADY_LOGGED_IN {
-					_ = p.ctx.CloseSession(session)
+					if closeErr := p.ctx.CloseSession(session); closeErr != nil {
+						return 0, nil, fmt.Errorf("failed to login: %w; also failed to close session: %v", err, closeErr)
+					}
 					return 0, nil, fmt.Errorf("failed to login: %w", err)
 				}
 			}

@@ -47,7 +47,9 @@ type LinkedCertRequest struct {
 //
 // The related certificate must be valid and issued by the same CA (or a trusted CA).
 func (ca *CA) IssueLinked(ctx context.Context, req LinkedCertRequest) (*x509.Certificate, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if ca.signer == nil {
 		return nil, fmt.Errorf("CA signer not loaded - call LoadSigner first")
 	}

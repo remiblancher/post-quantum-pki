@@ -48,7 +48,9 @@ type CatalystRequest struct {
 //
 // The CA must be initialized with a HybridSigner to issue Catalyst certificates.
 func (ca *CA) IssueCatalyst(ctx context.Context, req CatalystRequest) (*x509.Certificate, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	hybridSigner, err := ca.validateCatalystSigner()
 	if err != nil {
 		return nil, err

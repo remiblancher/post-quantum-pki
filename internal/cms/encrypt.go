@@ -67,7 +67,9 @@ const (
 //   - ECDSA/EC: Uses ECDH with ANSI X9.63 KDF and AES Key Wrap
 //   - ML-KEM: Uses ML-KEM encapsulation with HKDF and AES Key Wrap
 func Encrypt(ctx context.Context, data []byte, opts *EncryptOptions) ([]byte, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if opts == nil {
 		opts = &EncryptOptions{}
 	}
@@ -85,7 +87,9 @@ func Encrypt(ctx context.Context, data []byte, opts *EncryptOptions) ([]byte, er
 // Used for authenticated encryption (AES-GCM).
 // The GCM authentication tag is stored in the MAC field.
 func EncryptAuthEnveloped(ctx context.Context, data []byte, opts *EncryptOptions) ([]byte, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if opts == nil {
 		opts = &EncryptOptions{}
 	}

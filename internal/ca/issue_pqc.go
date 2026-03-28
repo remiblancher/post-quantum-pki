@@ -288,7 +288,9 @@ func extractPQCPublicKey(cert *x509.Certificate) ([]byte, error) {
 // Go's crypto/x509.CreateCertificate doesn't support PQC keys, so we construct the
 // certificate DER manually. This works with both classical and PQC CA signers.
 func (ca *CA) IssuePQC(ctx context.Context, req IssueRequest) (*x509.Certificate, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := ca.validateSignerLoaded(); err != nil {
 		return nil, err
 	}
@@ -438,7 +440,7 @@ func (ca *CA) prepareTBSInput(req IssueRequest, template *x509.Certificate) (*tb
 }
 
 // computeSKID computes the subject key ID from a public key.
-func computeSKID(pub interface{}) ([]byte, error) {
+func computeSKID(pub any) ([]byte, error) {
 	pubBytes, err := getPublicKeyBytes(pub)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get public key bytes: %w", err)
@@ -536,7 +538,7 @@ func (ca *CA) saveCertAndAudit(cert *x509.Certificate) (*x509.Certificate, error
 
 // encodeSubjectPublicKeyInfo encodes a public key to SubjectPublicKeyInfo structure.
 // Returns the algorithm identifier and the full public key info for embedding in TBSCertificate.
-func encodeSubjectPublicKeyInfo(pub interface{}) (publicKeyInfo, error) {
+func encodeSubjectPublicKeyInfo(pub any) (publicKeyInfo, error) {
 	switch key := pub.(type) {
 	case *pkicrypto.MLDSA44PublicKey:
 		pubBytes := key.Bytes()
@@ -648,7 +650,7 @@ func encodeSubjectPublicKeyInfo(pub interface{}) (publicKeyInfo, error) {
 }
 
 // getPublicKeyBytes extracts the raw public key bytes for SKID calculation.
-func getPublicKeyBytes(pub interface{}) ([]byte, error) {
+func getPublicKeyBytes(pub any) ([]byte, error) {
 	switch key := pub.(type) {
 	case *pkicrypto.MLDSA44PublicKey:
 		return key.Bytes(), nil
@@ -1179,7 +1181,7 @@ func (ca *CA) IsPQCSigner() bool {
 
 // IsPQCPublicKey returns true if the public key is a PQC key type.
 // This is used to determine if manual DER construction is needed for issuing certificates.
-func IsPQCPublicKey(pub interface{}) bool {
+func IsPQCPublicKey(pub any) bool {
 	switch pub.(type) {
 	case *pkicrypto.MLDSA44PublicKey,
 		*pkicrypto.MLDSA65PublicKey,

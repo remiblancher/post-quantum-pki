@@ -45,7 +45,10 @@ func runCertInfo(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid serial number: %w", err)
 	}
 
-	absDir, _ := filepath.Abs(certInfoCADir)
+	absDir, err := filepath.Abs(certInfoCADir)
+	if err != nil {
+		return fmt.Errorf("invalid CA directory path: %w", err)
+	}
 	store := ca.NewFileStore(absDir)
 
 	if !store.Exists() {

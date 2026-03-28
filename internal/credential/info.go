@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -266,7 +267,9 @@ func (vs *VersionStore) migrateFromVersionsJSON() error {
 	// Remove old active/ directory if it exists (no longer needed)
 	activeDir := filepath.Join(vs.basePath, "active")
 	if vs.exists(activeDir) {
-		_ = os.RemoveAll(activeDir)
+		if err := os.RemoveAll(activeDir); err != nil {
+			log.Printf("warning: failed to remove old active directory: %v", err)
+		}
 	}
 
 	// Remove versions.json
@@ -325,7 +328,9 @@ func (vs *VersionStore) migrateFromRootAlgoDirs() error {
 	for _, filename := range []string{"certificates.pem", "private-keys.pem"} {
 		srcFile := filepath.Join(vs.basePath, filename)
 		if vs.exists(srcFile) {
-			_ = os.Remove(srcFile)
+			if err := os.Remove(srcFile); err != nil {
+				log.Printf("warning: failed to remove old %s: %v", filename, err)
+			}
 		}
 	}
 
@@ -419,7 +424,9 @@ func (vs *VersionStore) migrateVersionAlgoFamilies(versionID string) ([]string, 
 			}
 		}
 
-		_ = os.Remove(algoDirPath)
+		if err := os.Remove(algoDirPath); err != nil {
+			log.Printf("warning: failed to remove old algo directory %s: %v", algoDirPath, err)
+		}
 		migratedAlgos = append(migratedAlgos, algoFamily)
 	}
 	return migratedAlgos, nil

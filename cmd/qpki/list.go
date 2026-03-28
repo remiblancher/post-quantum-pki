@@ -47,7 +47,10 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	absDir, _ := filepath.Abs(listCADir)
+	absDir, err := filepath.Abs(listCADir)
+	if err != nil {
+		return fmt.Errorf("invalid CA directory path: %w", err)
+	}
 	store := ca.NewFileStore(absDir)
 
 	if !store.Exists() {

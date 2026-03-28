@@ -396,7 +396,13 @@ func GenerateCredentialID(cn string) string {
 
 	// Add random suffix
 	randBytes := make([]byte, 3)
-	_, _ = rand.Read(randBytes)
+	if _, err := rand.Read(randBytes); err != nil {
+		// CSPRNG failure is catastrophic — fall back to nanosecond timestamp
+		nano := time.Now().UnixNano()
+		randBytes[0] = byte(nano >> 16)
+		randBytes[1] = byte(nano >> 8)
+		randBytes[2] = byte(nano)
+	}
 	suffix := hex.EncodeToString(randBytes)
 
 	return fmt.Sprintf("%s-%s-%s", slug, date, suffix)

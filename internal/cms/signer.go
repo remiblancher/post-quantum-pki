@@ -78,7 +78,9 @@ func selectDigestForSigner(signer crypto.Signer, cert *x509.Certificate) crypto.
 
 // Sign creates a CMS SignedData structure.
 func Sign(ctx context.Context, content []byte, config *SignerConfig) ([]byte, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if config.Certificate == nil {
 		return nil, fmt.Errorf("certificate is required")
 	}

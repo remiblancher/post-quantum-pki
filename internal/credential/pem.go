@@ -2,7 +2,11 @@ package credential
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -271,14 +275,18 @@ func parsePrivateKeyBlock(block *pem.Block, passphrase []byte) (*pkicrypto.Softw
 // classicalKeyInfo returns algorithm and public key for classical keys.
 func classicalKeyInfo(priv crypto.PrivateKey) (pkicrypto.AlgorithmID, crypto.PublicKey) {
 	switch k := priv.(type) {
-	case interface{ Public() crypto.PublicKey }:
-		pub := k.Public()
-		// Determine algorithm from key type
-		switch pub.(type) {
-		case *interface{}:
-			// Handle various key types
+	case *rsa.PrivateKey:
+		return pkicrypto.AlgRSA2048, &k.PublicKey
+	case *ecdsa.PrivateKey:
+		switch k.Curve {
+		case elliptic.P256():
+			return pkicrypto.AlgECDSAP256, &k.PublicKey
+		case elliptic.P384():
+			return pkicrypto.AlgECDSAP384, &k.PublicKey
 		}
-		return pkicrypto.AlgECDSAP256, pub // Default
+		return "", nil
+	case ed25519.PrivateKey:
+		return pkicrypto.AlgEd25519, k.Public()
 	default:
 		return "", nil
 	}

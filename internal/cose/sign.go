@@ -11,7 +11,9 @@ import (
 // IssueCWT creates a CWT (CBOR Web Token) with the given claims.
 // For hybrid mode, it creates a COSE Sign message with multiple signatures.
 func IssueCWT(ctx context.Context, config *CWTConfig) ([]byte, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	if config.Claims == nil {
 		return nil, fmt.Errorf("claims are required for CWT")
@@ -64,7 +66,9 @@ func IssueSign1(ctx context.Context, payload []byte, config *MessageConfig) ([]b
 
 // issueSign1 creates a COSE Sign1 message.
 func issueSign1(ctx context.Context, payload []byte, config *MessageConfig) ([]byte, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	// Determine which signer to use
 	signer := config.Signer
@@ -127,7 +131,9 @@ func IssueSign(ctx context.Context, payload []byte, config *MessageConfig) ([]by
 
 // issueSign creates a COSE Sign message with multiple signatures.
 func issueSign(ctx context.Context, payload []byte, config *MessageConfig) ([]byte, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	if config.Signer == nil && config.PQCSigner == nil {
 		return nil, fmt.Errorf("at least one signer is required")

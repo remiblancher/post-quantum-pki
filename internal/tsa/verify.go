@@ -55,7 +55,9 @@ type VerifyResult struct {
 
 // Verify verifies a timestamp token.
 func Verify(ctx context.Context, tokenData []byte, config *VerifyConfig) (*VerifyResult, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	// Parse the token
 	token, err := ParseToken(tokenData)
 	if err != nil {
