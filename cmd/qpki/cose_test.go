@@ -4,6 +4,10 @@ import (
 	"encoding/pem"
 	"os"
 	"testing"
+
+	gocose "github.com/veraison/go-cose"
+
+	"github.com/qpki/qpki/internal/cose"
 )
 
 // Note: t.Parallel() is not used because Cobra commands share global flag state.
@@ -347,4 +351,328 @@ func resetCOSESignFlags() {
 	coseSignKeyID = ""
 	coseSignCredential = ""
 	coseSignCredDir = "./credentials"
+}
+
+// =============================================================================
+// COSE Sign + Verify Round Trip
+// =============================================================================
+
+func TestF_COSE_SignVerify_CWT(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	outputPath := tc.path("token.cbor")
+
+	// Sign CWT
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--sub", "user-42",
+		"--aud", "https://audience.example.com",
+		"--exp", "1h",
+		"--cert", certPath,
+		"--key", keyPath,
+		"--out", outputPath,
+	})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose sign failed: %v", err)
+	}
+
+	// Verify CWT
+	coseVerifyCert = ""
+	coseVerifyCA = ""
+	coseVerifyData = ""
+	coseVerifyNoCheckExp = false
+
+	rootCmd.SetArgs([]string{"cose", "verify",
+		outputPath,
+		"--cert", certPath,
+		"--no-check-exp",
+	})
+	err = rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose verify failed: %v", err)
+	}
+}
+
+func TestF_COSE_SignVerify_Sign1(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	dataPath := tc.writeFile("data.txt", "Test content for signing")
+	outputPath := tc.path("signed.cbor")
+
+	// Sign
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "sign1",
+		"--data", dataPath,
+		"--cert", certPath,
+		"--key", keyPath,
+		"--out", outputPath,
+	})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose sign failed: %v", err)
+	}
+
+	// Verify
+	coseVerifyCert = ""
+	coseVerifyCA = ""
+	coseVerifyData = ""
+	coseVerifyNoCheckExp = false
+
+	rootCmd.SetArgs([]string{"cose", "verify",
+		outputPath,
+		"--cert", certPath,
+	})
+	err = rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose verify failed: %v", err)
+	}
+}
+
+// =============================================================================
+// COSE Info Round Trip
+// =============================================================================
+
+func TestF_COSE_Info_CWT(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	outputPath := tc.path("token.cbor")
+
+	// Create a CWT first
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--sub", "user-42",
+		"--exp", "1h",
+		"--cert", certPath,
+		"--key", keyPath,
+		"--out", outputPath,
+	})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose sign failed: %v", err)
+	}
+
+	// Get info
+	rootCmd.SetArgs([]string{"cose", "info", outputPath})
+	err = rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose info failed: %v", err)
+	}
+}
+
+// =============================================================================
+// COSE Sign With Include Certs
+// =============================================================================
+
+func TestF_COSE_Sign_WithIncludeCerts(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	outputPath := tc.path("token.cbor")
+
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--sub", "user-42",
+		"--exp", "1h",
+		"--cert", certPath,
+		"--key", keyPath,
+		"--include-certs",
+		"--out", outputPath,
+	})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("cose sign with include-certs failed: %v", err)
+	}
+
+	assertFileExists(t, outputPath)
+}
+
+// =============================================================================
+// COSE Sign Error Cases
+// =============================================================================
+
+func TestF_COSE_Sign_InvalidClaimFormat(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	outputPath := tc.path("token.cbor")
+
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--claim", "badformat",
+		"--cert", certPath,
+		"--key", keyPath,
+		"--out", outputPath,
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose sign should fail with invalid claim format")
+	}
+}
+
+func TestF_COSE_Sign_NonIntegerClaimKey(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	outputPath := tc.path("token.cbor")
+
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--claim", "notanumber=value",
+		"--cert", certPath,
+		"--key", keyPath,
+		"--out", outputPath,
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose sign should fail with non-integer claim key")
+	}
+}
+
+func TestF_COSE_Sign_NoSigningKey(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	outputPath := tc.path("token.cbor")
+
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--out", outputPath,
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose sign should fail without signing key")
+	}
+}
+
+func TestF_COSE_Sign_InvalidExpDuration(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	certPath, keyPath := tc.setupSigningPair()
+	outputPath := tc.path("token.cbor")
+
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--exp", "notaduration",
+		"--cert", certPath,
+		"--key", keyPath,
+		"--out", outputPath,
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose sign should fail with invalid expiration duration")
+	}
+}
+
+func TestF_COSE_Sign_CertNotFound(t *testing.T) {
+	tc := newTestContext(t)
+	resetCOSESignFlags()
+
+	outputPath := tc.path("token.cbor")
+
+	rootCmd.SetArgs([]string{"cose", "sign",
+		"--type", "cwt",
+		"--iss", "https://issuer.example.com",
+		"--cert", tc.path("nonexistent.crt"),
+		"--key", tc.path("nonexistent.key"),
+		"--out", outputPath,
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose sign should fail with nonexistent cert")
+	}
+}
+
+// =============================================================================
+// COSE Verify Error Cases
+// =============================================================================
+
+func TestF_COSE_Verify_InvalidData(t *testing.T) {
+	tc := newTestContext(t)
+	coseVerifyCert = ""
+	coseVerifyCA = ""
+	coseVerifyData = ""
+	coseVerifyNoCheckExp = false
+
+	invalidPath := tc.writeFile("invalid.cbor", "not valid CBOR data")
+
+	rootCmd.SetArgs([]string{"cose", "verify", invalidPath})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose verify should fail with invalid data")
+	}
+}
+
+func TestF_COSE_Info_InvalidData(t *testing.T) {
+	tc := newTestContext(t)
+
+	invalidPath := tc.writeFile("invalid.cbor", "not valid CBOR data")
+
+	rootCmd.SetArgs([]string{"cose", "info", invalidPath})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("cose info should fail with invalid data")
+	}
+}
+
+// =============================================================================
+// printCOSEVerificationResult Unit Test
+// =============================================================================
+
+func TestU_PrintCOSEVerificationResult(t *testing.T) {
+	// Just test that it doesn't panic with various inputs
+	t.Run("valid result", func(t *testing.T) {
+		result := &cose.VerifyResult{
+			Valid:      true,
+			Mode:       cose.ModeClassical,
+			Algorithms: []gocose.Algorithm{gocose.AlgorithmES256},
+		}
+		printCOSEVerificationResult(result) // should not panic
+	})
+
+	t.Run("invalid result with warnings", func(t *testing.T) {
+		result := &cose.VerifyResult{
+			Valid:      false,
+			Mode:       cose.ModeClassical,
+			Algorithms: []gocose.Algorithm{gocose.AlgorithmES256},
+			Warnings:   []string{"signature mismatch", "expired"},
+		}
+		printCOSEVerificationResult(result) // should not panic
+	})
+
+	t.Run("result with claims", func(t *testing.T) {
+		claims := cose.NewClaims()
+		claims.Issuer = "https://issuer.example.com"
+		claims.Subject = "user-42"
+		result := &cose.VerifyResult{
+			Valid:      true,
+			Mode:       cose.ModeClassical,
+			Algorithms: []gocose.Algorithm{gocose.AlgorithmES256},
+			Claims:     claims,
+		}
+		printCOSEVerificationResult(result) // should not panic
+	})
 }

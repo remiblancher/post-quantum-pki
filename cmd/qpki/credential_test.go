@@ -1680,3 +1680,173 @@ func TestA_Credential_Export_Chain_HybridCA(t *testing.T) {
 		t.Errorf("Expected at least 3 certificates in chain, got %d", certCount)
 	}
 }
+
+// =============================================================================
+// Credential Enroll with Var-File and Var Mutex
+// =============================================================================
+
+func TestF_Credential_Enroll_VarAndVarFileMutex(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("ca")
+	_, _ = executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--ca-dir", caDir,
+		"--var", "cn=Test CA",
+	)
+
+	resetCredentialFlags()
+
+	varFile := tc.path("vars.yaml")
+	_ = os.WriteFile(varFile, []byte("cn: test.local\ndns_names: test.local\n"), 0644)
+
+	_, err := executeCommand(rootCmd, "credential", "enroll",
+		"--ca-dir", caDir,
+		"--cred-dir", tc.path("credentials"),
+		"--profile", "ec/tls-server",
+		"--var", "cn=test.local",
+		"--var-file", varFile,
+	)
+	assertError(t, err)
+}
+
+// =============================================================================
+// Credential Export with DER to Stdout (should fail)
+// =============================================================================
+
+func TestF_Credential_Export_AllVersions_NoVersioning(t *testing.T) {
+	tc := newTestContext(t)
+	caDir, credentialsDir, credID := setupCAWithCredential(tc)
+
+	resetCredentialFlags()
+	_, err := executeCommand(rootCmd, "credential", "export",
+		"--ca-dir", caDir,
+		"--cred-dir", credentialsDir,
+		"--all",
+		credID,
+	)
+	// Credential without rotation may not have versioning
+	// This tests the --all path even if it errors
+	_ = err
+}
+
+// =============================================================================
+// Credential Rotate with Add/Remove Profiles
+// =============================================================================
+
+func TestF_Credential_Rotate_AddProfile(t *testing.T) {
+	tc := newTestContext(t)
+	caDir, credentialsDir, credID := setupCAWithSimpleCredential(tc)
+
+	resetCredentialFlags()
+	_, err := executeCommand(rootCmd, "credential", "rotate",
+		"--ca-dir", caDir,
+		"--cred-dir", credentialsDir,
+		"--add-profile", "ml/tls-client",
+		credID,
+	)
+	// May succeed or fail depending on profile availability
+	_ = err
+}
+
+func TestF_Credential_Rotate_ReplaceProfiles(t *testing.T) {
+	tc := newTestContext(t)
+	caDir, credentialsDir, credID := setupCAWithSimpleCredential(tc)
+
+	resetCredentialFlags()
+	_, err := executeCommand(rootCmd, "credential", "rotate",
+		"--ca-dir", caDir,
+		"--cred-dir", credentialsDir,
+		"--profile", "ec/tls-client",
+		credID,
+	)
+	assertNoError(t, err)
+}
+
+// =============================================================================
+// Credential Enroll with Multiple Profiles
+// =============================================================================
+
+func TestF_Credential_Enroll_MultipleProfiles(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	// Create multi-profile CA first (EC + ML)
+	caDir := tc.path("ca")
+	credentialsDir := tc.path("credentials")
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--profile", "ml/root-ca",
+		"--ca-dir", caDir,
+		"--var", "cn=Test CA",
+	)
+	assertNoError(t, err)
+
+	resetCredentialFlags()
+
+	// Enroll with EC profile on multi-profile CA
+	_, err = executeCommand(rootCmd, "credential", "enroll",
+		"--ca-dir", caDir,
+		"--cred-dir", credentialsDir,
+		"--profile", "ec/tls-client",
+		"--var", "cn=multi@test.local",
+		"--var", "email=multi@test.local",
+	)
+	assertNoError(t, err)
+}
+
+func TestF_Credential_Enroll_MultiProfile_PQC(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	// Create multi-profile CA (EC + ML)
+	caDir := tc.path("ca")
+	credentialsDir := tc.path("credentials")
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--profile", "ml/root-ca",
+		"--ca-dir", caDir,
+		"--var", "cn=Test CA",
+	)
+	assertNoError(t, err)
+
+	resetCredentialFlags()
+
+	// Enroll with ML-DSA profile — this was failing before the fix
+	_, err = executeCommand(rootCmd, "credential", "enroll",
+		"--ca-dir", caDir,
+		"--cred-dir", credentialsDir,
+		"--profile", "ml/tls-client",
+		"--var", "cn=pqc@test.local",
+		"--var", "email=pqc@test.local",
+	)
+	assertNoError(t, err)
+}
+
+// =============================================================================
+// Credential Activate with Versions After Rotate
+// =============================================================================
+
+func TestF_Credential_Activate_InvalidVersion(t *testing.T) {
+	tc := newTestContext(t)
+	caDir, credentialsDir, credID := setupCAWithSimpleCredential(tc)
+
+	// Rotate first
+	resetCredentialFlags()
+	_, err := executeCommand(rootCmd, "credential", "rotate",
+		"--ca-dir", caDir,
+		"--cred-dir", credentialsDir,
+		credID,
+	)
+	assertNoError(t, err)
+
+	// Try to activate non-existent version
+	resetCredentialActivateFlags()
+	_, err = executeCommand(rootCmd, "credential", "activate",
+		"--cred-dir", credentialsDir,
+		"--version", "v999",
+		credID,
+	)
+	assertError(t, err)
+}

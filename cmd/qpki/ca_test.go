@@ -1285,3 +1285,213 @@ func TestF_CA_Rotate_MultiProfile_InvalidProfile(t *testing.T) {
 
 	assertError(t, err)
 }
+
+// =============================================================================
+// CA Helper Unit Tests
+// =============================================================================
+
+func TestU_CopyHSMConfig(t *testing.T) {
+	tc := newTestContext(t)
+
+	// Create source file
+	srcPath := tc.writeFile("hsm-src.yaml", "pkcs11:\n  lib: /usr/lib/softhsm.so\n  token: test\n")
+	dstPath := tc.path("hsm-dst.yaml")
+
+	err := copyHSMConfig(srcPath, dstPath)
+	assertNoError(t, err)
+	assertFileExists(t, dstPath)
+
+	// Verify content matches
+	srcData, _ := os.ReadFile(srcPath)
+	dstData, _ := os.ReadFile(dstPath)
+	if string(srcData) != string(dstData) {
+		t.Errorf("copyHSMConfig: destination content doesn't match source")
+	}
+}
+
+func TestU_CopyHSMConfig_SrcNotFound(t *testing.T) {
+	tc := newTestContext(t)
+
+	err := copyHSMConfig(tc.path("nonexistent.yaml"), tc.path("dst.yaml"))
+	assertError(t, err)
+}
+
+// =============================================================================
+// CA Init Multi-Profile Tests
+// =============================================================================
+
+func TestF_CA_Init_MultiProfile(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	caDir := tc.path("multi-ca")
+
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--profile", "ml/root-ca",
+		"--ca-dir", caDir,
+		"--var", "cn=Multi-Profile CA",
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, filepath.Join(caDir, "ca.meta.json"))
+}
+
+func TestF_CA_Init_MultiProfile_VarAndVarFileMutex(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	varFilePath := tc.writeFile("vars.yaml", "cn: Test CA\n")
+
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--profile", "ml/root-ca",
+		"--ca-dir", tc.path("ca"),
+		"--var", "cn=Test CA",
+		"--var-file", varFilePath,
+	)
+
+	assertError(t, err)
+}
+
+// =============================================================================
+// CA Init Subordinate With Passphrase
+// =============================================================================
+
+func TestF_CA_Init_Subordinate_WithPassphrase(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	rootDir := tc.path("root-ca")
+	subDir := tc.path("sub-ca")
+
+	// Create root CA with passphrase
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--var", "cn=Root CA",
+		"--profile", "ec/root-ca",
+		"--ca-dir", rootDir,
+		"--passphrase", "rootsecret",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Create subordinate CA
+	_, err = executeCommand(rootCmd, "ca", "init",
+		"--var", "cn=Issuing CA",
+		"--profile", "ec/issuing-ca",
+		"--ca-dir", subDir,
+		"--parent", rootDir,
+		"--parent-passphrase", "rootsecret",
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, filepath.Join(subDir, "ca.meta.json"))
+	assertFileExists(t, filepath.Join(subDir, "chain.pem"))
+}
+
+func TestF_CA_Init_Subordinate_WrongParentPassphrase(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	rootDir := tc.path("root-ca")
+	subDir := tc.path("sub-ca")
+
+	// Create root CA with passphrase
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--var", "cn=Root CA",
+		"--profile", "ec/root-ca",
+		"--ca-dir", rootDir,
+		"--passphrase", "rootsecret",
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Create subordinate CA with wrong passphrase
+	_, err = executeCommand(rootCmd, "ca", "init",
+		"--var", "cn=Issuing CA",
+		"--profile", "ec/issuing-ca",
+		"--ca-dir", subDir,
+		"--parent", rootDir,
+		"--parent-passphrase", "wrongpassword",
+	)
+
+	assertError(t, err)
+}
+
+// =============================================================================
+// CA Init with Var-File
+// =============================================================================
+
+func TestF_CA_Init_WithVarFile(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	varFilePath := tc.writeFile("vars.yaml", "cn: Var File CA\norganization: Test Org\ncountry: FR\n")
+	caDir := tc.path("ca")
+
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--ca-dir", caDir,
+		"--var-file", varFilePath,
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, filepath.Join(caDir, "ca.meta.json"))
+}
+
+func TestF_CA_Init_VarAndVarFileMutex(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	varFilePath := tc.writeFile("vars.yaml", "cn: Test CA\n")
+
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--profile", "ec/root-ca",
+		"--ca-dir", tc.path("ca"),
+		"--var", "cn=Test CA",
+		"--var-file", varFilePath,
+	)
+
+	assertError(t, err)
+}
+
+func TestF_CA_Export_BundleChain(t *testing.T) {
+	tc := newTestContext(t)
+	resetCAFlags()
+
+	rootDir := tc.path("root-ca")
+	subDir := tc.path("sub-ca")
+
+	// Create root CA
+	_, err := executeCommand(rootCmd, "ca", "init",
+		"--var", "cn=Root CA",
+		"--profile", "ec/root-ca",
+		"--ca-dir", rootDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	// Create subordinate CA
+	_, err = executeCommand(rootCmd, "ca", "init",
+		"--var", "cn=Issuing CA",
+		"--profile", "ec/issuing-ca",
+		"--ca-dir", subDir,
+		"--parent", rootDir,
+	)
+	assertNoError(t, err)
+
+	resetCAFlags()
+
+	outPath := tc.path("chain.pem")
+	_, err = executeCommand(rootCmd, "ca", "export",
+		"--ca-dir", subDir,
+		"--bundle", "chain",
+		"--out", outPath,
+	)
+
+	assertNoError(t, err)
+	assertFileExists(t, outPath)
+}

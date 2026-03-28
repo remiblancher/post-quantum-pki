@@ -48,6 +48,10 @@ type IssueRequest struct {
 
 	// HybridPolicy is the hybrid verification policy.
 	HybridPolicy x509util.HybridPolicy
+
+	// AlgoFamily selects a specific algorithm family's signer/cert in multi-profile CAs.
+	// If empty, uses the default signer.
+	AlgoFamily string
 }
 
 // prepareTemplate initializes the certificate template with issuer and extensions.
@@ -156,6 +160,18 @@ func (ca *CA) Issue(ctx context.Context, req IssueRequest) (*x509.Certificate, e
 	}
 	if ca.signer == nil {
 		return nil, fmt.Errorf("CA signer not loaded - call LoadSigner first")
+	}
+
+	// For multi-profile CAs, select the right signer/cert for the requested algo family
+	if req.AlgoFamily != "" && ca.signers != nil {
+		if s, ok := ca.signers[req.AlgoFamily]; ok {
+			origSigner, origCert := ca.signer, ca.cert
+			ca.signer = s
+			if c, ok := ca.certs[req.AlgoFamily]; ok {
+				ca.cert = c
+			}
+			defer func() { ca.signer, ca.cert = origSigner, origCert }()
+		}
 	}
 
 	// For PQC signers or PQC subject keys, use manual DER construction

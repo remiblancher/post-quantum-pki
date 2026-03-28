@@ -34,6 +34,8 @@ func resetCSRFlags() {
 	csrGenHSMConfig = ""
 	csrGenKeyLabel = ""
 	csrGenKeyID = ""
+	csrGenAttestKeyLabel = ""
+	csrGenComposite = ""
 }
 
 // =============================================================================
@@ -922,4 +924,441 @@ func createTestCSR(t *testing.T, algorithm, commonName string) *x509.Certificate
 	}
 
 	return csr
+}
+
+// =============================================================================
+// buildCSRSubject Unit Tests
+// =============================================================================
+
+func TestU_BuildCSRSubject(t *testing.T) {
+	// Save and restore global flags
+	oldCN, oldOrg, oldCountry := csrGenCN, csrGenOrg, csrGenCountry
+	defer func() {
+		csrGenCN = oldCN
+		csrGenOrg = oldOrg
+		csrGenCountry = oldCountry
+	}()
+
+	t.Run("all fields set", func(t *testing.T) {
+		csrGenCN = "test.example.com"
+		csrGenOrg = "Test Org"
+		csrGenCountry = "FR"
+
+		subject := buildCSRSubject()
+		if subject.CommonName != "test.example.com" {
+			t.Errorf("CommonName = %v, want test.example.com", subject.CommonName)
+		}
+		if len(subject.Organization) != 1 || subject.Organization[0] != "Test Org" {
+			t.Errorf("Organization = %v, want [Test Org]", subject.Organization)
+		}
+		if len(subject.Country) != 1 || subject.Country[0] != "FR" {
+			t.Errorf("Country = %v, want [FR]", subject.Country)
+		}
+	})
+
+	t.Run("only CN", func(t *testing.T) {
+		csrGenCN = "test.local"
+		csrGenOrg = ""
+		csrGenCountry = ""
+
+		subject := buildCSRSubject()
+		if subject.CommonName != "test.local" {
+			t.Errorf("CommonName = %v, want test.local", subject.CommonName)
+		}
+		if len(subject.Organization) != 0 {
+			t.Errorf("Organization should be empty, got %v", subject.Organization)
+		}
+		if len(subject.Country) != 0 {
+			t.Errorf("Country should be empty, got %v", subject.Country)
+		}
+	})
+}
+
+// =============================================================================
+// parseCSRGenMode Unit Tests
+// =============================================================================
+
+func TestU_ParseCSRGenMode(t *testing.T) {
+	// Save and restore global flags
+	oldKey, oldAlg, oldHSM, oldAttestCert, oldAttestKey, oldHybrid, oldComposite := csrGenKey, csrGenAlgorithm, csrGenHSMConfig, csrGenAttestCert, csrGenAttestKey, csrGenHybridAlg, csrGenComposite
+	defer func() {
+		csrGenKey = oldKey
+		csrGenAlgorithm = oldAlg
+		csrGenHSMConfig = oldHSM
+		csrGenAttestCert = oldAttestCert
+		csrGenAttestKey = oldAttestKey
+		csrGenHybridAlg = oldHybrid
+		csrGenComposite = oldComposite
+	}()
+
+	t.Run("existing key mode", func(t *testing.T) {
+		csrGenKey = "key.pem"
+		csrGenAlgorithm = ""
+		csrGenHSMConfig = ""
+		csrGenAttestCert = ""
+		csrGenAttestKey = ""
+		csrGenHybridAlg = ""
+		csrGenComposite = ""
+
+		mode := parseCSRGenMode()
+		if !mode.hasKey {
+			t.Error("should detect key mode")
+		}
+		if mode.hasGen || mode.hasHSM || mode.hasAttest || mode.hasHybrid || mode.hasComposite {
+			t.Error("should not detect other modes")
+		}
+	})
+
+	t.Run("generate mode", func(t *testing.T) {
+		csrGenKey = ""
+		csrGenAlgorithm = "ecdsa-p256"
+		csrGenHSMConfig = ""
+		csrGenAttestCert = ""
+		csrGenAttestKey = ""
+		csrGenHybridAlg = ""
+		csrGenComposite = ""
+
+		mode := parseCSRGenMode()
+		if !mode.hasGen {
+			t.Error("should detect gen mode")
+		}
+		if mode.hasKey {
+			t.Error("should not detect key mode")
+		}
+	})
+
+	t.Run("HSM mode", func(t *testing.T) {
+		csrGenKey = ""
+		csrGenAlgorithm = "ecdsa-p256"
+		csrGenHSMConfig = "hsm.yaml"
+		csrGenAttestCert = ""
+		csrGenAttestKey = ""
+		csrGenHybridAlg = ""
+		csrGenComposite = ""
+
+		mode := parseCSRGenMode()
+		if !mode.hasHSM {
+			t.Error("should detect HSM mode")
+		}
+		if !mode.hasGen {
+			t.Error("should also detect gen mode")
+		}
+	})
+
+	t.Run("attest mode", func(t *testing.T) {
+		csrGenKey = ""
+		csrGenAlgorithm = "ml-kem-768"
+		csrGenHSMConfig = ""
+		csrGenAttestCert = "attest.crt"
+		csrGenAttestKey = "attest.key"
+		csrGenHybridAlg = ""
+		csrGenComposite = ""
+
+		mode := parseCSRGenMode()
+		if !mode.hasAttest {
+			t.Error("should detect attest mode")
+		}
+	})
+
+	t.Run("hybrid mode", func(t *testing.T) {
+		csrGenKey = ""
+		csrGenAlgorithm = "ecdsa-p256"
+		csrGenHSMConfig = ""
+		csrGenAttestCert = ""
+		csrGenAttestKey = ""
+		csrGenHybridAlg = "ml-dsa-65"
+		csrGenComposite = ""
+
+		mode := parseCSRGenMode()
+		if !mode.hasHybrid {
+			t.Error("should detect hybrid mode")
+		}
+	})
+
+	t.Run("composite mode", func(t *testing.T) {
+		csrGenKey = ""
+		csrGenAlgorithm = "ecdsa-p384"
+		csrGenHSMConfig = ""
+		csrGenAttestCert = ""
+		csrGenAttestKey = ""
+		csrGenHybridAlg = ""
+		csrGenComposite = "ml-dsa-87"
+
+		mode := parseCSRGenMode()
+		if !mode.hasComposite {
+			t.Error("should detect composite mode")
+		}
+	})
+}
+
+// =============================================================================
+// CSR Gen with IP SANs
+// =============================================================================
+
+func TestF_Cert_CSR_WithIPSANs(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("server.key")
+	csrOut := tc.path("server.csr")
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", keyOut,
+		"--cn", "server.example.com",
+		"--ip", "192.168.1.1",
+		"--ip", "10.0.0.1",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, csrOut)
+}
+
+// =============================================================================
+// CSR Gen with All Subject Fields + SANs
+// =============================================================================
+
+func TestF_Cert_CSR_FullSubjectAndSANs(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("server.key")
+	csrOut := tc.path("server.csr")
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "ecdsa-p384",
+		"--keyout", keyOut,
+		"--cn", "server.example.com",
+		"--org", "Example Inc",
+		"--country", "US",
+		"--dns", "server.example.com",
+		"--dns", "www.example.com",
+		"--email", "admin@example.com",
+		"--ip", "10.0.0.1",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, keyOut)
+	assertFileExists(t, csrOut)
+}
+
+// =============================================================================
+// CSR Gen with Key Passphrase
+// =============================================================================
+
+func TestF_Cert_CSR_WithKeyPassphrase(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("server.key")
+	csrOut := tc.path("server.csr")
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", keyOut,
+		"--key-passphrase", "secret123",
+		"--cn", "server.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, keyOut)
+	assertFileExists(t, csrOut)
+}
+
+// =============================================================================
+// Composite CSR Tests
+// =============================================================================
+
+func TestF_Cert_CSR_Composite_ECDSA_MLDSA(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	classicalKeyOut := tc.path("classical.key")
+	pqcKeyOut := tc.path("pqc.key")
+	csrOut := tc.path("composite.csr")
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", classicalKeyOut,
+		"--composite", "ml-dsa-65",
+		"--hybrid-keyout", pqcKeyOut,
+		"--cn", "composite.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, classicalKeyOut)
+	assertFileExists(t, pqcKeyOut)
+	assertFileExists(t, csrOut)
+}
+
+func TestF_Cert_CSR_Composite_MissingKeyout(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "ecdsa-p256",
+		"--composite", "ml-dsa-65",
+		"--hybrid-keyout", tc.path("pqc.key"),
+		"--cn", "composite.example.com",
+		"--out", tc.path("composite.csr"),
+	)
+	assertError(t, err)
+}
+
+func TestF_Cert_CSR_Composite_MissingHybridKeyout(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "ecdsa-p256",
+		"--keyout", tc.path("classical.key"),
+		"--composite", "ml-dsa-65",
+		"--cn", "composite.example.com",
+		"--out", tc.path("composite.csr"),
+	)
+	assertError(t, err)
+}
+
+// =============================================================================
+// validateMutualExclusivity Direct Tests
+// =============================================================================
+
+func TestU_ValidateMutualExclusivity(t *testing.T) {
+	tests := []struct {
+		name    string
+		mode    csrGenMode
+		wantErr bool
+	}{
+		{
+			name:    "key + hsm mutually exclusive",
+			mode:    csrGenMode{hasKey: true, hasHSM: true},
+			wantErr: true,
+		},
+		{
+			name:    "key only is fine",
+			mode:    csrGenMode{hasKey: true},
+			wantErr: false,
+		},
+		{
+			name:    "gen only is fine",
+			mode:    csrGenMode{hasGen: true},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMutualExclusivity(tt.mode)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateMutualExclusivity() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// validateCSROptionalFlags Attestation Tests
+// =============================================================================
+
+func TestU_ValidateCSROptionalFlags(t *testing.T) {
+	// Save and restore global flags
+	oldAttestCert := csrGenAttestCert
+	oldAttestKey := csrGenAttestKey
+	oldAttestKeyLabel := csrGenAttestKeyLabel
+	oldHSMConfig := csrGenHSMConfig
+	oldHybridKeyOut := csrGenHybridKeyOut
+	defer func() {
+		csrGenAttestCert = oldAttestCert
+		csrGenAttestKey = oldAttestKey
+		csrGenAttestKeyLabel = oldAttestKeyLabel
+		csrGenHSMConfig = oldHSMConfig
+		csrGenHybridKeyOut = oldHybridKeyOut
+	}()
+
+	t.Run("attest without attest-cert", func(t *testing.T) {
+		csrGenAttestCert = ""
+		csrGenAttestKey = "key.pem"
+		csrGenAttestKeyLabel = ""
+		csrGenHSMConfig = ""
+		csrGenHybridKeyOut = ""
+
+		err := validateCSROptionalFlags(csrGenMode{hasAttest: true})
+		if err == nil {
+			t.Error("should fail without attest-cert")
+		}
+	})
+
+	t.Run("attest without any key", func(t *testing.T) {
+		csrGenAttestCert = "cert.pem"
+		csrGenAttestKey = ""
+		csrGenAttestKeyLabel = ""
+		csrGenHSMConfig = ""
+		csrGenHybridKeyOut = ""
+
+		err := validateCSROptionalFlags(csrGenMode{hasAttest: true})
+		if err == nil {
+			t.Error("should fail without attest-key or attest-key-label")
+		}
+	})
+
+	t.Run("attest with both key types", func(t *testing.T) {
+		csrGenAttestCert = "cert.pem"
+		csrGenAttestKey = "key.pem"
+		csrGenAttestKeyLabel = "label"
+		csrGenHSMConfig = "hsm.yaml"
+		csrGenHybridKeyOut = ""
+
+		err := validateCSROptionalFlags(csrGenMode{hasAttest: true})
+		if err == nil {
+			t.Error("should fail with both attest-key and attest-key-label")
+		}
+	})
+
+	t.Run("attest-key-label without hsm-config", func(t *testing.T) {
+		csrGenAttestCert = "cert.pem"
+		csrGenAttestKey = ""
+		csrGenAttestKeyLabel = "label"
+		csrGenHSMConfig = ""
+		csrGenHybridKeyOut = ""
+
+		err := validateCSROptionalFlags(csrGenMode{hasAttest: true})
+		if err == nil {
+			t.Error("should fail when attest-key-label is used without hsm-config")
+		}
+	})
+
+	t.Run("valid file-based attestation", func(t *testing.T) {
+		csrGenAttestCert = "cert.pem"
+		csrGenAttestKey = "key.pem"
+		csrGenAttestKeyLabel = ""
+		csrGenHSMConfig = ""
+		csrGenHybridKeyOut = ""
+
+		err := validateCSROptionalFlags(csrGenMode{hasAttest: true})
+		if err != nil {
+			t.Errorf("should not fail with valid attestation flags: %v", err)
+		}
+	})
+}
+
+// =============================================================================
+// CSR Gen with SLH-DSA
+// =============================================================================
+
+func TestF_Cert_CSR_SLHDSA(t *testing.T) {
+	tc := newTestContext(t)
+	resetCSRFlags()
+
+	keyOut := tc.path("slhdsa.key")
+	csrOut := tc.path("slhdsa.csr")
+
+	_, err := executeCommand(rootCmd, "csr", "gen",
+		"--algorithm", "slh-dsa-sha2-128f",
+		"--keyout", keyOut,
+		"--cn", "slhdsa.example.com",
+		"--out", csrOut,
+	)
+	assertNoError(t, err)
+	assertFileExists(t, keyOut)
+	assertFileExists(t, csrOut)
 }

@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"crypto/x509"
 	"fmt"
 	"path/filepath"
 
@@ -18,9 +19,14 @@ func (ca *CA) LoadSigner(passphrase string) error {
 	if ca.info != nil {
 		activeVer := ca.info.ActiveVersion()
 		if activeVer != nil && len(activeVer.Algos) > 0 {
-			// Check for hybrid (has multiple algos with one classical + one PQC)
+			// Check for hybrid (has KeyRefs with "classical" and "pqc" roles)
 			if ca.isHybridFromInfo() {
 				return ca.loadHybridSignerFromInfo(passphrase, passphrase)
+			}
+
+			// Multi-profile CA: load all signers independently
+			if len(activeVer.Algos) > 1 {
+				return ca.loadMultiProfileSigners(passphrase)
 			}
 
 			// Single key CA - use KeyRef (supports HSM and software keys)
@@ -73,26 +79,13 @@ func (ca *CA) LoadSigner(passphrase string) error {
 	return nil
 }
 
-// isHybridFromInfo checks if this is a hybrid CA (has both classical and PQC algos).
+// isHybridFromInfo checks if this is a hybrid CA (has KeyRefs with "classical" and "pqc" roles).
+// This distinguishes hybrid/catalyst CAs from multi-profile CAs which have independent keys per algorithm.
 func (ca *CA) isHybridFromInfo() bool {
 	if ca.info == nil {
 		return false
 	}
-	activeVer := ca.info.ActiveVersion()
-	if activeVer == nil || len(activeVer.Algos) < 2 {
-		return false
-	}
-	// Check if we have both classical and PQC
-	hasClassical := false
-	hasPQC := false
-	for _, algo := range activeVer.Algos {
-		if isClassicalAlgo(algo) {
-			hasClassical = true
-		} else {
-			hasPQC = true
-		}
-	}
-	return hasClassical && hasPQC
+	return ca.info.IsHybrid()
 }
 
 // isClassicalAlgo returns true if the algo is a classical algorithm.
@@ -111,6 +104,42 @@ func isClassicalAlgo(algo string) bool {
 	default:
 		return false
 	}
+}
+
+// loadMultiProfileSigners loads all signers and certificates for a multi-profile CA.
+// Each algorithm family gets its own independent signer and certificate.
+func (ca *CA) loadMultiProfileSigners(passphrase string) error {
+	activeVer := ca.info.ActiveVersion()
+	ca.signers = make(map[string]pkicrypto.Signer)
+	ca.certs = make(map[string]*x509.Certificate)
+
+	for _, algo := range activeVer.Algos {
+		keyPath := ca.info.KeyPath(ca.info.Active, algo)
+		signer, err := pkicrypto.LoadPrivateKey(keyPath, []byte(passphrase))
+		if err != nil {
+			_ = audit.LogAuthFailed(ca.store.BasePath(), fmt.Sprintf("failed to load %s CA key", algo))
+			return fmt.Errorf("failed to load %s CA key: %w", algo, err)
+		}
+		ca.signers[algo] = signer
+
+		certPath := ca.info.CertPath(ca.info.Active, algo)
+		cert, err := loadCertFromPath(certPath)
+		if err != nil {
+			return fmt.Errorf("failed to load %s CA cert: %w", algo, err)
+		}
+		ca.certs[algo] = cert
+	}
+
+	// Set default signer/cert to first algo for backward compatibility
+	firstAlgo := activeVer.Algos[0]
+	ca.signer = ca.signers[firstAlgo]
+	ca.cert = ca.certs[firstAlgo]
+
+	if err := audit.LogKeyAccessed(ca.store.BasePath(), true, "Multi-profile CA signing keys loaded"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // loadHybridSignerFromInfo loads both classical and PQC keys from CAInfo.
