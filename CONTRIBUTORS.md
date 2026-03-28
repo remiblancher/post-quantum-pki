@@ -11,3 +11,4 @@ See [GitHub Contributors](https://github.com/qpki/qpki/graphs/contributors)
 | Name | Contribution |
 |------|--------------|
 | [@elias2t](https://github.com/elias2t) | QLAB acceptance testing |
+| [@saoullabit](https://github.com/saoullabit) | Security code review (#123) |
