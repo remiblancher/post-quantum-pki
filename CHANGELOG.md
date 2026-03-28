@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-03-28
+
+### Fixed
+- **Multi-profile CA**: PQC certificate issuance now works on multi-profile CAs (ec + ml-dsa). `isHybridFromInfo()` was incorrectly treating multi-profile CAs as hybrid, creating a broken combined signer. Now uses content-based detection via `CAInfo.IsHybrid()` which checks KeyRef roles instead of algorithm name heuristics (#128)
+- **Security**: Use cryptographically random serial numbers for all certificates (CSPRNG via `crypto/rand`) (#124)
+- **Security**: Fix panic in library code, logic bug in key type detection, ignored ASN.1 error (#123)
+- **Security**: Fix silent error handling in revocation, rotation, migration, PKCS#11, and CLI (#123)
+- Address lint warnings in test files (errcheck, unused functions, staticcheck QF1008)
+
+### Changed
+- **CA architecture**: `CA` struct now supports multiple independent signers via `signers`/`certs` maps, enabling multi-profile CAs to issue certificates with the correct algorithm-specific signer
+- **Issue API**: `IssueRequest` gains `AlgoFamily` field to route signing to the correct signer in multi-profile CAs
+- **File paths**: Rename issued certs directory `certs/` → `issued/`, normalize all certificate extensions to `.pem`, remove legacy fallback code (#127)
+
+### Testing
+- **cmd/qpki**: 63.4% → 70.9% — new tests for SSH, serve, HSM, COSE, CSR, CA, credential, main
+- **internal/cli**: 51.3% → 65.7% — tests for print functions, CA loading, enrollment, export, CRL
+- **internal/ca**: 74.7% → 75.9% — tests for multi-profile signers, KeyRef accessors, version info
+- **internal/credential**: 77.4% → 84.1% — tests for version store, PEM decode, issuer comparison, directory helpers
+
 ## [0.18.0] - 2026-03-24
 
 ### Changed
