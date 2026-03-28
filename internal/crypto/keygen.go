@@ -733,7 +733,7 @@ func MLKEMPrivateKeyBytes(priv crypto.PrivateKey) ([]byte, error) {
 
 // SavePrivateKey saves the KEM private key to a PEM file in PKCS#8 format.
 // If passphrase is provided, the key is encrypted.
-func (kp *KEMKeyPair) SavePrivateKey(path string, passphrase []byte) error {
+func (kp *KEMKeyPair) SavePrivateKey(path string, passphrase []byte) (retErr error) {
 	privBytes, err := marshalMLKEMPrivateKeyPKCS8(kp.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to marshal private key to PKCS#8: %w", err)
@@ -756,7 +756,11 @@ func (kp *KEMKeyPair) SavePrivateKey(path string, passphrase []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to close key file: %w", cerr)
+		}
+	}()
 
 	if err := pem.Encode(f, pemBlock); err != nil {
 		return fmt.Errorf("failed to write PEM: %w", err)

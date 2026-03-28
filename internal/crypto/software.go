@@ -233,7 +233,7 @@ func VerifyWithOpts(alg AlgorithmID, pub crypto.PublicKey, message, signature []
 
 // SavePrivateKey saves the private key to a PEM file.
 // If passphrase is provided, the key is encrypted.
-func (s *SoftwareSigner) SavePrivateKey(path string, passphrase []byte) error {
+func (s *SoftwareSigner) SavePrivateKey(path string, passphrase []byte) (retErr error) {
 	var pemBlock *pem.Block
 
 	switch priv := s.priv.(type) {
@@ -293,7 +293,11 @@ func (s *SoftwareSigner) SavePrivateKey(path string, passphrase []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to close key file: %w", cerr)
+		}
+	}()
 
 	if err := pem.Encode(f, pemBlock); err != nil {
 		return fmt.Errorf("failed to write PEM: %w", err)

@@ -151,7 +151,7 @@ func findCertificateForSigner(certs []*x509.Certificate, signer pkicrypto.Signer
 }
 
 // publicKeysMatch compares two public keys for equality.
-func publicKeysMatch(pub1, pub2 interface{}) bool {
+func publicKeysMatch(pub1, pub2 any) bool {
 	// Use the crypto/subtle approach via marshaling
 	bytes1, err1 := x509.MarshalPKIXPublicKey(pub1)
 	bytes2, err2 := x509.MarshalPKIXPublicKey(pub2)
@@ -176,7 +176,7 @@ func publicKeysMatch(pub1, pub2 interface{}) bool {
 // LoadDecryptionKey loads a decryption key from a credential.
 // It looks for encryption certificates (RoleEncryption, RoleEncryptionClassical, RoleEncryptionPQC)
 // and returns the corresponding private key.
-func LoadDecryptionKey(ctx context.Context, store Store, credID string, passphrase []byte) (*x509.Certificate, interface{}, error) {
+func LoadDecryptionKey(ctx context.Context, store Store, credID string, passphrase []byte) (*x509.Certificate, any, error) {
 	// Load credential metadata
 	cred, err := store.Load(ctx, credID)
 	if err != nil {
@@ -326,7 +326,7 @@ func issuerEqualFieldByField(a, b pkix.RDNSequence) bool {
 }
 
 // asn1Unmarshal is a wrapper for encoding/asn1.Unmarshal.
-func asn1Unmarshal(data []byte, val interface{}) ([]byte, error) {
+func asn1Unmarshal(data []byte, val any) ([]byte, error) {
 	return asn1.Unmarshal(data, val)
 }
 
@@ -334,7 +334,7 @@ func asn1Unmarshal(data []byte, val interface{}) ([]byte, error) {
 // Unlike LoadDecryptionKey, this searches ALL versions of the credential,
 // not just the active one. This is essential for decrypting data that was
 // encrypted with an older key before a rotation.
-func FindDecryptionKeyByRecipient(ctx context.Context, store Store, credID string, matcher *RecipientMatcher, passphrase []byte) (*x509.Certificate, interface{}, error) {
+func FindDecryptionKeyByRecipient(ctx context.Context, store Store, credID string, matcher *RecipientMatcher, passphrase []byte) (*x509.Certificate, any, error) {
 	// Load credential metadata (just to verify it exists and isn't revoked)
 	cred, err := store.Load(ctx, credID)
 	if err != nil {
@@ -420,7 +420,7 @@ func FindAllDecryptionKeys(ctx context.Context, store Store, credID string, pass
 		for _, cert := range certs {
 			for _, signer := range signers {
 				if publicKeysMatch(cert.PublicKey, signer.Public()) {
-					var privKey interface{}
+					var privKey any
 					if ss, ok := signer.(*pkicrypto.SoftwareSigner); ok {
 						privKey = ss.PrivateKey()
 					} else if ks, ok := signer.(*pkicrypto.KEMSigner); ok {
@@ -452,7 +452,7 @@ type DecryptionKeyEntry struct {
 	Certificate *x509.Certificate
 
 	// PrivateKey is the corresponding private key.
-	PrivateKey interface{}
+	PrivateKey any
 
 	// IsActive indicates if this is from the currently active version.
 	IsActive bool

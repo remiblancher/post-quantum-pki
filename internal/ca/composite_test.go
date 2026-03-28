@@ -524,12 +524,15 @@ func TestU_CA_VerifyECDSA_WrongKeyType(t *testing.T) {
 	}
 }
 
-func TestU_CA_MustMarshal(t *testing.T) {
+func TestU_CA_MarshalASN1(t *testing.T) {
 	// Test with valid input
 	oid := asn1.ObjectIdentifier{1, 2, 3, 4}
-	data := mustMarshal(oid)
+	data, err := marshalASN1(oid)
+	if err != nil {
+		t.Fatalf("marshalASN1() returned error: %v", err)
+	}
 	if len(data) == 0 {
-		t.Error("mustMarshal() should return non-empty data")
+		t.Error("marshalASN1() should return non-empty data")
 	}
 }
 

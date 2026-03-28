@@ -49,7 +49,9 @@ type DecryptResult struct {
 // It finds the matching RecipientInfo for the provided private key,
 // decrypts the CEK, and then decrypts the content.
 func Decrypt(ctx context.Context, data []byte, opts *DecryptOptions) (*DecryptResult, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if opts == nil || opts.PrivateKey == nil {
 		return nil, fmt.Errorf("private key is required")
 	}
@@ -100,7 +102,9 @@ func Decrypt(ctx context.Context, data []byte, opts *DecryptOptions) (*DecryptRe
 // DecryptAuthEnveloped decrypts a CMS AuthEnvelopedData structure (RFC 5083).
 // For AES-GCM, the MAC field contains the authentication tag.
 func DecryptAuthEnveloped(ctx context.Context, data []byte, opts *DecryptOptions) (*DecryptResult, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if opts == nil || opts.PrivateKey == nil {
 		return nil, fmt.Errorf("private key is required")
 	}

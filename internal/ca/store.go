@@ -149,7 +149,9 @@ func (s *FileStore) CertPath(serial []byte) string {
 
 // SaveCACert saves the CA certificate to the store.
 func (s *FileStore) SaveCACert(ctx context.Context, cert *x509.Certificate) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	// Always save to cert.pem in new versioned structure
 	certPath := filepath.Join(s.basePath, "cert.pem")
 	return s.saveCert(certPath, cert)
@@ -158,7 +160,9 @@ func (s *FileStore) SaveCACert(ctx context.Context, cert *x509.Certificate) erro
 // LoadCACert loads the CA certificate from the store.
 // For versioned CAs, this loads from the active version directory.
 func (s *FileStore) LoadCACert(ctx context.Context) (*x509.Certificate, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	// Check if new format CA (has ca.json)
 	info, err := LoadCAInfo(s.basePath)
 	if err == nil && info != nil && info.Active != "" {
@@ -224,7 +228,9 @@ func (s *FileStore) getHybridCertPath(info *CAInfo, activeVer *CAVersion) string
 // For multi-profile CAs (separate algorithms), this returns one certificate per algorithm.
 // For simple CAs, this returns a single certificate (same as LoadCACert).
 func (s *FileStore) LoadAllCACerts(ctx context.Context) ([]*x509.Certificate, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	// Check if new format CA (has ca.json)
 	info, err := LoadCAInfo(s.basePath)
 	if err == nil && info != nil && info.Active != "" {
@@ -288,7 +294,9 @@ func (s *FileStore) LoadAllCACerts(ctx context.Context) ([]*x509.Certificate, er
 // Cross-signed certificates are stored in versions/{versionID}/cross-signed/.
 // Returns empty slice if no cross-signed certificates exist.
 func (s *FileStore) LoadCrossSignedCerts(ctx context.Context) ([]*x509.Certificate, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	info, err := LoadCAInfo(s.basePath)
 	if err != nil || info == nil || info.Active == "" {
 		return nil, nil // No versioned CA, no cross-certs
@@ -424,7 +432,9 @@ func (s *FileStore) saveCert(path string, cert *x509.Certificate) error {
 
 // SaveCertAt saves a certificate to a specific path.
 func (s *FileStore) SaveCertAt(ctx context.Context, path string, cert *x509.Certificate) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.saveCert(path, cert)
 }
 

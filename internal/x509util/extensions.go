@@ -543,7 +543,9 @@ func BuildPreTBSCertificate(rawTBS []byte) ([]byte, error) {
 				return nil, fmt.Errorf("failed to wrap extensions: %w", err)
 			}
 			var rewrapped asn1.RawValue
-			_, _ = asn1.Unmarshal(wrappedExt, &rewrapped)
+			if _, err := asn1.Unmarshal(wrappedExt, &rewrapped); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal wrapped extension: %w", err)
+			}
 			preTBSElements = append(preTBSElements, rewrapped)
 		} else {
 			preTBSElements = append(preTBSElements, elem)

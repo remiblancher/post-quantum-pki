@@ -186,10 +186,14 @@ func parseClassicalPublicKeyFromBytes(alg pkicrypto.AlgorithmID, data []byte) (c
 	}
 
 	// Build SPKI structure with EC public key
+	curveBytes, err := marshalASN1(curveOID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal curve OID: %w", err)
+	}
 	spki := publicKeyInfo{
 		Algorithm: pkix.AlgorithmIdentifier{
 			Algorithm:  x509util.OIDPublicKeyECDSA,
-			Parameters: asn1.RawValue{FullBytes: mustMarshal(curveOID)},
+			Parameters: asn1.RawValue{FullBytes: curveBytes},
 		},
 		PublicKey: asn1.BitString{
 			Bytes:     data,
@@ -206,13 +210,9 @@ func parseClassicalPublicKeyFromBytes(alg pkicrypto.AlgorithmID, data []byte) (c
 	return x509.ParsePKIXPublicKey(der)
 }
 
-// mustMarshal marshals a value or panics.
-func mustMarshal(v interface{}) []byte {
-	data, err := asn1.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return data
+// marshalASN1 marshals a value to ASN.1 DER encoding.
+func marshalASN1(v any) ([]byte, error) {
+	return asn1.Marshal(v)
 }
 
 // VerifyCompositeSignature verifies a Composite signature over arbitrary data.

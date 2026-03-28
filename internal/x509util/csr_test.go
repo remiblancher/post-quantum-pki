@@ -1140,12 +1140,15 @@ func TestU_hashForSignature_MLDSA(t *testing.T) {
 }
 
 // =============================================================================
-// mustMarshalBitString Tests
+// marshalBitString Tests
 // =============================================================================
 
-func TestU_mustMarshalBitString_Basic(t *testing.T) {
+func TestU_marshalBitString_Basic(t *testing.T) {
 	data := []byte{0x01, 0x02, 0x03}
-	result := mustMarshalBitString(data)
+	result, err := marshalBitString(data)
+	if err != nil {
+		t.Fatalf("marshalBitString() returned error: %v", err)
+	}
 
 	// ASN.1 BIT STRING: tag (0x03) + length + unused bits (0) + data
 	if len(result) == 0 {
@@ -1156,9 +1159,12 @@ func TestU_mustMarshalBitString_Basic(t *testing.T) {
 	}
 }
 
-func TestU_mustMarshalBitString_Empty(t *testing.T) {
+func TestU_marshalBitString_Empty(t *testing.T) {
 	data := []byte{}
-	result := mustMarshalBitString(data)
+	result, err := marshalBitString(data)
+	if err != nil {
+		t.Fatalf("marshalBitString() returned error: %v", err)
+	}
 
 	if len(result) == 0 {
 		t.Error("result should not be empty even for empty data")

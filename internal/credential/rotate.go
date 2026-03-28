@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -262,8 +263,10 @@ func RotateCredential(caInstance *ca.CA, ctx context.Context, credentialID strin
 		return nil, fmt.Errorf("failed to save credential: %w", err)
 	}
 
-	// Mark old credential as expired (non-fatal if it fails)
-	_ = credentialStore.UpdateStatus(ctx, credentialID, StatusExpired, "rotated")
+	// Mark old credential as expired (non-fatal: new credential is already saved)
+	if err := credentialStore.UpdateStatus(ctx, credentialID, StatusExpired, "rotated"); err != nil {
+		log.Printf("warning: credential rotated but failed to update old status: %v", err)
+	}
 
 	return result, nil
 }
@@ -508,11 +511,14 @@ func RevokeCredential(caInstance *ca.CA, ctx context.Context, credentialID strin
 		return fmt.Errorf("failed to load certificates: %w", err)
 	}
 
+	var revErrors []error
 	for _, cert := range certs {
 		if err := caInstance.Revoke(cert.SerialNumber.Bytes(), reason); err != nil {
-			// Log but continue with other certificates
-			continue
+			revErrors = append(revErrors, fmt.Errorf("serial %s: %w", cert.SerialNumber, err))
 		}
+	}
+	if len(revErrors) > 0 {
+		return fmt.Errorf("partial revocation failure: %v", revErrors)
 	}
 
 	// Update credential status

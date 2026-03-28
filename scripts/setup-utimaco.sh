@@ -18,7 +18,7 @@
 #   ./scripts/setup-utimaco.sh --setup-only # Setup without running tests
 #   ./scripts/setup-utimaco.sh --test-only  # Only run tests (assumes setup done)
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"

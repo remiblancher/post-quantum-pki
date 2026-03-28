@@ -228,7 +228,9 @@ func (s *FileStore) LoadSSHCert(ctx context.Context, serial uint64) (*ssh.Certif
 
 // SaveCAPublicKey saves the CA public key in authorized_keys format.
 func (s *FileStore) SaveCAPublicKey(ctx context.Context, pubKey ssh.PublicKey) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	pubPath := filepath.Join(s.basePath, "ssh-ca.pub")
 	data := ssh.MarshalAuthorizedKey(pubKey)
 	if err := os.WriteFile(pubPath, data, 0644); err != nil {
@@ -239,7 +241,9 @@ func (s *FileStore) SaveCAPublicKey(ctx context.Context, pubKey ssh.PublicKey) e
 
 // LoadCAPublicKey loads the CA public key.
 func (s *FileStore) LoadCAPublicKey(ctx context.Context) (ssh.PublicKey, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	pubPath := filepath.Join(s.basePath, "ssh-ca.pub")
 	data, err := os.ReadFile(pubPath)
 	if err != nil {
@@ -256,7 +260,9 @@ func (s *FileStore) LoadCAPublicKey(ctx context.Context) (ssh.PublicKey, error) 
 
 // SaveCAInfo saves the SSH CA metadata.
 func (s *FileStore) SaveCAInfo(ctx context.Context, info *CAInfo) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	metaPath := filepath.Join(s.basePath, "ssh-ca.meta.json")
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
@@ -270,7 +276,9 @@ func (s *FileStore) SaveCAInfo(ctx context.Context, info *CAInfo) error {
 
 // LoadCAInfo loads the SSH CA metadata.
 func (s *FileStore) LoadCAInfo(ctx context.Context) (*CAInfo, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	metaPath := filepath.Join(s.basePath, "ssh-ca.meta.json")
 	data, err := os.ReadFile(metaPath)
 	if err != nil {
@@ -285,7 +293,9 @@ func (s *FileStore) LoadCAInfo(ctx context.Context) (*CAInfo, error) {
 
 // AppendIndex appends a certificate entry to the index.
 func (s *FileStore) AppendIndex(ctx context.Context, entry IndexEntry) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -316,7 +326,9 @@ func (s *FileStore) AppendIndex(ctx context.Context, entry IndexEntry) error {
 
 // ReadIndex reads all index entries.
 func (s *FileStore) ReadIndex(ctx context.Context) ([]IndexEntry, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	indexPath := filepath.Join(s.basePath, "index.json")
 	data, err := os.ReadFile(indexPath)
 	if err != nil {
@@ -333,7 +345,9 @@ func (s *FileStore) ReadIndex(ctx context.Context) ([]IndexEntry, error) {
 
 // UpdateIndexStatus updates the status of an index entry by serial.
 func (s *FileStore) UpdateIndexStatus(ctx context.Context, serial uint64, status string) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -375,7 +389,9 @@ func (s *FileStore) UpdateIndexStatus(ctx context.Context, serial uint64, status
 
 // SaveKRL saves a KRL binary to the krl directory.
 func (s *FileStore) SaveKRL(ctx context.Context, data []byte) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	krlPath := filepath.Join(s.basePath, "krl", "krl.bin")
 	if err := os.WriteFile(krlPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to save KRL: %w", err)
@@ -385,7 +401,9 @@ func (s *FileStore) SaveKRL(ctx context.Context, data []byte) error {
 
 // LoadKRL loads the KRL binary.
 func (s *FileStore) LoadKRL(ctx context.Context) ([]byte, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	krlPath := filepath.Join(s.basePath, "krl", "krl.bin")
 	data, err := os.ReadFile(krlPath)
 	if err != nil {

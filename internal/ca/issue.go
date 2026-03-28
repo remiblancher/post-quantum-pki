@@ -151,7 +151,9 @@ func (ca *CA) signAndStoreCert(template *x509.Certificate, pubKey crypto.PublicK
 // Issue issues a new certificate.
 // For PQC CAs, this automatically delegates to IssuePQC() which uses manual DER construction.
 func (ca *CA) Issue(ctx context.Context, req IssueRequest) (*x509.Certificate, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if ca.signer == nil {
 		return nil, fmt.Errorf("CA signer not loaded - call LoadSigner first")
 	}

@@ -67,7 +67,9 @@ func checkDigestSecurityLevel(sigAlgOID asn1.ObjectIdentifier, digestAlg crypto.
 
 // Verify verifies a CMS SignedData signature.
 func Verify(ctx context.Context, signedDataDER []byte, config *VerifyConfig) (*VerifyResult, error) {
-	_ = ctx // TODO: use for cancellation
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if config == nil {
 		config = &VerifyConfig{}
 	}

@@ -165,11 +165,15 @@ func CreateHybridCSR(req HybridCSRRequest) (*HybridCSR, error) {
 			Type:   OIDAltSignatureAlgorithmAttr,
 			Values: []asn1.RawValue{{FullBytes: altSigAlgValue}},
 		},
-		{
-			Type:   OIDAltSignatureValueAttr,
-			Values: []asn1.RawValue{{FullBytes: mustMarshalBitString(pqcSig)}},
-		},
 	}
+	altSigBitString, err := marshalBitString(pqcSig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal alt signature: %w", err)
+	}
+	rawAttrs = append(rawAttrs, rawAttribute{
+		Type:   OIDAltSignatureValueAttr,
+		Values: []asn1.RawValue{{FullBytes: altSigBitString}},
+	})
 
 	// Also add extension request attribute if we have SANs
 	if len(req.DNSNames) > 0 || len(req.EmailAddresses) > 0 {
@@ -200,11 +204,10 @@ func CreateHybridCSR(req HybridCSRRequest) (*HybridCSR, error) {
 	}, nil
 }
 
-// mustMarshalBitString marshals data as an ASN.1 BIT STRING.
-func mustMarshalBitString(data []byte) []byte {
+// marshalBitString marshals data as an ASN.1 BIT STRING.
+func marshalBitString(data []byte) ([]byte, error) {
 	bs := asn1.BitString{Bytes: data, BitLength: len(data) * 8}
-	result, _ := asn1.Marshal(bs)
-	return result
+	return asn1.Marshal(bs)
 }
 
 // buildExtensionRequestAttr builds the extensionRequest attribute for SANs.
@@ -508,7 +511,11 @@ func parseHybridCSRAttributes(attrSetBytes []byte, hybrid *HybridCSR) {
 				alg, err := oidToAlgorithm(info.Algorithm.Algorithm)
 				if err == nil {
 					hybrid.AltAlgorithm = alg
-					hybrid.AltPublicKey, _ = pkicrypto.ParsePublicKey(alg, info.SubjectPublicKey.Bytes)
+					var parseErr error
+				hybrid.AltPublicKey, parseErr = pkicrypto.ParsePublicKey(alg, info.SubjectPublicKey.Bytes)
+				if parseErr != nil {
+					hybrid.AltPublicKey = nil // ensure nil on failure
+				}
 				}
 			}
 
