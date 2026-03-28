@@ -58,12 +58,14 @@ func TestF_Cert_Info_Basic(t *testing.T) {
 	)
 	assertNoError(t, err)
 
+	serialHex := getIssuedCertSerial(t, caDir)
+
 	resetCertInfoFlags()
 
-	// Get cert info (serial 02 = first issued cert, CA is 01)
+	// Get cert info by serial
 	_, err = executeCommand(rootCmd, "cert", "info",
 		"--ca-dir", caDir,
-		"02",
+		serialHex,
 	)
 
 	assertNoError(t, err)
